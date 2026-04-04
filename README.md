@@ -1,4 +1,4 @@
-# NIC - Sistema de Correção de Redações
+# Essaypro - Sistema de Correção de Redações
 
 ## Stack
 - **Backend**: FastAPI + MongoDB (Motor)
