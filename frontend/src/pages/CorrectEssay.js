@@ -648,7 +648,7 @@ export const CorrectEssay = () => {
               );
             })}
 
-            {(selectedTool === 'underline' || selectedTool === 'highlight' || selectedTool === 'pen') && (
+            {(selectedTool === 'underline' || selectedTool === 'highlight' || selectedTool === 'pen' || selectedTool === 'strikethrough') && (
               <>
                 <Separator orientation="vertical" className="h-6" />
                 <div className="flex gap-1">
@@ -775,7 +775,18 @@ export const CorrectEssay = () => {
                   }
                 }}
                 className="bg-white shadow-sm rounded-lg p-12 relative z-10"
-                style={{ fontSize: '18px', fontFamily: 'Lora, serif', lineHeight: '1.8', minHeight: '600px' }}
+                style={{
+                  fontSize: '18px',
+                  fontFamily: 'Lora, serif',
+                  lineHeight: '1.8',
+                  minHeight: '600px',
+                  cursor: selectedTool === 'strikethrough' ? 'crosshair'
+                        : selectedTool === 'underline' ? 'text'
+                        : selectedTool === 'highlight' ? 'text'
+                        : selectedTool === 'comment' ? 'text'
+                        : 'default',
+                  userSelect: selectedTool === 'select' ? 'none' : 'text',
+                }}
                 data-testid="essay-text"
                 suppressContentEditableWarning={true}
                 dangerouslySetInnerHTML={{ __html: essay.content ? essay.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível' }}
