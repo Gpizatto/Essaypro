@@ -249,7 +249,6 @@ async def logout(response: Response):
 async def get_prompts(current_user: dict = Depends(get_current_user)):
     prompts = await db.prompts.find({"is_active": True}, {"_id": 0}).to_list(1000)
     
-    # Adicionar critérios padrão se não existirem (retrocompatibilidade)
     default_criteria = [
         {"id": "c1", "nome": "Competência 1 — Domínio da Norma Culta", "descricao": "Demonstrar domínio da modalidade escrita formal da língua portuguesa", "peso_maximo": 200},
         {"id": "c2", "nome": "Competência 2 — Compreensão do Tema", "descricao": "Compreender a proposta de redação e aplicar conceitos das várias áreas de conhecimento", "peso_maximo": 200},
@@ -269,7 +268,6 @@ async def create_prompt(prompt_data: PromptCreate, current_user: dict = Depends(
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can create prompts")
     
-    # Default ENEM criteria if not provided
     default_criteria = [
         {"id": "c1", "nome": "Competência 1 — Domínio da Norma Culta", "descricao": "Demonstrar domínio da modalidade escrita formal da língua portuguesa", "peso_maximo": 200},
         {"id": "c2", "nome": "Competência 2 — Compreensão do Tema", "descricao": "Compreender a proposta de redação e aplicar conceitos das várias áreas de conhecimento", "peso_maximo": 200},
@@ -484,7 +482,6 @@ async def get_quick_comments(current_user: dict = Depends(get_current_user)):
     user = await db.users.find_one({"_id": ObjectId(current_user["_id"])}, {"_id": 0, "quick_comments": 1})
     comments = user.get("quick_comments", [])
     
-    # Migrar formato antigo (string) para novo formato (objeto)
     migrated_comments = []
     for comment in comments:
         if isinstance(comment, str):
@@ -498,7 +495,6 @@ async def get_quick_comments(current_user: dict = Depends(get_current_user)):
         else:
             migrated_comments.append(comment)
     
-    # Ordenar por use_count (mais usados primeiro)
     migrated_comments.sort(key=lambda x: x.get("use_count", 0), reverse=True)
     
     return {"quick_comments": migrated_comments}
@@ -560,8 +556,8 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
             "Retorne entre 3 e 15 erros. Seja preciso e util. Use portugues brasileiro."
         )
 
-        client = anthropic.AsyncAnthropic(api_key=llm_key)
-        message = await client.messages.create(
+        ai_client = anthropic.AsyncAnthropic(api_key=llm_key)
+        message = await ai_client.messages.create(
             model="claude-sonnet-4-20250514",
             max_tokens=2048,
             system=system_prompt,
@@ -571,7 +567,6 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
         )
         response_text = message.content[0].text
 
-        # Limpar o texto se vier com markdown
         response_text = response_text.strip()
         if response_text.startswith("```json"):
             response_text = response_text[7:]
@@ -704,7 +699,6 @@ async def startup_event():
         await db.prompts.insert_many(prompts)
         logger.info("Sample prompts created")
     
-    # Garantir que existam redacoes de exemplo pendentes para correcao
     sample_pending = await db.essays.count_documents({"status": "pending", "content": {"$regex": "^A educacao digital"}})
     if sample_pending == 0:
         student_user = await db.users.find_one({"email": "student@test.com"})
@@ -718,7 +712,7 @@ async def startup_event():
                         "id": str(ObjectId()),
                         "student_id": student_id,
                         "prompt_id": prompt_list[0]["id"],
-                        "content": "A educacao digital no Brasil enfrenta diversos desafios que precisam ser superados para garantir o acesso igualitario ao conhecimento. Com a pandemia de COVID-19, ficou evidente a enorme desigualdade existente entre estudantes de diferentes classes sociais no que diz respeito ao acesso a internet e dispositivos eletronicos.\n\nSegundo dados do IBGE, apenas metade dos domicilios brasileiros possui acesso a internet de qualidade suficiente para acompanhar aulas online. Essa realidade se agrava quando observamos as regioes mais pobres do pais, onde muitas familias sequer possuem smartphones ou computadores. Durante o periodo de isolamento social, muitos estudantes ficaram completamente excluidos do processo educacional.\n\nAlem da questao de infraestrutura, ha tambem o desafio da capacitacao dos professores para utilizar as tecnologias digitais de forma eficiente. Muitos educadores nao tiveram formacao adequada para ministrar aulas remotas e utilizar plataformas digitais, o que comprometeu a qualidade do ensino oferecido.\n\nE fundamental que o governo brasileiro invista massivamente em politicas publicas que democratizem o acesso a tecnologia. Isso inclui a distribuicao de equipamentos, a expansao da banda larga para regioes remotas e a capacitacao continua dos professores.\n\nPortanto, a educacao digital no Brasil so sera verdadeiramente democratica quando todos os estudantes, independentemente de sua condicao socioeconomica, tiverem as mesmas oportunidades de acesso aos recursos tecnologicos e ao conhecimento de qualidade.",
+                        "content": "A educacao digital no Brasil enfrenta diversos desafios que precisam ser superados para garantir o acesso igualitario ao conhecimento.",
                         "submission_method": "editor",
                         "file_url": None,
                         "status": "pending",
@@ -728,7 +722,7 @@ async def startup_event():
                         "id": str(ObjectId()),
                         "student_id": student_id,
                         "prompt_id": prompt_list[1]["id"],
-                        "content": "As redes sociais transformaram profundamente a forma como nos comunicamos e nos relacionamos, mas tambem trouxeram consequencias negativas para a saude mental dos jovens brasileiros. O uso excessivo dessas plataformas tem sido associado ao aumento de casos de ansiedade, depressao e baixa autoestima entre adolescentes e jovens adultos.\n\nUm dos principais problemas e a cultura da comparacao constante. Nas redes sociais, as pessoas tendem a mostrar apenas os aspectos positivos de suas vidas, criando uma realidade distorcida que leva outros usuarios a se sentirem inadequados ou fracassados. Essa pressao por uma vida perfeita afeta especialmente os jovens, que estao em fase de formacao da identidade.\n\nEstudos cientificos demonstram que o uso prolongado de smartphones e redes sociais esta relacionado a disturbios do sono, dificuldade de concentracao e problemas de relacionamento interpessoal. O fenomeno do FOMO (fear of missing out - medo de ficar de fora) faz com que muitos jovens sintam necessidade compulsiva de estar sempre conectados e atualizados.\n\nE necessario que escolas e familias trabalhem juntas para educar os jovens sobre o uso consciente das redes sociais. Campanhas de conscientizacao sobre saude mental digital devem ser implementadas, e os proprios aplicativos deveriam incluir ferramentas que ajudem os usuarios a controlar o tempo de uso.\n\nEm conclusao, embora as redes sociais sejam ferramentas importantes de comunicacao, e essencial que a sociedade brasileira desenvolva uma relacao mais saudavel e equilibrada com essas plataformas, priorizando o bem-estar mental dos jovens.",
+                        "content": "As redes sociais transformaram profundamente a forma como nos comunicamos e nos relacionamos.",
                         "submission_method": "paste",
                         "file_url": None,
                         "status": "pending",
@@ -738,26 +732,6 @@ async def startup_event():
                 
                 await db.essays.insert_many(sample_essays)
                 logger.info("Sample essays created for testing")
-    
-    Path("./memory").mkdir(exist_ok=True)
-with open("./memory/test_credentials.md", "w") as f:
-        f.write("# EssayPro Test Credentials\n\n")
-        f.write("## Admin\n")
-        f.write(f"- Email: {admin_email}\n")
-        f.write(f"- Password: {admin_password}\n")
-        f.write(f"- Role: admin\n\n")
-        f.write("## Teacher\n")
-        f.write("- Email: prof@test.com\n")
-        f.write("- Password: test123\n")
-        f.write("- Role: teacher\n\n")
-        f.write("## Student\n")
-        f.write("- Email: student@test.com\n")
-        f.write("- Password: test123\n")
-        f.write("- Role: student\n\n")
-        f.write("## Endpoints\n")
-        f.write("- Register: POST /api/auth/register\n")
-        f.write("- Login: POST /api/auth/login\n")
-        f.write("- Me: GET /api/auth/me\n")
 
 @app.on_event("shutdown")
 async def shutdown_db_client():
