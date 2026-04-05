@@ -283,7 +283,7 @@ export const CorrectEssay = () => {
 
   const handleTextSelection = () => {
     if (selectedTool === 'select' || selectedTool === 'pen' || selectedTool === 'eraser') return;
-    
+
     const selection = window.getSelection();
     if (!selection || !selection.toString().trim()) return;
     if (!textRef.current.contains(selection.anchorNode)) return;
@@ -302,7 +302,6 @@ export const CorrectEssay = () => {
 
   const applyAnnotation = (text, range) => {
     const span = document.createElement('span');
-    span.textContent = text;
 
     if (selectedTool === 'underline') {
       span.style.borderBottom = `2px solid ${selectedColor}`;
@@ -318,15 +317,9 @@ export const CorrectEssay = () => {
     }
 
     try {
-      // surroundContents falha se o range cruzar múltiplos nós — usar extractContents como fallback
-      try {
-        range.surroundContents(span);
-      } catch (e) {
-        const extracted = range.extractContents();
-        span.textContent = '';
-        span.appendChild(extracted);
-        range.insertNode(span);
-      }
+      const extracted = range.extractContents();
+      span.appendChild(extracted);
+      range.insertNode(span);
       window.getSelection().removeAllRanges();
     } catch (error) {
       console.error('Error applying annotation:', error);
@@ -784,9 +777,9 @@ export const CorrectEssay = () => {
                 className="bg-white shadow-sm rounded-lg p-12 relative z-10"
                 style={{ fontSize: '18px', fontFamily: 'Lora, serif', lineHeight: '1.8', minHeight: '600px' }}
                 data-testid="essay-text"
-              >
-                {essay.content || 'Conteúdo não disponível'}
-              </div>
+                suppressContentEditableWarning={true}
+                dangerouslySetInnerHTML={{ __html: essay.content ? essay.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível' }}
+              />
               <canvas
                 id="correction-canvas"
                 style={{
