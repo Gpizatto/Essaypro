@@ -787,7 +787,7 @@ export const CorrectEssay = () => {
                   top: 0,
                   left: 0,
                   pointerEvents: selectedTool === 'pen' || selectedTool === 'eraser' ? 'all' : 'none',
-                  zIndex: selectedTool === 'pen' || selectedTool === 'eraser' ? 20 : 5,
+                  zIndex: selectedTool === 'pen' || selectedTool === 'eraser' ? 20 : -1,
                   cursor: selectedTool === 'pen' ? 'crosshair' : selectedTool === 'eraser' ? 'not-allowed' : 'default'
                 }}
               />
