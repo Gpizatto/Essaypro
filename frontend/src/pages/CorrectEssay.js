@@ -84,11 +84,19 @@ export const CorrectEssay = () => {
   const [aiSuggestions, setAiSuggestions] = useState(null);
   const [dismissedErrors, setDismissedErrors] = useState([]);
   const [expandedSuggestions, setExpandedSuggestions] = useState({});
+  const [essayHtml, setEssayHtml] = useState('');
 
   useEffect(() => {
     fetchData();
     loadQuickComments();
   }, [essayId]);
+
+  // Setar innerHTML do texto UMA VEZ apenas, para nao apagar anotacoes em re-renders
+  useEffect(() => {
+    if (essayHtml && textRef.current && textRef.current.innerHTML === '') {
+      textRef.current.innerHTML = essayHtml;
+    }
+  }, [essayHtml]);
 
   useEffect(() => {
     if (essay && textRef.current && !fabricCanvasRef.current) {
@@ -209,6 +217,7 @@ export const CorrectEssay = () => {
     try {
       const essayRes = await axios.get(`${API_URL}/api/essays/${essayId}`, { withCredentials: true });
       setEssay(essayRes.data);
+      setEssayHtml(essayRes.data.content ? essayRes.data.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível');
 
       const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
       const promptData = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
@@ -282,14 +291,21 @@ export const CorrectEssay = () => {
   };
 
   const handleTextSelection = () => {
+    console.log('[DEBUG] handleTextSelection chamado, tool:', selectedTool);
     if (selectedTool === 'select' || selectedTool === 'pen' || selectedTool === 'eraser') return;
 
     const selection = window.getSelection();
-    if (!selection || !selection.toString().trim()) return;
+    console.log('[DEBUG] selection text:', selection?.toString());
+    if (!selection || !selection.toString().trim()) {
+      console.log('[DEBUG] sem texto selecionado');
+      return;
+    }
+    console.log('[DEBUG] anchorNode dentro do textRef:', textRef.current?.contains(selection.anchorNode));
     if (!textRef.current.contains(selection.anchorNode)) return;
 
     const range = selection.getRangeAt(0).cloneRange();
     const selectedText = selection.toString().trim();
+    console.log('[DEBUG] vai aplicar anotacao:', selectedText);
 
     if (selectedTool === 'comment') {
       setSelectedTextRange({ range, text: selectedText });
@@ -301,6 +317,7 @@ export const CorrectEssay = () => {
   };
 
   const applyAnnotation = (text, range) => {
+    console.log('[DEBUG] applyAnnotation tool:', selectedTool, 'cor:', selectedColor);
     const span = document.createElement('span');
 
     if (selectedTool === 'underline') {
@@ -321,8 +338,9 @@ export const CorrectEssay = () => {
       span.appendChild(extracted);
       range.insertNode(span);
       window.getSelection().removeAllRanges();
+      console.log('[DEBUG] anotacao aplicada com sucesso');
     } catch (error) {
-      console.error('Error applying annotation:', error);
+      console.error('[DEBUG] erro:', error);
     }
   };
 
@@ -788,8 +806,6 @@ export const CorrectEssay = () => {
                   userSelect: selectedTool === 'select' ? 'none' : 'text',
                 }}
                 data-testid="essay-text"
-                suppressContentEditableWarning={true}
-                dangerouslySetInnerHTML={{ __html: essay.content ? essay.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível' }}
               />
               <canvas
                 id="correction-canvas"
