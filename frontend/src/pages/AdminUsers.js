@@ -10,13 +10,13 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getRoleBadge = (role) => {
   const roleMap = {
-    student: { label: 'Aluno', color: '#3B82F6' },
+    student: { label: 'Aluno',     color: '#2563EB' },
     teacher: { label: 'Professor', color: '#6B21A8' },
-    admin: { label: 'Admin', color: '#EF4444' },
+    admin:   { label: 'Admin',     color: '#DC2626' },
   };
   const config = roleMap[role] || roleMap.student;
   return (
-    <Badge style={{ backgroundColor: config.color, color: '#fff' }} data-testid={`role-badge-${role}`}>
+    <Badge style={{ backgroundColor: config.color, color: '#FFFFFF' }} data-testid={`role-badge-${role}`}>
       {config.label}
     </Badge>
   );
