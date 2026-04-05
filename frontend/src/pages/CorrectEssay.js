@@ -285,25 +285,25 @@ export const CorrectEssay = () => {
     if (selectedTool === 'select' || selectedTool === 'pen' || selectedTool === 'eraser') return;
     
     const selection = window.getSelection();
-    if (selection && selection.toString().trim() && textRef.current.contains(selection.anchorNode)) {
-      const range = selection.getRangeAt(0);
-      const selectedText = selection.toString().trim();
+    if (!selection || !selection.toString().trim()) return;
+    if (!textRef.current.contains(selection.anchorNode)) return;
 
-      if (selectedTool === 'comment') {
-        const rect = range.getBoundingClientRect();
-        setSelectedTextRange({ range, text: selectedText });
-        setCommentText('');
-        setShowCommentPopup(true);
-      } else {
-        applyAnnotation(selectedText, range);
-      }
+    const range = selection.getRangeAt(0).cloneRange();
+    const selectedText = selection.toString().trim();
+
+    if (selectedTool === 'comment') {
+      setSelectedTextRange({ range, text: selectedText });
+      setCommentText('');
+      setShowCommentPopup(true);
+    } else {
+      applyAnnotation(selectedText, range);
     }
   };
 
   const applyAnnotation = (text, range) => {
     const span = document.createElement('span');
     span.textContent = text;
-    
+
     if (selectedTool === 'underline') {
       span.style.borderBottom = `2px solid ${selectedColor}`;
       span.style.paddingBottom = '2px';
@@ -314,11 +314,19 @@ export const CorrectEssay = () => {
       span.style.textDecoration = 'line-through';
       span.style.textDecorationColor = selectedColor;
       span.style.textDecorationThickness = '2px';
+      span.style.textDecorationStyle = 'solid';
     }
 
     try {
-      range.deleteContents();
-      range.insertNode(span);
+      // surroundContents falha se o range cruzar múltiplos nós — usar extractContents como fallback
+      try {
+        range.surroundContents(span);
+      } catch (e) {
+        const extracted = range.extractContents();
+        span.textContent = '';
+        span.appendChild(extracted);
+        range.insertNode(span);
+      }
       window.getSelection().removeAllRanges();
     } catch (error) {
       console.error('Error applying annotation:', error);
