@@ -24,7 +24,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(level
 logger = logging.getLogger(__name__)
 
 mongo_url = os.environ['MONGO_URL']
-client = AsyncIOMotorClient(MONGO_URL, tls=True, tlsAllowInvalidCertificates=True)
+client = AsyncIOMotorClient(mongo_url, tls=True, tlsAllowInvalidCertificates=True)
 db = client[os.environ['DB_NAME']]
 
 cloudinary.config(
@@ -739,8 +739,8 @@ async def startup_event():
                 await db.essays.insert_many(sample_essays)
                 logger.info("Sample essays created for testing")
     
-    Path("/app/memory").mkdir(exist_ok=True)
-    with open("/app/memory/test_credentials.md", "w") as f:
+    Path("./memory").mkdir(exist_ok=True)
+with open("./memory/test_credentials.md", "w") as f:
         f.write("# EssayPro Test Credentials\n\n")
         f.write("## Admin\n")
         f.write(f"- Email: {admin_email}\n")
