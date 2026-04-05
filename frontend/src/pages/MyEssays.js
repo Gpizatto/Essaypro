@@ -10,9 +10,9 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getStatusBadge = (status) => {
   const statusMap = {
-    pending: { label: 'Pendente', bg: '#F3F4F6', text: '#4B5563' },
-    under_review: { label: 'Em Revisão', bg: '#FEF3C7', text: '#92400E' },
-    corrected: { label: 'Corrigida', bg: '#D1FAE5', text: '#065F46' },
+    pending:      { label: 'Pendente',   bg: '#64748B', text: '#FFFFFF' },
+    under_review: { label: 'Em Revisão', bg: '#D97706', text: '#FFFFFF' },
+    corrected:    { label: 'Corrigida',  bg: '#059669', text: '#FFFFFF' },
   };
   const config = statusMap[status] || statusMap.pending;
   return (
