@@ -1,10 +1,10 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { FileText, Clock } from 'lucide-react';
+import { FileText, Clock, Filter, X } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -12,7 +12,7 @@ const getStatusBadge = (status) => {
   const statusMap = {
     pending:      { label: 'Pendente',   bg: '#64748B', text: '#FFFFFF' },
     under_review: { label: 'Em Revisão', bg: '#D97706', text: '#FFFFFF' },
-    corrected:    { label: 'Corrigida',  bg: '#059669', text: '#FFFFFF' },
+    corrected:    { label: 'Corrigida',  bg: '#36555A', text: '#FFFFFF' },
   };
   const config = statusMap[status] || statusMap.pending;
   return (
@@ -25,6 +25,9 @@ const getStatusBadge = (status) => {
 export const MyEssays = () => {
   const [essays, setEssays] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filterStatus, setFilterStatus] = useState('all');
+  const [filterMonth, setFilterMonth] = useState('all');
+  const [filterPrompt, setFilterPrompt] = useState('all');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -34,12 +37,66 @@ export const MyEssays = () => {
   const fetchEssays = async () => {
     try {
       const { data } = await axios.get(`${API_URL}/api/essays/my`, { withCredentials: true });
+      // Ordenar do mais recente para o mais antigo
+      data.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
       setEssays(data);
     } catch (error) {
       console.error('Error fetching essays:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  // Opções únicas para os filtros
+  const promptOptions = useMemo(() => {
+    const titles = [...new Set(essays.map(e => e.prompt_title).filter(Boolean))];
+    return titles;
+  }, [essays]);
+
+  const monthOptions = useMemo(() => {
+    const months = [...new Set(essays.map(e => {
+      const d = new Date(e.submitted_at);
+      return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    }))];
+    return months.sort((a, b) => b.localeCompare(a));
+  }, [essays]);
+
+  const formatMonth = (ym) => {
+    const [year, month] = ym.split('-');
+    const months = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return `${months[parseInt(month) - 1]} ${year}`;
+  };
+
+  const filteredEssays = useMemo(() => {
+    return essays.filter(essay => {
+      if (filterStatus !== 'all' && essay.status !== filterStatus) return false;
+      if (filterPrompt !== 'all' && essay.prompt_title !== filterPrompt) return false;
+      if (filterMonth !== 'all') {
+        const d = new Date(essay.submitted_at);
+        const ym = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        if (ym !== filterMonth) return false;
+      }
+      return true;
+    });
+  }, [essays, filterStatus, filterMonth, filterPrompt]);
+
+  const hasActiveFilters = filterStatus !== 'all' || filterMonth !== 'all' || filterPrompt !== 'all';
+
+  const clearFilters = () => {
+    setFilterStatus('all');
+    setFilterMonth('all');
+    setFilterPrompt('all');
+  };
+
+  const selectStyle = {
+    padding: '6px 10px',
+    borderRadius: '6px',
+    border: '1px solid #E8DDD0',
+    backgroundColor: '#FFFFFF',
+    color: '#2C1A0E',
+    fontSize: '13px',
+    cursor: 'pointer',
+    outline: 'none',
   };
 
   if (loading) {
@@ -58,16 +115,85 @@ export const MyEssays = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="my-essays-title">
+          <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }} data-testid="my-essays-title">
             Minhas Redações
           </h1>
-          <p className="text-lg mt-2 text-slate-600">Acompanhe suas redações e correções</p>
+          <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
+            {essays.length} redaç{essays.length === 1 ? 'ão' : 'ões'} enviada{essays.length !== 1 ? 's' : ''}
+          </p>
         </div>
+
+        {essays.length > 0 && (
+          <Card className="p-4 bg-white border">
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex items-center gap-2" style={{ color: '#7C1805' }}>
+                <Filter size={15} />
+                <span className="text-sm font-semibold">Filtrar por:</span>
+              </div>
+
+              <select
+                value={filterStatus}
+                onChange={e => setFilterStatus(e.target.value)}
+                style={selectStyle}
+                data-testid="filter-status"
+              >
+                <option value="all">Todos os status</option>
+                <option value="pending">Pendente</option>
+                <option value="under_review">Em Revisão</option>
+                <option value="corrected">Corrigida</option>
+              </select>
+
+              {monthOptions.length > 1 && (
+                <select
+                  value={filterMonth}
+                  onChange={e => setFilterMonth(e.target.value)}
+                  style={selectStyle}
+                  data-testid="filter-month"
+                >
+                  <option value="all">Todos os meses</option>
+                  {monthOptions.map(m => (
+                    <option key={m} value={m}>{formatMonth(m)}</option>
+                  ))}
+                </select>
+              )}
+
+              {promptOptions.length > 1 && (
+                <select
+                  value={filterPrompt}
+                  onChange={e => setFilterPrompt(e.target.value)}
+                  style={{ ...selectStyle, maxWidth: '220px' }}
+                  data-testid="filter-prompt"
+                >
+                  <option value="all">Todas as propostas</option>
+                  {promptOptions.map(p => (
+                    <option key={p} value={p}>{p}</option>
+                  ))}
+                </select>
+              )}
+
+              {hasActiveFilters && (
+                <button
+                  onClick={clearFilters}
+                  className="flex items-center gap-1 text-xs px-2 py-1 rounded"
+                  style={{ backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27' }}
+                >
+                  <X size={12} /> Limpar filtros
+                </button>
+              )}
+
+              {hasActiveFilters && (
+                <span className="text-xs ml-auto" style={{ color: '#6B5B4E' }}>
+                  {filteredEssays.length} resultado{filteredEssays.length !== 1 ? 's' : ''}
+                </span>
+              )}
+            </div>
+          </Card>
+        )}
 
         {essays.length === 0 ? (
           <Card className="p-12 text-center bg-white">
-            <FileText size={48} className="mx-auto mb-4" style={{ color: '#525252' }} />
-            <p className="text-lg text-slate-600 mb-4">Você ainda não enviou nenhuma redação</p>
+            <FileText size={48} className="mx-auto mb-4" style={{ color: '#D66B27' }} />
+            <p className="text-lg mb-4" style={{ color: '#6B5B4E' }}>Você ainda não enviou nenhuma redação</p>
             <a
               href="/prompts"
               className="inline-flex items-center justify-center px-6 py-3 rounded-md font-semibold text-white"
@@ -77,9 +203,16 @@ export const MyEssays = () => {
               Escrever Primeira Redação
             </a>
           </Card>
+        ) : filteredEssays.length === 0 ? (
+          <Card className="p-10 text-center bg-white">
+            <p className="text-lg mb-3" style={{ color: '#6B5B4E' }}>Nenhuma redação encontrada com esses filtros</p>
+            <button onClick={clearFilters} className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+              Limpar filtros
+            </button>
+          </Card>
         ) : (
           <div className="space-y-4">
-            {essays.map((essay) => (
+            {filteredEssays.map((essay) => (
               <Card
                 key={essay.id}
                 className="p-6 bg-white border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
@@ -92,27 +225,29 @@ export const MyEssays = () => {
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
-                    <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-heading text-xl font-semibold" style={{ color: '#7C1805' }}>
+                    <div className="flex items-center gap-3 mb-2 flex-wrap">
+                      <h3 className="font-heading text-lg font-semibold" style={{ color: '#7C1805' }}>
                         {essay.prompt_title || 'Redação'}
                       </h3>
                       {getStatusBadge(essay.status)}
                     </div>
-                    <p className="text-sm text-slate-500 flex items-center gap-2">
+                    <p className="text-sm flex items-center gap-2" style={{ color: '#6B5B4E' }}>
                       <Clock size={14} />
                       Enviada em {new Date(essay.submitted_at).toLocaleDateString('pt-BR')} às{' '}
                       {new Date(essay.submitted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                     </p>
-                    <p className="text-sm text-slate-500 mt-1">Método: {essay.submission_method === 'editor' ? 'Editor' : essay.submission_method === 'paste' ? 'Texto colado' : 'Upload de arquivo'}</p>
+                    <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
+                      Método: {essay.submission_method === 'editor' ? 'Editor' : essay.submission_method === 'paste' ? 'Texto colado' : 'Upload de arquivo'}
+                    </p>
                   </div>
                   {essay.status === 'corrected' && (
-                    <div className="text-right">
-                      <p className="text-sm font-semibold" style={{ color: '#525252' }}>
-                        NOTA DISPONÍVEL
-                      </p>
-                      <p className="text-2xl font-bold" style={{ color: '#36555A' }}>
-                        Ver Correção
-                      </p>
+                    <div className="text-right shrink-0">
+                      <span
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
+                        style={{ backgroundColor: '#36555A', color: '#FDF3E8' }}
+                      >
+                        Ver Correção →
+                      </span>
                     </div>
                   )}
                 </div>
