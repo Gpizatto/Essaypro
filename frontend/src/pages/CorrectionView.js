@@ -5,7 +5,9 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
 import { Separator } from '../components/ui/separator';
-import { Award, TrendingUp, Lightbulb } from 'lucide-react';
+import { Award, TrendingUp, Lightbulb, RotateCcw } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Button } from '../components/ui/button';
 import { Canvas, PencilBrush } from 'fabric';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -20,6 +22,7 @@ const getScoreColor = (score, max) => {
 
 export const CorrectionView = () => {
   const { essayId } = useParams();
+  const navigate = useNavigate();
   const [essay, setEssay] = useState(null);
   const [correction, setCorrection] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -314,6 +317,28 @@ export const CorrectionView = () => {
           </Card>
         )}
       </div>
+
+        {/* BOTÃO REESCRITA */}
+        <Card className="p-6 bg-white border" style={{ borderColor: '#DAB257', backgroundColor: '#FFFBF0' }}>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+            <div>
+              <h3 className="font-semibold mb-1" style={{ color: '#7C1805' }}>
+                Quer reescrever esta redação?
+              </h3>
+              <p className="text-sm" style={{ color: '#6B5B4E' }}>
+                Aplique o feedback recebido e envie uma nova versão vinculada a esta correção.
+              </p>
+            </div>
+            <Button
+              onClick={() => navigate(`/submit-essay/${essay?.prompt_id}?rewrite=${essayId}`)}
+              variant="outline"
+              className="shrink-0"
+            >
+              <RotateCcw size={16} className="mr-2" />
+              Enviar Reescrita
+            </Button>
+          </div>
+        </Card>
 
       {/* TOOLTIP HOVER DE COMENTÁRIO */}
       {hoveredCommentId && correction.inline_comments && (
