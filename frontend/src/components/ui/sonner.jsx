@@ -8,21 +8,21 @@ const Toaster = ({ ...props }) => {
       toastOptions={{
         classNames: {
           toast:
-            "group toast group-[.toaster]:bg-white group-[.toaster]:text-[#111827] group-[.toaster]:border group-[.toaster]:border-gray-200 group-[.toaster]:shadow-lg",
+            "group toast group-[.toaster]:bg-white group-[.toaster]:text-[#2C1A0E] group-[.toaster]:border group-[.toaster]:border-[#E8DDD0] group-[.toaster]:shadow-lg group-[.toaster]:font-[Bricolage_Grotesque,sans-serif]",
           description:
-            "group-[.toast]:text-[#6B7280]",
+            "group-[.toast]:text-[#6B5B4E]",
           actionButton:
-            "group-[.toast]:bg-[#002147] group-[.toast]:text-white",
+            "group-[.toast]:bg-[#7C1805] group-[.toast]:text-white",
           cancelButton:
-            "group-[.toast]:bg-[#F3F4F6] group-[.toast]:text-[#374151]",
+            "group-[.toast]:bg-[#FDF3E8] group-[.toast]:text-[#6B5B4E]",
           error:
-            "group-[.toaster]:bg-[#FEF2F2] group-[.toaster]:text-[#991B1B] group-[.toaster]:border-[#FECACA]",
+            "group-[.toaster]:bg-[#FEF2F2] group-[.toaster]:text-[#7C1805] group-[.toaster]:border-[#7C1805]/30",
           success:
-            "group-[.toaster]:bg-[#F0FDF4] group-[.toaster]:text-[#166534] group-[.toaster]:border-[#BBF7D0]",
+            "group-[.toaster]:bg-[#F0F5F5] group-[.toaster]:text-[#36555A] group-[.toaster]:border-[#36555A]/30",
           warning:
-            "group-[.toaster]:bg-[#FFFBEB] group-[.toaster]:text-[#92400E] group-[.toaster]:border-[#FDE68A]",
+            "group-[.toaster]:bg-[#FFFBEB] group-[.toaster]:text-[#2C1A0E] group-[.toaster]:border-[#DAB257]/50",
           info:
-            "group-[.toaster]:bg-[#EFF6FF] group-[.toaster]:text-[#1E40AF] group-[.toaster]:border-[#BFDBFE]",
+            "group-[.toaster]:bg-[#FDF0F8] group-[.toaster]:text-[#4A1A3A] group-[.toaster]:border-[#D9B2CF]/50",
         },
       }}
       {...props}
