@@ -5,7 +5,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
 import { Separator } from '../components/ui/separator';
-import { Award, TrendingUp, Lightbulb, RotateCcw } from 'lucide-react';
+import { Award, TrendingUp, Lightbulb, RotateCcw, Download, FileText, BookOpen, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Canvas, PencilBrush } from 'fabric';
@@ -31,6 +31,8 @@ export const CorrectionView = () => {
   const fabricCanvasRef = useRef(null);
   const [hoveredCommentId, setHoveredCommentId] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [showPromptModal, setShowPromptModal] = useState(false);
+  const [prompt, setPrompt] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -72,11 +74,56 @@ export const CorrectionView = () => {
       ]);
       setEssay(essayRes.data);
       setCorrection(correctionRes.data);
+
+      // Buscar proposta para o modal
+      const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
+      const found = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
+      if (found) setPrompt(found);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleDownloadEssay = () => {
+    if (!essay?.content) return;
+    const text = `REDAÇÃO — ${essay.prompt_title || 'Sem título'}\n\nEnviada em: ${new Date(essay.submitted_at).toLocaleDateString('pt-BR')}\n\n${essay.content}`;
+    const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `redacao-${essayId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadCorrection = () => {
+    if (!correction) return;
+    const lines = [
+      `CORREÇÃO — ${essay?.prompt_title || 'Sem título'}`,
+      `Data: ${new Date(correction.corrected_at).toLocaleDateString('pt-BR')}`,
+      `Nota Total: ${correction.total_score}`,
+      '',
+      '=== AVALIAÇÃO POR CRITÉRIO ===',
+      ...(correction.criteria_scores || []).map(cs => `${cs.nome}: ${cs.score}/${cs.max}`),
+      '',
+      '=== FEEDBACK GERAL ===',
+      correction.general_feedback || '',
+      '',
+      '=== PONTOS FORTES ===',
+      correction.strengths || '',
+      '',
+      '=== SUGESTÕES DE MELHORIA ===',
+      correction.improvements || '',
+    ];
+    const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `correcao-${essayId}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   const renderInlineComments = () => {
@@ -181,6 +228,22 @@ export const CorrectionView = () => {
             Correção da Redação
           </h1>
           <p className="text-lg mt-2 text-slate-600">{essay?.prompt_title}</p>
+        </div>
+
+        {/* BOTÕES DE AÇÃO */}
+        <div className="flex flex-wrap gap-3">
+          <Button variant="outline" size="sm" onClick={() => setShowPromptModal(true)}>
+            <BookOpen size={15} className="mr-2" />
+            Ver Proposta
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadEssay}>
+            <FileText size={15} className="mr-2" />
+            Baixar Redação Original
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleDownloadCorrection}>
+            <Download size={15} className="mr-2" />
+            Baixar Correção
+          </Button>
         </div>
 
         <Card className="p-8 bg-white border shadow-sm" data-testid="total-score-card">
@@ -339,6 +402,47 @@ export const CorrectionView = () => {
             </Button>
           </div>
         </Card>
+
+      {/* MODAL DA PROPOSTA */}
+      {showPromptModal && prompt && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowPromptModal(false)}
+        >
+          <div
+            className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#E8DDD0' }}>
+              <h2 className="font-heading font-bold text-xl" style={{ color: '#7C1805' }}>
+                {prompt.title}
+              </h2>
+              <button onClick={() => setShowPromptModal(false)} style={{ color: '#6B5B4E' }}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="p-6 space-y-4">
+              <div>
+                <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>TEMA</p>
+                <p className="text-sm" style={{ color: '#2C1A0E' }}>{prompt.theme}</p>
+              </div>
+              {prompt.supporting_texts && (
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>TEXTOS DE APOIO</p>
+                  <p className="text-sm whitespace-pre-line" style={{ color: '#2C1A0E' }}>{prompt.supporting_texts}</p>
+                </div>
+              )}
+              {prompt.instructions && (
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>INSTRUÇÕES</p>
+                  <p className="text-sm" style={{ color: '#2C1A0E' }}>{prompt.instructions}</p>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* TOOLTIP HOVER DE COMENTÁRIO */}
       {hoveredCommentId && correction.inline_comments && (
