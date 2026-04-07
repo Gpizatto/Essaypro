@@ -13,7 +13,7 @@ export const Layout = ({ children }) => {
   const handleLogout = async () => {
     try {
       await logout();
-      toast.success('Logout realizado com sucesso');
+      toast.success('Até logo!');
       navigate('/login');
     } catch (error) {
       toast.error('Erro ao fazer logout');
@@ -44,20 +44,31 @@ export const Layout = ({ children }) => {
   };
 
   const menuItems = getMenuItems();
+  const roleLabel = user.role === 'student' ? 'Aluno' : user.role === 'teacher' ? 'Professor' : 'Admin';
+  const roleColor = user.role === 'student' ? '#36555A' : user.role === 'teacher' ? '#D66B27' : '#7C1805';
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#F9F8F6' }}>
-      <aside className="w-64 border-r flex flex-col" style={{ backgroundColor: '#F9F8F6', borderColor: 'rgba(0,0,0,0.08)' }}>
-        <div className="p-6 border-b" style={{ borderColor: 'rgba(0,0,0,0.08)' }}>
-          <h1 className="font-heading font-black text-2xl" style={{ color: '#002147' }} data-testid="app-logo">
-            EssayPro
+    <div className="min-h-screen flex" style={{ backgroundColor: '#FDF3E8' }}>
+      {/* Sidebar */}
+      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#7C1805' }}>
+        {/* Logo */}
+        <div className="p-6 pb-4">
+          <h1 className="font-script text-3xl leading-tight" style={{ color: '#FDF3E8' }} data-testid="app-logo">
+            redação
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#525252' }}>
-            Correção ENEM
+          <h1 className="font-script text-3xl leading-tight" style={{ color: '#DAB257' }}>
+            com nicolle
+          </h1>
+          <p className="text-xs mt-2 font-body" style={{ color: 'rgba(253,243,232,0.6)' }}>
+            Plataforma de Correção
           </p>
         </div>
 
-        <nav className="flex-1 p-4 space-y-2">
+        {/* Divider */}
+        <div style={{ height: '1px', backgroundColor: 'rgba(253,243,232,0.15)', margin: '0 24px' }} />
+
+        {/* Nav */}
+        <nav className="flex-1 p-4 space-y-1 mt-2">
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -66,35 +77,41 @@ export const Layout = ({ children }) => {
                 key={item.path}
                 to={item.path}
                 data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                className={`flex items-center gap-3 px-4 py-3 rounded-md transition-colors ${
-                  isActive
-                    ? 'bg-primary text-white'
-                    : 'text-slate-700 hover:bg-white hover:shadow-sm'
-                }`}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
+                style={{
+                  backgroundColor: isActive ? 'rgba(253,243,232,0.15)' : 'transparent',
+                  color: isActive ? '#FDF3E8' : 'rgba(253,243,232,0.7)',
+                  borderLeft: isActive ? '3px solid #DAB257' : '3px solid transparent',
+                }}
               >
-                <Icon size={20} />
-                <span className="font-medium">{item.label}</span>
+                <Icon size={18} />
+                <span className="font-medium text-sm">{item.label}</span>
               </Link>
             );
           })}
         </nav>
 
-        <div className="p-4 border-t" style={{ borderColor: 'rgba(0,0,0,0.08)' }}>
+        {/* User info */}
+        <div className="p-4" style={{ borderTop: '1px solid rgba(253,243,232,0.15)' }}>
           <div className="mb-3">
-            <p className="text-sm font-semibold" style={{ color: '#002147' }}>
+            <p className="text-sm font-semibold truncate" style={{ color: '#FDF3E8' }}>
               {user.name}
             </p>
-            <p className="text-xs" style={{ color: '#525252' }}>
+            <p className="text-xs truncate" style={{ color: 'rgba(253,243,232,0.6)' }}>
               {user.email}
             </p>
-            <span className="inline-block mt-2 px-2 py-1 text-xs rounded" style={{ backgroundColor: '#6B21A8', color: '#fff' }}>
-              {user.role === 'student' ? 'Aluno' : user.role === 'teacher' ? 'Professor' : 'Admin'}
+            <span
+              className="inline-block mt-2 px-2 py-0.5 text-xs font-semibold rounded-full"
+              style={{ backgroundColor: roleColor, color: '#FDF3E8' }}
+            >
+              {roleLabel}
             </span>
           </div>
           <Button
             onClick={handleLogout}
-            variant="outline"
-            className="w-full flex items-center gap-2"
+            variant="ghost"
+            className="w-full flex items-center gap-2 text-sm"
+            style={{ color: 'rgba(253,243,232,0.7)', hover: 'bg-white/10' }}
             data-testid="logout-button"
           >
             <LogOut size={16} />
@@ -103,8 +120,9 @@ export const Layout = ({ children }) => {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-auto">
-        <div className="p-6 md:p-8 lg:p-12">{children}</div>
+      {/* Main content */}
+      <main className="flex-1 overflow-auto" style={{ backgroundColor: '#FDF3E8' }}>
+        <div className="p-6 md:p-8 lg:p-10">{children}</div>
       </main>
     </div>
   );
