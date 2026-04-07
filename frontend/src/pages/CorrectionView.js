@@ -12,7 +12,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getScoreColor = (score, max) => {
   const percentage = max > 0 ? (score / max) * 100 : 0;
-  if (percentage >= 80) return '#10B981';
+  if (percentage >= 80) return '#36555A';
   if (percentage >= 60) return '#3B82F6';
   if (percentage >= 40) return '#F59E0B';
   return '#EF4444';
@@ -174,7 +174,7 @@ export const CorrectionView = () => {
     <Layout>
       <div className="space-y-8">
         <div>
-          <h1 className="font-heading font-black text-4xl" style={{ color: '#002147' }} data-testid="correction-title">
+          <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="correction-title">
             Correção da Redação
           </h1>
           <p className="text-lg mt-2 text-slate-600">{essay?.prompt_title}</p>
@@ -199,7 +199,7 @@ export const CorrectionView = () => {
 
         {/* TEXTO DA REDAÇÃO COM CANVAS */}
         <Card className="p-8 bg-white border shadow-sm">
-          <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#002147' }}>
+          <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#7C1805' }}>
             Sua Redação com Anotações
           </h2>
           <div ref={canvasContainerRef} style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}>
@@ -236,7 +236,7 @@ export const CorrectionView = () => {
         </Card>
 
         <div>
-          <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#002147' }}>
+          <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#7C1805' }}>
             Avaliação por Critérios
           </h2>
           <div className="space-y-4">
@@ -244,11 +244,11 @@ export const CorrectionView = () => {
               <Card key={cs.criteria_id} className="p-6 bg-white border" data-testid={`competency-${cs.criteria_id}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex-1">
-                    <p className="font-semibold" style={{ color: '#002147' }}>
+                    <p className="font-semibold" style={{ color: '#7C1805' }}>
                       {cs.nome}
                     </p>
                   </div>
-                  <span className="text-2xl font-bold ml-4" style={{ color: '#6B21A8' }}>
+                  <span className="text-2xl font-bold ml-4" style={{ color: '#36555A' }}>
                     {cs.score}/{cs.max}
                   </span>
                 </div>
@@ -261,8 +261,8 @@ export const CorrectionView = () => {
         <div className="grid md:grid-cols-3 gap-6">
           <Card className="p-6 bg-white border" data-testid="general-feedback-card">
             <div className="flex items-center gap-2 mb-3">
-              <Award size={20} style={{ color: '#6B21A8' }} />
-              <h3 className="font-semibold" style={{ color: '#002147' }}>
+              <Award size={20} style={{ color: '#36555A' }} />
+              <h3 className="font-semibold" style={{ color: '#7C1805' }}>
                 Feedback Geral
               </h3>
             </div>
@@ -271,8 +271,8 @@ export const CorrectionView = () => {
 
           <Card className="p-6 bg-white border" data-testid="strengths-card">
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp size={20} style={{ color: '#10B981' }} />
-              <h3 className="font-semibold" style={{ color: '#002147' }}>
+              <TrendingUp size={20} style={{ color: '#36555A' }} />
+              <h3 className="font-semibold" style={{ color: '#7C1805' }}>
                 Pontos Fortes
               </h3>
             </div>
@@ -282,7 +282,7 @@ export const CorrectionView = () => {
           <Card className="p-6 bg-white border" data-testid="improvements-card">
             <div className="flex items-center gap-2 mb-3">
               <Lightbulb size={20} style={{ color: '#F59E0B' }} />
-              <h3 className="font-semibold" style={{ color: '#002147' }}>
+              <h3 className="font-semibold" style={{ color: '#7C1805' }}>
                 Sugestões de Melhoria
               </h3>
             </div>
@@ -292,7 +292,7 @@ export const CorrectionView = () => {
 
         {correction.inline_comments && correction.inline_comments.length > 0 && (
           <Card className="p-6 bg-white border">
-            <h3 className="font-semibold mb-4" style={{ color: '#002147' }}>
+            <h3 className="font-semibold mb-4" style={{ color: '#7C1805' }}>
               Legenda de Comentários ({correction.inline_comments.length})
             </h3>
             <div className="space-y-3">
