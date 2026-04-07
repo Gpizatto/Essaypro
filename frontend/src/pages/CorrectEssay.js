@@ -795,6 +795,22 @@ export const CorrectEssay = () => {
             </div>
           )}
 
+          {/* BANNER REESCRITA - para o professor */}
+          {essay.is_rewrite && essay.parent_essay_id && (
+            <div className="mx-4 mt-3 px-4 py-3 rounded-lg" style={{ backgroundColor: '#FFF0E0', border: '1px solid #D66B27' }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>✏️ Esta é uma reescrita</p>
+              <a
+                href={`/essay/${essay.parent_essay_id}/correction`}
+                className="text-xs underline"
+                style={{ color: '#7C1805' }}
+                target="_blank"
+                rel="noreferrer"
+              >
+                Ver versão anterior →
+              </a>
+            </div>
+          )}
+
           {/* TEXTO DA REDAÇÃO */}
           <div className="flex-1 overflow-y-auto p-8">
             <div
