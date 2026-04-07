@@ -130,6 +130,7 @@ class EssaySubmit(BaseModel):
     content: Optional[str] = ""
     submission_method: str
     file_url: Optional[str] = None
+    student_note: Optional[str] = None
 
 class EssayResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -141,6 +142,7 @@ class EssayResponse(BaseModel):
     content: str
     submission_method: str
     file_url: Optional[str] = None
+    student_note: Optional[str] = None
     status: str
     submitted_at: datetime
 
@@ -304,6 +306,7 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
         "content": essay_data.content,
         "submission_method": essay_data.submission_method,
         "file_url": essay_data.file_url,
+        "student_note": essay_data.student_note,
         "status": "pending",
         "submitted_at": datetime.now(timezone.utc)
     }
