@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
@@ -26,6 +26,9 @@ export const SubmitEssay = () => {
   const [uploadUrl, setUploadUrl] = useState('');
   const [activeTab, setActiveTab] = useState('editor');
   const [studentNote, setStudentNote] = useState('');
+  const [isRewrite, setIsRewrite] = useState(false);
+  const [parentEssayId, setParentEssayId] = useState(null);
+  const location = useLocation();
 
   const editor = useEditor({
     extensions: [StarterKit],
@@ -39,6 +42,13 @@ export const SubmitEssay = () => {
 
   useEffect(() => {
     fetchPrompt();
+    // Detectar se é reescrita via query param ?rewrite=essayId
+    const params = new URLSearchParams(location.search);
+    const rewriteId = params.get('rewrite');
+    if (rewriteId) {
+      setIsRewrite(true);
+      setParentEssayId(rewriteId);
+    }
   }, [promptId]);
 
   const fetchPrompt = async () => {
@@ -114,6 +124,8 @@ export const SubmitEssay = () => {
           submission_method: method,
           file_url: fileUrl,
           student_note: studentNote.trim() || null,
+          parent_essay_id: parentEssayId,
+          is_rewrite: isRewrite,
         },
         { withCredentials: true }
       );
@@ -172,6 +184,21 @@ export const SubmitEssay = () => {
           </h3>
           <p className="text-slate-700 leading-relaxed">{prompt.instructions}</p>
         </Card>
+
+        {/* Banner de reescrita */}
+        {isRewrite && (
+          <Card className="p-4 border-l-4" style={{ borderLeftColor: '#D66B27', backgroundColor: '#FFF8F0' }}>
+            <div className="flex items-start gap-3">
+              <span style={{ fontSize: '20px' }}>✏️</span>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: '#D66B27' }}>Você está enviando uma reescrita</p>
+                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                  Esta redação ficará vinculada à versão anterior. A professora poderá comparar as duas versões.
+                </p>
+              </div>
+            </div>
+          </Card>
+        )}
 
         {/* Recado para a professora */}
         <Card className="p-5 bg-white border">
