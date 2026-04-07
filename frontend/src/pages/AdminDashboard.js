@@ -44,7 +44,7 @@ export const AdminDashboard = () => {
     <Layout>
       <div className="space-y-8">
         <div>
-          <h1 className="font-heading font-black text-4xl md:text-5xl" style={{ color: '#002147' }} data-testid="admin-dashboard-title">
+          <h1 className="font-heading font-bold text-3xl md:text-4xl" style={{ color: '#7C1805' }} data-testid="admin-dashboard-title">
             Painel Administrativo
           </h1>
           <p className="text-lg mt-2 text-slate-600">Visão geral da plataforma</p>
@@ -57,11 +57,11 @@ export const AdminDashboard = () => {
                 <p className="text-sm font-semibold" style={{ color: '#525252' }}>
                   TOTAL DE USUÁRIOS
                 </p>
-                <p className="text-3xl font-bold mt-2" style={{ color: '#002147' }}>
+                <p className="text-3xl font-bold mt-2" style={{ color: '#7C1805' }}>
                   {stats?.total_users || 0}
                 </p>
               </div>
-              <div className="p-3 rounded-md" style={{ backgroundColor: '#002147' }}>
+              <div className="p-3 rounded-md" style={{ backgroundColor: '#7C1805' }}>
                 <Users className="text-white" size={24} />
               </div>
             </div>
@@ -73,11 +73,11 @@ export const AdminDashboard = () => {
                 <p className="text-sm font-semibold" style={{ color: '#525252' }}>
                   REDAÇÕES ENVIADAS
                 </p>
-                <p className="text-3xl font-bold mt-2" style={{ color: '#6B21A8' }}>
+                <p className="text-3xl font-bold mt-2" style={{ color: '#36555A' }}>
                   {stats?.total_essays || 0}
                 </p>
               </div>
-              <div className="p-3 rounded-md" style={{ backgroundColor: '#6B21A8' }}>
+              <div className="p-3 rounded-md" style={{ backgroundColor: '#36555A' }}>
                 <FileText className="text-white" size={24} />
               </div>
             </div>
@@ -89,11 +89,11 @@ export const AdminDashboard = () => {
                 <p className="text-sm font-semibold" style={{ color: '#525252' }}>
                   CORREÇÕES FEITAS
                 </p>
-                <p className="text-3xl font-bold mt-2" style={{ color: '#10B981' }}>
+                <p className="text-3xl font-bold mt-2" style={{ color: '#36555A' }}>
                   {stats?.total_corrections || 0}
                 </p>
               </div>
-              <div className="p-3 rounded-md" style={{ backgroundColor: '#10B981' }}>
+              <div className="p-3 rounded-md" style={{ backgroundColor: '#36555A' }}>
                 <CheckCircle className="text-white" size={24} />
               </div>
             </div>
@@ -118,7 +118,7 @@ export const AdminDashboard = () => {
 
         <Card className="p-8 bg-white border shadow-sm">
           <div className="max-w-2xl">
-            <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#002147' }}>
+            <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#7C1805' }}>
               Gerenciamento
             </h2>
             <p className="text-slate-600 leading-relaxed mb-6">
@@ -128,7 +128,7 @@ export const AdminDashboard = () => {
               <a
                 href="/admin/users"
                 className="inline-flex items-center justify-center px-6 py-3 rounded-md font-semibold text-white transition-colors hover:opacity-90"
-                style={{ backgroundColor: '#002147' }}
+                style={{ backgroundColor: '#7C1805' }}
                 data-testid="manage-users-button"
               >
                 Gerenciar Usuários
