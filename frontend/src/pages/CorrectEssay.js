@@ -787,6 +787,14 @@ export const CorrectEssay = () => {
             </Button>
           </div>
 
+          {/* RECADO DO ALUNO */}
+          {essay.student_note && (
+            <div className="mx-4 mt-3 px-4 py-3 rounded-lg" style={{ backgroundColor: '#FDF3E8', border: '1px solid #DAB257' }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>✉ Recado do aluno:</p>
+              <p className="text-sm" style={{ color: '#2C1A0E' }}>{essay.student_note}</p>
+            </div>
+          )}
+
           {/* TEXTO DA REDAÇÃO */}
           <div className="flex-1 overflow-y-auto p-8">
             <div
