@@ -1,30 +1,31 @@
 import * as React from "react"
 import { Slot } from "@radix-ui/react-slot"
 import { cva } from "class-variance-authority";
-
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#D66B27] disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default:
-          "bg-[#002147] text-white shadow hover:bg-[#00306b]",
+          "bg-[#7C1805] text-white shadow hover:bg-[#A03217]",
         destructive:
-          "bg-[#DC2626] text-white shadow-sm hover:bg-[#B91C1C]",
+          "bg-[#7C1805] text-white shadow-sm hover:bg-[#5A1004]",
         outline:
-          "border-2 border-[#002147] text-[#002147] bg-white shadow-sm hover:bg-[#002147] hover:text-white",
+          "border-2 border-[#7C1805] text-[#7C1805] bg-transparent shadow-sm hover:bg-[#7C1805] hover:text-white",
         secondary:
-          "bg-[#6B21A8] text-white shadow-sm hover:bg-[#581C87]",
+          "bg-[#36555A] text-white shadow-sm hover:bg-[#2A4045]",
         ghost:
-          "text-[#002147] hover:bg-[#002147]/10 hover:text-[#002147]",
+          "text-[#7C1805] hover:bg-[#7C1805]/10",
         link:
-          "text-[#002147] underline-offset-4 hover:underline",
+          "text-[#7C1805] underline-offset-4 hover:underline",
+        accent:
+          "bg-[#D66B27] text-white shadow-sm hover:bg-[#B85A1F]",
         success:
-          "bg-[#059669] text-white shadow-sm hover:bg-[#047857]",
+          "bg-[#36555A] text-white shadow-sm hover:bg-[#2A4045]",
         warning:
-          "bg-[#D97706] text-white shadow-sm hover:bg-[#B45309]",
+          "bg-[#DAB257] text-[#2C1A0E] shadow-sm hover:bg-[#C9A048]",
       },
       size: {
         default: "h-9 px-4 py-2",
