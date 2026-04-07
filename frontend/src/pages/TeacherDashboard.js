@@ -44,7 +44,7 @@ export const TeacherDashboard = () => {
     <Layout>
       <div className="space-y-8">
         <div>
-          <h1 className="font-heading font-black text-4xl md:text-5xl" style={{ color: '#002147' }} data-testid="teacher-dashboard-title">
+          <h1 className="font-heading font-bold text-3xl md:text-4xl" style={{ color: '#7C1805' }} data-testid="teacher-dashboard-title">
             Painel do Professor
           </h1>
           <p className="text-lg mt-2 text-slate-600">Gerencie correções e temas</p>
@@ -73,11 +73,11 @@ export const TeacherDashboard = () => {
                 <p className="text-sm font-semibold" style={{ color: '#525252' }}>
                   TOTAL DE REDAÇÕES
                 </p>
-                <p className="text-3xl font-bold mt-2" style={{ color: '#002147' }}>
+                <p className="text-3xl font-bold mt-2" style={{ color: '#7C1805' }}>
                   {stats.total}
                 </p>
               </div>
-              <div className="p-3 rounded-md" style={{ backgroundColor: '#002147' }}>
+              <div className="p-3 rounded-md" style={{ backgroundColor: '#7C1805' }}>
                 <FileText className="text-white" size={24} />
               </div>
             </div>
@@ -89,11 +89,11 @@ export const TeacherDashboard = () => {
                 <p className="text-sm font-semibold" style={{ color: '#525252' }}>
                   CORREÇÕES REALIZADAS
                 </p>
-                <p className="text-3xl font-bold mt-2" style={{ color: '#10B981' }}>
+                <p className="text-3xl font-bold mt-2" style={{ color: '#36555A' }}>
                   0
                 </p>
               </div>
-              <div className="p-3 rounded-md" style={{ backgroundColor: '#10B981' }}>
+              <div className="p-3 rounded-md" style={{ backgroundColor: '#36555A' }}>
                 <CheckCircle className="text-white" size={24} />
               </div>
             </div>
@@ -102,7 +102,7 @@ export const TeacherDashboard = () => {
 
         <Card className="p-8 bg-white border shadow-sm">
           <div className="max-w-2xl">
-            <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#002147' }}>
+            <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#7C1805' }}>
               Ações Rápidas
             </h2>
             <p className="text-slate-600 leading-relaxed mb-6">
@@ -112,7 +112,7 @@ export const TeacherDashboard = () => {
               <a
                 href="/correction-queue"
                 className="inline-flex items-center justify-center px-6 py-3 rounded-md font-semibold text-white transition-colors hover:opacity-90"
-                style={{ backgroundColor: '#002147' }}
+                style={{ backgroundColor: '#7C1805' }}
                 data-testid="view-queue-button"
               >
                 Ver Fila de Correções
@@ -120,7 +120,7 @@ export const TeacherDashboard = () => {
               <a
                 href="/create-prompt"
                 className="inline-flex items-center justify-center px-6 py-3 rounded-md font-semibold border transition-colors hover:bg-slate-50"
-                style={{ borderColor: '#002147', color: '#002147' }}
+                style={{ borderColor: '#7C1805', color: '#7C1805' }}
                 data-testid="create-prompt-button"
               >
                 Criar Novo Tema
