@@ -151,21 +151,21 @@ export const SubmitEssay = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-heading font-black text-3xl md:text-4xl" style={{ color: '#002147' }} data-testid="submit-essay-title">
+          <h1 className="font-heading font-black text-3xl md:text-4xl" style={{ color: '#7C1805' }} data-testid="submit-essay-title">
             {prompt.title}
           </h1>
           <p className="text-lg mt-2 text-slate-600">{prompt.theme}</p>
         </div>
 
-        <Card className="p-6 bg-white border" style={{ backgroundColor: '#F9F8F6' }}>
-          <h3 className="font-semibold mb-2" style={{ color: '#002147' }}>
+        <Card className="p-6 bg-white border" style={{ backgroundColor: '#FDF3E8' }}>
+          <h3 className="font-semibold mb-2" style={{ color: '#7C1805' }}>
             Textos de Apoio
           </h3>
           <p className="text-slate-700 whitespace-pre-line leading-relaxed">{prompt.supporting_texts}</p>
         </Card>
 
         <Card className="p-6 bg-white border">
-          <h3 className="font-semibold mb-2" style={{ color: '#002147' }}>
+          <h3 className="font-semibold mb-2" style={{ color: '#7C1805' }}>
             Instruções
           </h3>
           <p className="text-slate-700 leading-relaxed">{prompt.instructions}</p>
@@ -196,7 +196,7 @@ export const SubmitEssay = () => {
                 onClick={() => handleSubmit('editor')}
                 disabled={submitting}
                 size="lg"
-                style={{ backgroundColor: '#002147' }}
+                style={{ backgroundColor: '#7C1805' }}
                 data-testid="submit-editor-button"
               >
                 {submitting ? 'Enviando...' : 'Enviar Redação'}
@@ -222,7 +222,7 @@ export const SubmitEssay = () => {
                 onClick={() => handleSubmit('paste')}
                 disabled={submitting || !pasteContent.trim()}
                 size="lg"
-                style={{ backgroundColor: '#002147' }}
+                style={{ backgroundColor: '#7C1805' }}
                 data-testid="submit-paste-button"
               >
                 {submitting ? 'Enviando...' : 'Enviar Redação'}
@@ -256,7 +256,7 @@ export const SubmitEssay = () => {
                 onClick={() => handleSubmit('upload')}
                 disabled={submitting || !uploadFile}
                 size="lg"
-                style={{ backgroundColor: '#002147' }}
+                style={{ backgroundColor: '#7C1805' }}
                 data-testid="submit-upload-button"
               >
                 {submitting ? 'Enviando...' : 'Enviar Redação'}
