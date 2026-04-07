@@ -25,6 +25,7 @@ export const SubmitEssay = () => {
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadUrl, setUploadUrl] = useState('');
   const [activeTab, setActiveTab] = useState('editor');
+  const [studentNote, setStudentNote] = useState('');
 
   const editor = useEditor({
     extensions: [StarterKit],
@@ -112,6 +113,7 @@ export const SubmitEssay = () => {
           content,
           submission_method: method,
           file_url: fileUrl,
+          student_note: studentNote.trim() || null,
         },
         { withCredentials: true }
       );
@@ -169,6 +171,24 @@ export const SubmitEssay = () => {
             Instruções
           </h3>
           <p className="text-slate-700 leading-relaxed">{prompt.instructions}</p>
+        </Card>
+
+        {/* Recado para a professora */}
+        <Card className="p-5 bg-white border">
+          <Label htmlFor="student-note" className="font-semibold" style={{ color: '#7C1805' }}>
+            Recado para a professora <span className="text-sm font-normal" style={{ color: '#6B5B4E' }}>(opcional)</span>
+          </Label>
+          <Textarea
+            id="student-note"
+            value={studentNote}
+            onChange={(e) => setStudentNote(e.target.value)}
+            maxLength={300}
+            rows={3}
+            className="mt-2"
+            placeholder="Deixe um recado, dúvida ou contexto para a sua professora..."
+            data-testid="student-note-textarea"
+          />
+          <p className="text-xs mt-1 text-right" style={{ color: '#6B5B4E' }}>{studentNote.length}/300</p>
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
