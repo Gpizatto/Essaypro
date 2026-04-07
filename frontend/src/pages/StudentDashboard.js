@@ -7,7 +7,7 @@ import { FileText, Clock, CheckCircle, Award } from 'lucide-react';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getScoreColor = (score) => {
-  if (score >= 800) return '#10B981';
+  if (score >= 800) return '#36555A';
   if (score >= 600) return '#3B82F6';
   if (score >= 400) return '#F59E0B';
   return '#EF4444';
@@ -53,8 +53,8 @@ export const StudentDashboard = () => {
     <Layout>
       <div className="space-y-8">
         <div>
-          <h1 className="font-heading font-black text-4xl md:text-5xl" style={{ color: '#002147' }} data-testid="dashboard-title">
-            Bem-vindo ao EssayPro
+          <h1 className="font-heading font-bold text-3xl md:text-4xl" style={{ color: '#7C1805' }} data-testid="dashboard-title">
+            Bem-vinda ao RcN
           </h1>
           <p className="text-lg mt-2 text-slate-600">Acompanhe seu progresso e continue praticando</p>
         </div>
@@ -66,11 +66,11 @@ export const StudentDashboard = () => {
                 <p className="text-sm font-semibold" style={{ color: '#525252' }}>
                   REDAÇÕES ENVIADAS
                 </p>
-                <p className="text-3xl font-bold mt-2" style={{ color: '#002147' }}>
+                <p className="text-3xl font-bold mt-2" style={{ color: '#7C1805' }}>
                   {stats?.total_essays || 0}
                 </p>
               </div>
-              <div className="p-3 rounded-md" style={{ backgroundColor: '#002147' }}>
+              <div className="p-3 rounded-md" style={{ backgroundColor: '#7C1805' }}>
                 <FileText className="text-white" size={24} />
               </div>
             </div>
@@ -114,11 +114,11 @@ export const StudentDashboard = () => {
                 <p className="text-sm font-semibold" style={{ color: '#525252' }}>
                   MELHOR NOTA
                 </p>
-                <p className="text-3xl font-bold mt-2" style={{ color: '#10B981' }}>
+                <p className="text-3xl font-bold mt-2" style={{ color: '#36555A' }}>
                   {stats?.best_score || 0}
                 </p>
               </div>
-              <div className="p-3 rounded-md" style={{ backgroundColor: '#10B981' }}>
+              <div className="p-3 rounded-md" style={{ backgroundColor: '#36555A' }}>
                 <Award className="text-white" size={24} />
               </div>
             </div>
@@ -127,7 +127,7 @@ export const StudentDashboard = () => {
 
         <Card className="p-8 bg-white border shadow-sm">
           <div className="max-w-2xl">
-            <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#002147' }}>
+            <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#7C1805' }}>
               Continue Praticando
             </h2>
             <p className="text-slate-600 leading-relaxed mb-6">
@@ -138,7 +138,7 @@ export const StudentDashboard = () => {
               <a
                 href="/prompts"
                 className="inline-flex items-center justify-center px-6 py-3 rounded-md font-semibold text-white transition-colors hover:opacity-90"
-                style={{ backgroundColor: '#002147' }}
+                style={{ backgroundColor: '#7C1805' }}
                 data-testid="view-themes-button"
               >
                 Ver Temas Disponíveis
@@ -146,7 +146,7 @@ export const StudentDashboard = () => {
               <a
                 href="/my-essays"
                 className="inline-flex items-center justify-center px-6 py-3 rounded-md font-semibold border transition-colors hover:bg-slate-50"
-                style={{ borderColor: '#002147', color: '#002147' }}
+                style={{ borderColor: '#7C1805', color: '#7C1805' }}
                 data-testid="my-essays-button"
               >
                 Minhas Redações
