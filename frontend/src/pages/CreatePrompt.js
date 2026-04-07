@@ -90,7 +90,7 @@ export const CreatePrompt = () => {
     <Layout>
       <div className="space-y-6 max-w-4xl">
         <div>
-          <h1 className="font-heading font-black text-4xl" style={{ color: '#002147' }} data-testid="create-prompt-title">
+          <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="create-prompt-title">
             Criar Novo Tema
           </h1>
           <p className="text-lg mt-2 text-slate-600">Adicione um novo tema de redação para os alunos</p>
@@ -98,7 +98,7 @@ export const CreatePrompt = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6" data-testid="create-prompt-form">
           <Card className="p-8 bg-white border">
-            <h3 className="font-semibold text-lg mb-4" style={{ color: '#002147' }}>Informações do Tema</h3>
+            <h3 className="font-semibold text-lg mb-4" style={{ color: '#7C1805' }}>Informações do Tema</h3>
             
             <div className="space-y-4">
               <div>
@@ -179,7 +179,7 @@ export const CreatePrompt = () => {
             </div>
 
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg" style={{ color: '#002147' }}>Critérios de Avaliação</h3>
+              <h3 className="font-semibold text-lg" style={{ color: '#7C1805' }}>Critérios de Avaliação</h3>
               <Button
                 type="button"
                 onClick={handleAddCriterion}
@@ -194,7 +194,7 @@ export const CreatePrompt = () => {
 
             <div className="space-y-6">
               {criteria.map((criterion, index) => (
-                <Card key={index} className="p-4 border" style={{ backgroundColor: '#F9F8F6' }} data-testid={`criterion-${index}`}>
+                <Card key={index} className="p-4 border" style={{ backgroundColor: '#FDF3E8' }} data-testid={`criterion-${index}`}>
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <Label className="text-sm font-semibold">Critério {index + 1}</Label>
@@ -260,7 +260,7 @@ export const CreatePrompt = () => {
             </div>
 
             <div className="mt-4 p-4 rounded-md" style={{ backgroundColor: '#E0E7FF' }}>
-              <p className="text-sm font-semibold" style={{ color: '#002147' }}>
+              <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>
                 Pontuação Total: {criteria.reduce((sum, c) => sum + c.peso_maximo, 0)} pontos
               </p>
             </div>
@@ -270,7 +270,7 @@ export const CreatePrompt = () => {
             <Button
               type="submit"
               disabled={loading}
-              style={{ backgroundColor: '#002147' }}
+              style={{ backgroundColor: '#7C1805' }}
               data-testid="submit-prompt-button"
             >
               {loading ? 'Criando...' : 'Criar Tema'}
