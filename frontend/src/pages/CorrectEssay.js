@@ -53,9 +53,15 @@ export const CorrectEssay = () => {
   const canvasContainerRef = useRef(null);
   const fabricCanvasRef = useRef(null);
   const [canvasReady, setCanvasReady] = useState(false);
+  const selectedToolRef = useRef('select');
+  const selectedColorRef = useRef('#FFEB3B');
 
   const [selectedTool, setSelectedTool] = useState('select');
   const [selectedColor, setSelectedColor] = useState('#FFEB3B');
+
+  // Manter refs sincronizados para usar em event listeners sem stale closure
+  useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
+  useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
   const [penWidth, setPenWidth] = useState(5);
   const [penOpacity, setPenOpacity] = useState(1);
   const [eraserSize, setEraserSize] = useState('medium');
@@ -290,45 +296,18 @@ export const CorrectEssay = () => {
     }
   };
 
-  const handleTextSelection = () => {
-    console.log('[DEBUG] handleTextSelection chamado, tool:', selectedTool);
-    if (selectedTool === 'select' || selectedTool === 'pen' || selectedTool === 'eraser') return;
-
-    const selection = window.getSelection();
-    console.log('[DEBUG] selection text:', selection?.toString());
-    if (!selection || !selection.toString().trim()) {
-      console.log('[DEBUG] sem texto selecionado');
-      return;
-    }
-    console.log('[DEBUG] anchorNode dentro do textRef:', textRef.current?.contains(selection.anchorNode));
-    if (!textRef.current.contains(selection.anchorNode)) return;
-
-    const range = selection.getRangeAt(0).cloneRange();
-    const selectedText = selection.toString().trim();
-    console.log('[DEBUG] vai aplicar anotacao:', selectedText);
-
-    if (selectedTool === 'comment') {
-      setSelectedTextRange({ range, text: selectedText });
-      setCommentText('');
-      setShowCommentPopup(true);
-    } else {
-      applyAnnotation(selectedText, range);
-    }
-  };
-
-  const applyAnnotation = (text, range) => {
-    console.log('[DEBUG] applyAnnotation tool:', selectedTool, 'cor:', selectedColor);
+  const applyAnnotationWithTool = (range, tool, color) => {
     const span = document.createElement('span');
 
-    if (selectedTool === 'underline') {
-      span.style.borderBottom = `2px solid ${selectedColor}`;
+    if (tool === 'underline') {
+      span.style.borderBottom = `2px solid ${color}`;
       span.style.paddingBottom = '2px';
-    } else if (selectedTool === 'highlight') {
-      span.style.backgroundColor = selectedColor;
+    } else if (tool === 'highlight') {
+      span.style.backgroundColor = color;
       span.style.padding = '2px 0';
-    } else if (selectedTool === 'strikethrough') {
+    } else if (tool === 'strikethrough') {
       span.style.textDecoration = 'line-through';
-      span.style.textDecorationColor = selectedColor;
+      span.style.textDecorationColor = color;
       span.style.textDecorationThickness = '2px';
       span.style.textDecorationStyle = 'solid';
     }
@@ -338,10 +317,45 @@ export const CorrectEssay = () => {
       span.appendChild(extracted);
       range.insertNode(span);
       window.getSelection().removeAllRanges();
-      console.log('[DEBUG] anotacao aplicada com sucesso');
     } catch (error) {
-      console.error('[DEBUG] erro:', error);
+      console.error('Erro ao aplicar anotacao:', error);
     }
+  };
+
+  // Listener global para capturar mouseup sem problemas de stale closure
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      const tool = selectedToolRef.current;
+      const color = selectedColorRef.current;
+
+      if (tool === 'select' || tool === 'pen' || tool === 'eraser') return;
+
+      const selection = window.getSelection();
+      if (!selection || !selection.toString().trim()) return;
+      if (!textRef.current || !textRef.current.contains(selection.anchorNode)) return;
+
+      const range = selection.getRangeAt(0).cloneRange();
+      const selectedText = selection.toString().trim();
+
+      if (tool === 'comment') {
+        setSelectedTextRange({ range, text: selectedText });
+        setCommentText('');
+        setShowCommentPopup(true);
+      } else {
+        applyAnnotationWithTool(range, tool, color);
+      }
+    };
+
+    document.addEventListener('mouseup', handleGlobalMouseUp);
+    return () => document.removeEventListener('mouseup', handleGlobalMouseUp);
+  }, []);
+
+  const handleTextSelection = () => {
+    // Mantido para compatibilidade — a logica real esta no listener global acima
+  };
+
+  const applyAnnotation = (text, range) => {
+    applyAnnotationWithTool(range, selectedToolRef.current, selectedColorRef.current);
   };
 
   const handleAddComment = () => {
@@ -598,7 +612,7 @@ export const CorrectEssay = () => {
 
   const getScoreColor = (score, max) => {
     const percentage = max > 0 ? (score / max) * 100 : 0;
-    if (percentage >= 80) return '#10B981';
+    if (percentage >= 80) return '#36555A';
     if (percentage >= 60) return '#3B82F6';
     if (percentage >= 40) return '#F59E0B';
     return '#EF4444';
@@ -617,7 +631,7 @@ export const CorrectEssay = () => {
   const visibleAiErrors = aiSuggestions?.erros?.filter(e => !dismissedErrors.includes(e.id)) || [];
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#F9F8F6' }}>
+    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FDF3E8' }}>
       {/* HEADER FIXO */}
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
         <div>
@@ -629,7 +643,7 @@ export const CorrectEssay = () => {
           >
             ← Voltar para fila
           </Button>
-          <h1 className="font-heading text-xl font-bold" style={{ color: '#002147' }}>
+          <h1 className="font-heading text-xl font-bold" style={{ color: '#7C1805' }}>
             {essay.prompt_title}
           </h1>
           <p className="text-sm text-slate-500">Aluno: {essay.student_name}</p>
@@ -638,7 +652,7 @@ export const CorrectEssay = () => {
           onClick={handleSubmit}
           disabled={submitting}
           size="lg"
-          style={{ backgroundColor: '#10B981' }}
+          style={{ backgroundColor: '#36555A' }}
           data-testid="finalize-correction-button"
         >
           {submitting ? 'Finalizando...' : '✓ Finalizar Correção'}
@@ -764,7 +778,7 @@ export const CorrectEssay = () => {
             <Button
               onClick={handleAnalyzeWithAI}
               disabled={aiAnalyzing}
-              style={{ backgroundColor: '#6B21A8' }}
+              style={{ backgroundColor: '#36555A' }}
               size="sm"
               data-testid="analyze-ai-button"
             >
@@ -827,7 +841,7 @@ export const CorrectEssay = () => {
           <div className="p-6 space-y-6">
             {/* PONTUAÇÃO */}
             <div>
-              <h3 className="font-semibold mb-4" style={{ color: '#002147' }}>Pontuação por Critério</h3>
+              <h3 className="font-semibold mb-4" style={{ color: '#7C1805' }}>Pontuação por Critério</h3>
               {prompt.criteria.map((criterion) => (
                 <div key={criterion.id} className="mb-4" data-testid={`score-${criterion.id}`}>
                   <div className="flex justify-between items-start mb-2">
@@ -861,7 +875,7 @@ export const CorrectEssay = () => {
             <Separator />
 
             {/* TOTAL */}
-            <div className="text-center p-4 rounded-lg" style={{ backgroundColor: '#F9F8F6' }}>
+            <div className="text-center p-4 rounded-lg" style={{ backgroundColor: '#FDF3E8' }}>
               <p className="text-sm font-semibold mb-2" style={{ color: '#525252' }}>NOTA TOTAL</p>
               <p className="text-5xl font-black mb-2" style={{ color: getScoreColor(totalScore, maxScore) }} data-testid="total-score">
                 {totalScore}
@@ -874,7 +888,7 @@ export const CorrectEssay = () => {
 
             {/* FEEDBACK */}
             <div className="space-y-4">
-              <h3 className="font-semibold" style={{ color: '#002147' }}>Feedback</h3>
+              <h3 className="font-semibold" style={{ color: '#7C1805' }}>Feedback</h3>
               
               <div>
                 <Label htmlFor="general-feedback">Feedback Geral *</Label>
@@ -921,7 +935,7 @@ export const CorrectEssay = () => {
               <>
                 <Separator />
                 <div>
-                  <h3 className="font-semibold mb-3" style={{ color: '#002147' }}>Sugestões da IA</h3>
+                  <h3 className="font-semibold mb-3" style={{ color: '#7C1805' }}>Sugestões da IA</h3>
                   
                   {aiSuggestions.resumo && (
                     <Card className="p-4 mb-4 border-2" style={{ backgroundColor: '#EFF6FF', borderColor: '#3B82F6' }}>
@@ -937,7 +951,7 @@ export const CorrectEssay = () => {
                   )}
 
                   {visibleAiErrors.length === 0 && aiSuggestions.resumo && (
-                    <Card className="p-6 text-center border-2" style={{ backgroundColor: '#F0FDF4', borderColor: '#10B981' }}>
+                    <Card className="p-6 text-center border-2" style={{ backgroundColor: '#F0FDF4', borderColor: '#36555A' }}>
                       <p className="text-sm font-semibold" style={{ color: '#065F46' }}>✓ Nenhum erro específico encontrado pela IA</p>
                       <p className="text-xs mt-1" style={{ color: '#047857' }}>Veja o resumo geral acima para orientações</p>
                     </Card>
@@ -1007,7 +1021,7 @@ export const CorrectEssay = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCommentPopup(false)}>
           <div className="bg-white rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold" style={{ color: '#002147' }}>Adicionar Comentário</h3>
+              <h3 className="font-semibold" style={{ color: '#7C1805' }}>Adicionar Comentário</h3>
               <Button variant="ghost" size="sm" onClick={() => setShowCommentPopup(false)}>
                 <X size={18} />
               </Button>
