@@ -58,7 +58,7 @@ export const MyEssays = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-heading font-black text-4xl" style={{ color: '#002147' }} data-testid="my-essays-title">
+          <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="my-essays-title">
             Minhas Redações
           </h1>
           <p className="text-lg mt-2 text-slate-600">Acompanhe suas redações e correções</p>
@@ -71,7 +71,7 @@ export const MyEssays = () => {
             <a
               href="/prompts"
               className="inline-flex items-center justify-center px-6 py-3 rounded-md font-semibold text-white"
-              style={{ backgroundColor: '#002147' }}
+              style={{ backgroundColor: '#7C1805' }}
               data-testid="write-first-essay-button"
             >
               Escrever Primeira Redação
@@ -93,7 +93,7 @@ export const MyEssays = () => {
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex-1">
                     <div className="flex items-center gap-3 mb-2">
-                      <h3 className="font-heading text-xl font-semibold" style={{ color: '#002147' }}>
+                      <h3 className="font-heading text-xl font-semibold" style={{ color: '#7C1805' }}>
                         {essay.prompt_title || 'Redação'}
                       </h3>
                       {getStatusBadge(essay.status)}
@@ -110,7 +110,7 @@ export const MyEssays = () => {
                       <p className="text-sm font-semibold" style={{ color: '#525252' }}>
                         NOTA DISPONÍVEL
                       </p>
-                      <p className="text-2xl font-bold" style={{ color: '#10B981' }}>
+                      <p className="text-2xl font-bold" style={{ color: '#36555A' }}>
                         Ver Correção
                       </p>
                     </div>
