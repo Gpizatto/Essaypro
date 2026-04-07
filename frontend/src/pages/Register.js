@@ -54,11 +54,11 @@ export const Register = () => {
         backgroundPosition: 'center',
       }}
     >
-      <div className="absolute inset-0" style={{ backgroundColor: 'rgba(0, 33, 71, 0.7)' }}></div>
+      <div className="absolute inset-0" style={{ backgroundColor: 'rgba(124, 24, 5, 0.75)' }}></div>
       <Card className="relative z-10 w-full max-w-md p-8 shadow-lg bg-white" data-testid="register-card">
         <div className="text-center mb-8">
-          <h1 className="font-heading font-black text-4xl mb-2" style={{ color: '#002147' }}>
-            EssayPro
+          <h1 className="font-heading font-black text-4xl mb-2" style={{ color: '#7C1805' }}>
+            RcN
           </h1>
           <p className="text-slate-600">Crie sua conta</p>
         </div>
@@ -121,7 +121,7 @@ export const Register = () => {
             className="w-full"
             disabled={loading}
             data-testid="register-submit-button"
-            style={{ backgroundColor: '#002147' }}
+            style={{ backgroundColor: '#7C1805' }}
           >
             {loading ? 'Cadastrando...' : 'Cadastrar'}
           </Button>
@@ -130,7 +130,7 @@ export const Register = () => {
         <div className="mt-6 text-center text-sm">
           <p className="text-slate-600">
             Já tem uma conta?{' '}
-            <Link to="/login" className="font-semibold" style={{ color: '#6B21A8' }} data-testid="login-link">
+            <Link to="/login" className="font-semibold" style={{ color: '#36555A' }} data-testid="login-link">
               Faça login
             </Link>
           </p>
