@@ -11,7 +11,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 const getRoleBadge = (role) => {
   const roleMap = {
     student: { label: 'Aluno',     color: '#2563EB' },
-    teacher: { label: 'Professor', color: '#6B21A8' },
+    teacher: { label: 'Professor', color: '#36555A' },
     admin:   { label: 'Admin',     color: '#DC2626' },
   };
   const config = roleMap[role] || roleMap.student;
@@ -56,7 +56,7 @@ export const AdminUsers = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-heading font-black text-4xl" style={{ color: '#002147' }} data-testid="admin-users-title">
+          <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="admin-users-title">
             Gerenciamento de Usuários
           </h1>
           <p className="text-lg mt-2 text-slate-600">Total de {users.length} usuários cadastrados</p>
