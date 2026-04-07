@@ -230,6 +230,11 @@ export const MyEssays = () => {
                         {essay.prompt_title || 'Redação'}
                       </h3>
                       {getStatusBadge(essay.status)}
+                      {essay.is_rewrite && (
+                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: '#FFF0E0', color: '#D66B27', border: '1px solid #D66B27' }}>
+                          ✏️ Reescrita
+                        </span>
+                      )}
                     </div>
                     <p className="text-sm flex items-center gap-2" style={{ color: '#6B5B4E' }}>
                       <Clock size={14} />
