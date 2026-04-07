@@ -131,6 +131,8 @@ class EssaySubmit(BaseModel):
     submission_method: str
     file_url: Optional[str] = None
     student_note: Optional[str] = None
+    parent_essay_id: Optional[str] = None
+    is_rewrite: bool = False
 
 class EssayResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -143,6 +145,8 @@ class EssayResponse(BaseModel):
     submission_method: str
     file_url: Optional[str] = None
     student_note: Optional[str] = None
+    parent_essay_id: Optional[str] = None
+    is_rewrite: bool = False
     status: str
     submitted_at: datetime
 
@@ -307,6 +311,8 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
         "submission_method": essay_data.submission_method,
         "file_url": essay_data.file_url,
         "student_note": essay_data.student_note,
+        "parent_essay_id": essay_data.parent_essay_id,
+        "is_rewrite": essay_data.is_rewrite,
         "status": "pending",
         "submitted_at": datetime.now(timezone.utc)
     }
