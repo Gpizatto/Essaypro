@@ -2,17 +2,42 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
-import { Users, FileText, CheckCircle, Award } from 'lucide-react';
+import { Users, FileText, CheckCircle, Award, Zap, Save } from 'lucide-react';
+import { Button } from '../components/ui/button';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 export const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [creditConfig, setCreditConfig] = useState({ mode: 'unlimited', limit: 4 });
+  const [savingCredits, setSavingCredits] = useState(false);
 
   useEffect(() => {
     fetchStats();
+    fetchCreditConfig();
   }, []);
+
+  const fetchCreditConfig = async () => {
+    try {
+      const { data } = await axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/credits/config`, { withCredentials: true });
+      setCreditConfig(data);
+    } catch (error) {
+      console.error('Error fetching credit config:', error);
+    }
+  };
+
+  const saveCreditConfig = async () => {
+    setSavingCredits(true);
+    try {
+      await axios.put(`${process.env.REACT_APP_BACKEND_URL}/api/credits/config`, creditConfig, { withCredentials: true });
+      alert('Configuração salva com sucesso!');
+    } catch (error) {
+      alert('Erro ao salvar configuração');
+    } finally {
+      setSavingCredits(false);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -115,6 +140,52 @@ export const AdminDashboard = () => {
             </div>
           </Card>
         </div>
+
+        {/* CONFIGURAÇÃO DE CRÉDITOS */}
+        <Card className="p-6 bg-white border shadow-sm">
+          <div className="flex items-center gap-2 mb-4">
+            <Zap size={20} style={{ color: '#7C1805' }} />
+            <h2 className="font-heading font-bold text-xl" style={{ color: '#7C1805' }}>
+              Créditos de Envio
+            </h2>
+          </div>
+          <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>
+            Configure quantas redações cada aluno pode enviar por período.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>Modo</label>
+              <select
+                value={creditConfig.mode}
+                onChange={e => setCreditConfig({ ...creditConfig, mode: e.target.value })}
+                style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '14px', color: '#2C1A0E', backgroundColor: '#FFF' }}
+              >
+                <option value="unlimited">Ilimitado</option>
+                <option value="monthly">Limite por mês</option>
+                <option value="weekly">Limite por semana</option>
+              </select>
+            </div>
+            {creditConfig.mode !== 'unlimited' && (
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>
+                  Quantidade {creditConfig.mode === 'monthly' ? 'por mês' : 'por semana'}
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  max="50"
+                  value={creditConfig.limit}
+                  onChange={e => setCreditConfig({ ...creditConfig, limit: parseInt(e.target.value) || 1 })}
+                  style={{ padding: '8px 12px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '14px', width: '80px', color: '#2C1A0E' }}
+                />
+              </div>
+            )}
+            <Button onClick={saveCreditConfig} disabled={savingCredits} size="sm">
+              <Save size={14} className="mr-1" />
+              {savingCredits ? 'Salvando...' : 'Salvar'}
+            </Button>
+          </div>
+        </Card>
 
         <Card className="p-8 bg-white border shadow-sm">
           <div className="max-w-2xl">
