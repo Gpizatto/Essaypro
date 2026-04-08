@@ -547,6 +547,101 @@ async def toggle_user_active(user_id: str, current_user: dict = Depends(get_curr
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
     return {"is_active": new_status}
 
+@api_router.get("/teacher/students")
+async def get_teacher_students(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    students = await db.users.find({"role": "student"}, {"_id": 1, "name": 1, "email": 1, "created_at": 1}).to_list(1000)
+    result = []
+
+    for student in students:
+        sid = str(student["_id"])
+        essays = await db.essays.find({"student_id": sid}, {"_id": 0}).to_list(1000)
+
+        scores = []
+        rewrite_count = sum(1 for e in essays if e.get("is_rewrite"))
+        pending_count = sum(1 for e in essays if e.get("status") == "pending")
+        corrected_count = sum(1 for e in essays if e.get("status") == "corrected")
+
+        # Buscar notas das correções
+        for essay in essays:
+            if essay.get("status") == "corrected":
+                correction = await db.corrections.find_one({"essay_id": essay["id"]}, {"_id": 0, "total_score": 1, "corrected_at": 1})
+                if correction:
+                    scores.append({
+                        "score": correction["total_score"],
+                        "date": correction.get("corrected_at"),
+                        "prompt_title": essay.get("prompt_title", essay.get("prompt_id", ""))
+                    })
+
+        scores.sort(key=lambda x: x["date"] if x["date"] else "")
+
+        result.append({
+            "id": sid,
+            "name": student["name"],
+            "email": student["email"],
+            "total_essays": len(essays),
+            "pending_count": pending_count,
+            "corrected_count": corrected_count,
+            "rewrite_count": rewrite_count,
+            "average_score": sum(s["score"] for s in scores) / len(scores) if scores else 0,
+            "best_score": max((s["score"] for s in scores), default=0),
+            "scores_history": scores[-5:],  # últimas 5 notas
+        })
+
+    result.sort(key=lambda x: -x["total_essays"])
+    return result
+
+@api_router.get("/teacher/student/{student_id}")
+async def get_student_detail(student_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    try:
+        student = await db.users.find_one({"_id": ObjectId(student_id)}, {"_id": 0, "name": 1, "email": 1})
+    except:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    if not student:
+        raise HTTPException(status_code=404, detail="Student not found")
+
+    essays = await db.essays.find({"student_id": student_id}, {"_id": 0}).to_list(1000)
+    prompts = await db.prompts.find({}, {"_id": 0, "id": 1, "title": 1}).to_list(1000)
+
+    essay_prompt_ids = {e.get("prompt_id") for e in essays}
+    prompts_done = [p for p in prompts if p["id"] in essay_prompt_ids]
+    prompts_not_done = [p for p in prompts if p["id"] not in essay_prompt_ids and p.get("is_active")]
+
+    detailed_essays = []
+    for essay in sorted(essays, key=lambda x: x.get("submitted_at", ""), reverse=True):
+        correction = None
+        if essay.get("status") == "corrected":
+            correction = await db.corrections.find_one({"essay_id": essay["id"]}, {"_id": 0, "total_score": 1, "corrected_at": 1, "general_feedback": 1})
+        prompt = await db.prompts.find_one({"id": essay.get("prompt_id")}, {"_id": 0, "title": 1})
+        detailed_essays.append({
+            "id": essay["id"],
+            "prompt_title": prompt["title"] if prompt else "Sem proposta",
+            "status": essay.get("status"),
+            "is_rewrite": essay.get("is_rewrite", False),
+            "submitted_at": essay.get("submitted_at"),
+            "score": correction["total_score"] if correction else None,
+            "corrected_at": correction.get("corrected_at") if correction else None,
+        })
+
+    return {
+        "student": {"id": student_id, **student},
+        "essays": detailed_essays,
+        "prompts_done": prompts_done,
+        "prompts_not_done": prompts_not_done,
+        "stats": {
+            "total": len(essays),
+            "pending": sum(1 for e in essays if e.get("status") == "pending"),
+            "corrected": sum(1 for e in essays if e.get("status") == "corrected"),
+            "rewrites": sum(1 for e in essays if e.get("is_rewrite")),
+        }
+    }
+
 @api_router.get("/admin/stats")
 async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
