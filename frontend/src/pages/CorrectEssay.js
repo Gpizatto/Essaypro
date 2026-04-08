@@ -91,6 +91,7 @@ export const CorrectEssay = () => {
   const [dismissedErrors, setDismissedErrors] = useState([]);
   const [expandedSuggestions, setExpandedSuggestions] = useState({});
   const [essayHtml, setEssayHtml] = useState('');
+  const [courseSettings, setCourseSettings] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -224,6 +225,12 @@ export const CorrectEssay = () => {
       const essayRes = await axios.get(`${API_URL}/api/essays/${essayId}`, { withCredentials: true });
       setEssay(essayRes.data);
       setEssayHtml(essayRes.data.content ? essayRes.data.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível');
+
+      // Buscar configurações do curso
+      try {
+        const settingsRes = await axios.get(`${API_URL}/api/settings/course`, { withCredentials: true });
+        setCourseSettings(settingsRes.data);
+      } catch (e) { console.error('Error fetching settings:', e); }
 
       const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
       const promptData = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
