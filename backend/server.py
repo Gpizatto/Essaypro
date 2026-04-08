@@ -298,6 +298,65 @@ async def create_prompt(prompt_data: PromptCreate, current_user: dict = Depends(
     await db.prompts.insert_one(prompt_doc)
     return PromptResponse(**prompt_doc)
 
+@api_router.put("/prompts/{prompt_id}", response_model=PromptResponse)
+async def update_prompt(prompt_id: str, prompt_data: PromptCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can edit prompts")
+    prompt = await db.prompts.find_one({"id": prompt_id}, {"_id": 0})
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    update_data = {
+        "title": prompt_data.title,
+        "theme": prompt_data.theme,
+        "supporting_texts": prompt_data.supporting_texts,
+        "instructions": prompt_data.instructions,
+    }
+    if prompt_data.criteria:
+        update_data["criteria"] = [c.model_dump() for c in prompt_data.criteria]
+    await db.prompts.update_one({"id": prompt_id}, {"$set": update_data})
+    updated = await db.prompts.find_one({"id": prompt_id}, {"_id": 0})
+    return PromptResponse(**updated)
+
+@api_router.patch("/prompts/{prompt_id}/archive")
+async def archive_prompt(prompt_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can archive prompts")
+    prompt = await db.prompts.find_one({"id": prompt_id})
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    new_status = not prompt.get("is_active", True)
+    await db.prompts.update_one({"id": prompt_id}, {"$set": {"is_active": new_status}})
+    return {"is_active": new_status}
+
+@api_router.post("/prompts/{prompt_id}/duplicate", response_model=PromptResponse)
+async def duplicate_prompt(prompt_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can duplicate prompts")
+    prompt = await db.prompts.find_one({"id": prompt_id}, {"_id": 0})
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    new_prompt = {**prompt}
+    new_prompt["id"] = str(ObjectId())
+    new_prompt["title"] = f"Cópia de {prompt['title']}"
+    new_prompt["created_at"] = datetime.now(timezone.utc)
+    new_prompt["created_by"] = current_user["_id"]
+    new_prompt["is_active"] = False
+    await db.prompts.insert_one(new_prompt)
+    return PromptResponse(**new_prompt)
+
+@api_router.get("/prompts/all", response_model=List[PromptResponse])
+async def get_all_prompts(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    prompts = await db.prompts.find({}, {"_id": 0}).to_list(1000)
+    default_criteria = [
+        {"id": "c1", "nome": "Competência 1", "descricao": "", "peso_maximo": 200},
+    ]
+    for p in prompts:
+        if "criteria" not in p or not p["criteria"]:
+            p["criteria"] = default_criteria
+    return [PromptResponse(**p) for p in prompts]
+
 @api_router.post("/essays", response_model=EssayResponse)
 async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "student":
