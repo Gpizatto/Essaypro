@@ -751,6 +751,41 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
 
 # ============================================================
+# CONFIGURAÇÕES PEDAGÓGICAS DO CURSO
+# ============================================================
+
+DEFAULT_COURSE_SETTINGS = {
+    "show_teacher_name": True,
+    "allow_post_correction_doubt": True,
+    "allow_download": True,
+    "allow_rewrite": True,
+    "require_rewrite": False,
+    "allow_ai_analysis": True,
+}
+
+@api_router.get("/settings/course")
+async def get_course_settings(current_user: dict = Depends(get_current_user)):
+    config = await db.settings.find_one({"key": "course_settings"})
+    if not config:
+        return DEFAULT_COURSE_SETTINGS
+    result = {**DEFAULT_COURSE_SETTINGS}
+    result.update({k: v for k, v in config.items() if k in DEFAULT_COURSE_SETTINGS})
+    return result
+
+@api_router.put("/settings/course")
+async def update_course_settings(body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    allowed_keys = set(DEFAULT_COURSE_SETTINGS.keys())
+    clean = {k: bool(v) for k, v in body.items() if k in allowed_keys}
+    await db.settings.update_one(
+        {"key": "course_settings"},
+        {"$set": {"key": "course_settings", **clean}},
+        upsert=True
+    )
+    return {"message": "Configurações salvas", **clean}
+
+# ============================================================
 # SISTEMA DE CRÉDITOS
 # ============================================================
 
