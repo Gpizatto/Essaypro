@@ -16,7 +16,7 @@ import { CorrectionQueue } from './pages/CorrectionQueue';
 import { CorrectEssay } from './pages/CorrectEssay';
 import { CreatePrompt } from './pages/CreatePrompt';
 import { AdminUsers } from './pages/AdminUsers';
-import { ManagePrompts } from './pages/ManagePrompts';
+import { ManagePrompts } from './pages/Manageprompts';
 import './App.css';
 
 const DashboardRouter = () => {
