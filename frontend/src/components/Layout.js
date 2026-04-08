@@ -1,161 +1,131 @@
 import React from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
-import { AuthProvider, useAuth } from './contexts/AuthContext';
-import { ProtectedRoute } from './components/ProtectedRoute';
-import { Toaster } from './components/ui/sonner';
-import { Login } from './pages/Login';
-import { Register } from './pages/Register';
-import { StudentDashboard } from './pages/StudentDashboard';
-import { TeacherDashboard } from './pages/TeacherDashboard';
-import { AdminDashboard } from './pages/AdminDashboard';
-import { PromptsList } from './pages/PromptsList';
-import { MyEssays } from './pages/MyEssays';
-import { SubmitEssay } from './pages/SubmitEssay';
-import { CorrectionView } from './pages/CorrectionView';
-import { CorrectionQueue } from './pages/CorrectionQueue';
-import { CorrectEssay } from './pages/CorrectEssay';
-import { CreatePrompt } from './pages/CreatePrompt';
-import { AdminUsers } from './pages/AdminUsers';
-import { ManagePrompts } from './pages/ManagePrompts';
-import { CourseSettings } from './pages/CourseSettings';
-import './App.css';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../contexts/AuthContext';
+import { Button } from './ui/button';
+import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings } from 'lucide-react';
+import { toast } from 'sonner';
 
-const DashboardRouter = () => {
-  const { user, loading } = useAuth();
+export const Layout = ({ children }) => {
+  const { user, logout } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
+  const handleLogout = async () => {
+    try {
+      await logout();
+      toast.success('Até logo!');
+      navigate('/login');
+    } catch (error) {
+      toast.error('Erro ao fazer logout');
+    }
+  };
 
-  if (user.role === 'student') {
-    return <StudentDashboard />;
-  } else if (user.role === 'teacher') {
-    return <TeacherDashboard />;
-  } else if (user.role === 'admin') {
-    return <AdminDashboard />;
-  }
+  const getMenuItems = () => {
+    if (user.role === 'student') {
+      return [
+        { path: '/dashboard', icon: Home, label: 'Início' },
+        { path: '/prompts', icon: BookOpen, label: 'Temas' },
+        { path: '/my-essays', icon: FileText, label: 'Minhas Redações' },
+      ];
+    } else if (user.role === 'teacher') {
+      return [
+        { path: '/dashboard', icon: Home, label: 'Início' },
+        { path: '/correction-queue', icon: PenTool, label: 'Correções' },
+        { path: '/teacher/students', icon: Users, label: 'Alunos' },
+        { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
+      ];
+    } else if (user.role === 'admin') {
+      return [
+        { path: '/dashboard', icon: Home, label: 'Início' },
+        { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
+        { path: '/admin/users', icon: Users, label: 'Usuários' },
+        { path: '/settings', icon: Settings, label: 'Configurações' },
+      ];
+    }
+    return [];
+  };
 
-  return <Navigate to="/login" />;
-};
+  const menuItems = getMenuItems();
+  const roleLabel = user.role === 'student' ? 'Aluno' : user.role === 'teacher' ? 'Professor' : 'Admin';
+  const roleColor = user.role === 'student' ? '#36555A' : user.role === 'teacher' ? '#D66B27' : '#7C1805';
 
-function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
-          
-          <Route
-            path="/dashboard"
-            element={
-              <ProtectedRoute>
-                <DashboardRouter />
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/prompts"
-            element={
-              <ProtectedRoute allowedRoles={['student']}>
-                <PromptsList />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/my-essays"
-            element={
-              <ProtectedRoute allowedRoles={['student']}>
-                <MyEssays />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/submit-essay/:promptId"
-            element={
-              <ProtectedRoute allowedRoles={['student']}>
-                <SubmitEssay />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/essay/:essayId/correction"
-            element={
-              <ProtectedRoute allowedRoles={['student']}>
-                <CorrectionView />
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/correction-queue"
-            element={
-              <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-                <CorrectionQueue />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/correct-essay/:essayId"
-            element={
-              <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-                <CorrectEssay />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/create-prompt"
-            element={
-              <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-                <CreatePrompt />
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route
-            path="/admin/users"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AdminUsers />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/manage-prompts"
-            element={
-              <ProtectedRoute allowedRoles={['teacher', 'admin']}>
-                <ManagePrompts />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/settings"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <CourseSettings />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/admin/stats"
-            element={
-              <ProtectedRoute allowedRoles={['admin']}>
-                <AdminDashboard />
-              </ProtectedRoute>
-            }
-          />
-          
-          <Route path="/" element={<Navigate to="/dashboard" />} />
-        </Routes>
-      </BrowserRouter>
-      <Toaster position="bottom-right" />
-    </AuthProvider>
-  );
-}
+    <div className="min-h-screen flex" style={{ backgroundColor: '#FDF3E8' }}>
+      {/* Sidebar */}
+      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#7C1805' }}>
+        {/* Logo */}
+        <div className="p-6 pb-4">
+          <h1 className="font-script text-3xl leading-tight" style={{ color: '#FDF3E8' }} data-testid="app-logo">
+            redação
+          </h1>
+          <h1 className="font-script text-3xl leading-tight" style={{ color: '#DAB257' }}>
+            com nicolle
+          </h1>
+          <p className="text-xs mt-2 font-body" style={{ color: 'rgba(253,243,232,0.6)' }}>
+            Plataforma de Correção
+          </p>
+        </div>
 
-export default App;
+        {/* Divider */}
+        <div style={{ height: '1px', backgroundColor: 'rgba(253,243,232,0.15)', margin: '0 24px' }} />
+
+        {/* Nav */}
+        <nav className="flex-1 p-4 space-y-1 mt-2">
+          {menuItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = location.pathname === item.path;
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
+                className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
+                style={{
+                  backgroundColor: isActive ? 'rgba(253,243,232,0.15)' : 'transparent',
+                  color: isActive ? '#FDF3E8' : 'rgba(253,243,232,0.7)',
+                  borderLeft: isActive ? '3px solid #DAB257' : '3px solid transparent',
+                }}
+              >
+                <Icon size={18} />
+                <span className="font-medium text-sm">{item.label}</span>
+              </Link>
+            );
+          })}
+        </nav>
+
+        {/* User info */}
+        <div className="p-4" style={{ borderTop: '1px solid rgba(253,243,232,0.15)' }}>
+          <div className="mb-3">
+            <p className="text-sm font-semibold truncate" style={{ color: '#FDF3E8' }}>
+              {user.name}
+            </p>
+            <p className="text-xs truncate" style={{ color: 'rgba(253,243,232,0.6)' }}>
+              {user.email}
+            </p>
+            <span
+              className="inline-block mt-2 px-2 py-0.5 text-xs font-semibold rounded-full"
+              style={{ backgroundColor: roleColor, color: '#FDF3E8' }}
+            >
+              {roleLabel}
+            </span>
+          </div>
+          <Button
+            onClick={handleLogout}
+            variant="ghost"
+            className="w-full flex items-center gap-2 text-sm"
+            style={{ color: 'rgba(253,243,232,0.7)', hover: 'bg-white/10' }}
+            data-testid="logout-button"
+          >
+            <LogOut size={16} />
+            Sair
+          </Button>
+        </div>
+      </aside>
+
+      {/* Main content */}
+      <main className="flex-1 overflow-auto" style={{ backgroundColor: '#FDF3E8' }}>
+        <div className="p-6 md:p-8 lg:p-10">{children}</div>
+      </main>
+    </div>
+  );
+};
