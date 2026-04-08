@@ -16,6 +16,7 @@ import { CorrectionQueue } from './pages/CorrectionQueue';
 import { CorrectEssay } from './pages/CorrectEssay';
 import { CreatePrompt } from './pages/CreatePrompt';
 import { AdminUsers } from './pages/AdminUsers';
+import { ManagePrompts } from './pages/ManagePrompts';
 import './App.css';
 
 const DashboardRouter = () => {
@@ -120,6 +121,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <AdminUsers />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/manage-prompts"
+            element={
+              <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                <ManagePrompts />
               </ProtectedRoute>
             }
           />
