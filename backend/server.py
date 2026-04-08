@@ -98,6 +98,7 @@ class UserResponse(BaseModel):
     name: str
     email: str
     role: str
+    is_active: bool = True
     created_at: datetime
 
 class Criterion(BaseModel):
@@ -516,8 +517,35 @@ async def get_all_users(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     
-    users = await db.users.find({}, {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1}).to_list(1000)
-    return [UserResponse(id=str(u["_id"]), name=u["name"], email=u["email"], role=u["role"], created_at=u["created_at"]) for u in users]
+    users = await db.users.find({}, {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1, "is_active": 1}).to_list(1000)
+    return [UserResponse(id=str(u["_id"]), name=u["name"], email=u["email"], role=u["role"], is_active=u.get("is_active", True), created_at=u["created_at"]) for u in users]
+
+@api_router.patch("/admin/users/{user_id}/role")
+async def update_user_role(user_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    new_role = body.get("role")
+    if new_role not in ["student", "teacher", "admin"]:
+        raise HTTPException(status_code=400, detail="Invalid role")
+    if user_id == current_user["_id"]:
+        raise HTTPException(status_code=400, detail="Cannot change your own role")
+    result = await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": new_role}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"role": new_role}
+
+@api_router.patch("/admin/users/{user_id}/toggle-active")
+async def toggle_user_active(user_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    if user_id == current_user["_id"]:
+        raise HTTPException(status_code=400, detail="Cannot deactivate yourself")
+    user = await db.users.find_one({"_id": ObjectId(user_id)})
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    new_status = not user.get("is_active", True)
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
+    return {"is_active": new_status}
 
 @api_router.get("/admin/stats")
 async def get_admin_stats(current_user: dict = Depends(get_current_user)):
