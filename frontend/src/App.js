@@ -18,6 +18,8 @@ import { CreatePrompt } from './pages/CreatePrompt';
 import { AdminUsers } from './pages/AdminUsers';
 import { ManagePrompts } from './pages/ManagePrompts';
 import { CourseSettings } from './pages/CourseSettings';
+import { TeacherStudents } from './pages/TeacherStudents';
+import { StudentProgress } from './pages/StudentProgress';
 import './App.css';
 
 const DashboardRouter = () => {
@@ -138,6 +140,22 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <CourseSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/students"
+            element={
+              <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                <TeacherStudents />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/teacher/student/:studentId"
+            element={
+              <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                <StudentProgress />
               </ProtectedRoute>
             }
           />
