@@ -28,6 +28,7 @@ export const SubmitEssay = () => {
   const [studentNote, setStudentNote] = useState('');
   const [isRewrite, setIsRewrite] = useState(false);
   const [parentEssayId, setParentEssayId] = useState(null);
+  const [credits, setCredits] = useState(null);
   const location = useLocation();
 
   const editor = useEditor({
@@ -42,6 +43,7 @@ export const SubmitEssay = () => {
 
   useEffect(() => {
     fetchPrompt();
+    fetchCredits();
     // Detectar se é reescrita via query param ?rewrite=essayId
     const params = new URLSearchParams(location.search);
     const rewriteId = params.get('rewrite');
@@ -50,6 +52,15 @@ export const SubmitEssay = () => {
       setParentEssayId(rewriteId);
     }
   }, [promptId]);
+
+  const fetchCredits = async () => {
+    try {
+      const { data } = await axios.get(`${API_URL}/api/credits/me`, { withCredentials: true });
+      setCredits(data);
+    } catch (error) {
+      console.error('Error fetching credits:', error);
+    }
+  };
 
   const fetchPrompt = async () => {
     try {
@@ -185,6 +196,37 @@ export const SubmitEssay = () => {
           <p className="text-slate-700 leading-relaxed">{prompt.instructions}</p>
         </Card>
 
+        {/* Banner de créditos */}
+        {credits && credits.mode !== 'unlimited' && (
+          <Card className="p-4 border" style={{
+            borderColor: credits.remaining === 0 ? '#7C1805' : '#E8DDD0',
+            backgroundColor: credits.remaining === 0 ? '#FEF2F2' : '#FDF3E8'
+          }}>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <div>
+                <p className="text-sm font-semibold" style={{ color: credits.remaining === 0 ? '#7C1805' : '#2C1A0E' }}>
+                  {credits.remaining === 0
+                    ? '⚠️ Você atingiu seu limite de envios'
+                    : `⚡ ${credits.remaining} crédito${credits.remaining !== 1 ? 's' : ''} restante${credits.remaining !== 1 ? 's' : ''}`}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                  {credits.used} de {credits.limit} usados {credits.mode === 'monthly' ? 'este mês' : 'esta semana'}
+                  {credits.renews_at ? ` · renova em ${credits.renews_at}` : ''}
+                </p>
+              </div>
+              <div className="flex gap-1">
+                {Array.from({ length: credits.limit }).map((_, i) => (
+                  <div
+                    key={i}
+                    className="w-4 h-4 rounded-full"
+                    style={{ backgroundColor: i < credits.used ? '#7C1805' : '#E8DDD0' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </Card>
+        )}
+
         {/* Banner de reescrita */}
         {isRewrite && (
           <Card className="p-4 border-l-4" style={{ borderLeftColor: '#D66B27', backgroundColor: '#FFF8F0' }}>
@@ -241,12 +283,12 @@ export const SubmitEssay = () => {
             <div className="mt-6 flex justify-center">
               <Button
                 onClick={() => handleSubmit('editor')}
-                disabled={submitting}
+                disabled={submitting || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
                 size="lg"
                 style={{ backgroundColor: '#7C1805' }}
                 data-testid="submit-editor-button"
               >
-                {submitting ? 'Enviando...' : 'Enviar Redação'}
+                {submitting ? 'Enviando...' : credits?.remaining === 0 ? 'Sem créditos' : 'Enviar Redação'}
               </Button>
             </div>
           </TabsContent>
@@ -267,12 +309,12 @@ export const SubmitEssay = () => {
             <div className="mt-6 flex justify-center">
               <Button
                 onClick={() => handleSubmit('paste')}
-                disabled={submitting || !pasteContent.trim()}
+                disabled={submitting || !pasteContent.trim() || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
                 size="lg"
                 style={{ backgroundColor: '#7C1805' }}
                 data-testid="submit-paste-button"
               >
-                {submitting ? 'Enviando...' : 'Enviar Redação'}
+                {submitting ? 'Enviando...' : credits?.remaining === 0 ? 'Sem créditos' : 'Enviar Redação'}
               </Button>
             </div>
           </TabsContent>
@@ -301,12 +343,12 @@ export const SubmitEssay = () => {
             <div className="mt-6 flex justify-center">
               <Button
                 onClick={() => handleSubmit('upload')}
-                disabled={submitting || !uploadFile}
+                disabled={submitting || !uploadFile || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
                 size="lg"
                 style={{ backgroundColor: '#7C1805' }}
                 data-testid="submit-upload-button"
               >
-                {submitting ? 'Enviando...' : 'Enviar Redação'}
+                {submitting ? 'Enviando...' : credits?.remaining === 0 ? 'Sem créditos' : 'Enviar Redação'}
               </Button>
             </div>
           </TabsContent>
