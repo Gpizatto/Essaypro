@@ -464,19 +464,62 @@ async def get_all_users(current_user: dict = Depends(get_current_user)):
 async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    
+
     total_users = await db.users.count_documents({})
+    total_students = await db.users.count_documents({"role": "student"})
+    total_teachers = await db.users.count_documents({"role": "teacher"})
     total_essays = await db.essays.count_documents({})
+    total_pending = await db.essays.count_documents({"status": "pending"})
     total_corrections = await db.corrections.count_documents({})
-    
+    total_rewrites = await db.essays.count_documents({"is_rewrite": True})
+
     corrections = await db.corrections.find({}, {"_id": 0, "total_score": 1}).to_list(10000)
     scores = [c["total_score"] for c in corrections]
-    
+
+    # Propostas mais enviadas
+    essays_all = await db.essays.find({}, {"_id": 0, "prompt_id": 1}).to_list(10000)
+    prompt_counts = {}
+    for e in essays_all:
+        pid = e.get("prompt_id")
+        if pid:
+            prompt_counts[pid] = prompt_counts.get(pid, 0) + 1
+    top_prompt_ids = sorted(prompt_counts, key=lambda x: -prompt_counts[x])[:5]
+    top_prompts = []
+    for pid in top_prompt_ids:
+        p = await db.prompts.find_one({"id": pid}, {"_id": 0, "title": 1, "id": 1})
+        if p:
+            top_prompts.append({"title": p["title"], "count": prompt_counts[pid]})
+
+    # Alunos mais ativos
+    student_counts = {}
+    for e in essays_all:
+        sid = e.get("student_id") if "student_id" in e else None
+    essays_with_student = await db.essays.find({}, {"_id": 0, "student_id": 1}).to_list(10000)
+    for e in essays_with_student:
+        sid = e.get("student_id")
+        if sid:
+            student_counts[sid] = student_counts.get(sid, 0) + 1
+    top_student_ids = sorted(student_counts, key=lambda x: -student_counts[x])[:5]
+    top_students = []
+    for sid in top_student_ids:
+        try:
+            u = await db.users.find_one({"_id": ObjectId(sid)}, {"_id": 0, "name": 1})
+            if u:
+                top_students.append({"name": u["name"], "count": student_counts[sid]})
+        except:
+            pass
+
     return {
         "total_users": total_users,
+        "total_students": total_students,
+        "total_teachers": total_teachers,
         "total_essays": total_essays,
+        "total_pending": total_pending,
         "total_corrections": total_corrections,
-        "average_score": sum(scores) / len(scores) if scores else 0
+        "total_rewrites": total_rewrites,
+        "average_score": sum(scores) / len(scores) if scores else 0,
+        "top_prompts": top_prompts,
+        "top_students": top_students,
     }
 
 @api_router.get("/cloudinary/signature")
