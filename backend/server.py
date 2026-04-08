@@ -302,6 +302,26 @@ async def create_prompt(prompt_data: PromptCreate, current_user: dict = Depends(
 async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "student":
         raise HTTPException(status_code=403, detail="Only students can submit essays")
+
+    # Verificar créditos
+    config = await db.settings.find_one({"key": "credit_config"})
+    mode = config.get("mode", "unlimited") if config else "unlimited"
+    limit = config.get("limit", 4) if config else 4
+
+    if mode != "unlimited":
+        now = datetime.now(timezone.utc)
+        if mode == "monthly":
+            period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        else:
+            days_since_monday = now.weekday()
+            period_start = (now - timedelta(days=days_since_monday)).replace(hour=0, minute=0, second=0, microsecond=0)
+
+        used = await db.essays.count_documents({
+            "student_id": current_user["_id"],
+            "submitted_at": {"$gte": period_start}
+        })
+        if used >= limit:
+            raise HTTPException(status_code=429, detail=f"Limite de {limit} redaç{'ão' if limit == 1 else 'ões'} por {'mês' if mode == 'monthly' else 'semana'} atingido.")
     
     essay_doc = {
         "id": str(ObjectId()),
@@ -599,6 +619,72 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
     except Exception as e:
         logger.error(f"AI analysis error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
+
+# ============================================================
+# SISTEMA DE CRÉDITOS
+# ============================================================
+
+class CreditConfig(BaseModel):
+    mode: str = "unlimited"  # "unlimited" | "monthly" | "weekly"
+    limit: int = 4
+
+class CreditConfigResponse(BaseModel):
+    mode: str
+    limit: int
+
+@api_router.get("/credits/config", response_model=CreditConfigResponse)
+async def get_credit_config(current_user: dict = Depends(get_current_user)):
+    config = await db.settings.find_one({"key": "credit_config"})
+    if not config:
+        return CreditConfigResponse(mode="unlimited", limit=4)
+    return CreditConfigResponse(mode=config.get("mode", "unlimited"), limit=config.get("limit", 4))
+
+@api_router.put("/credits/config")
+async def update_credit_config(config: CreditConfig, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    await db.settings.update_one(
+        {"key": "credit_config"},
+        {"$set": {"key": "credit_config", "mode": config.mode, "limit": config.limit}},
+        upsert=True
+    )
+    return {"message": "Configuração atualizada"}
+
+@api_router.get("/credits/me")
+async def get_my_credits(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "student":
+        raise HTTPException(status_code=403, detail="Students only")
+
+    config = await db.settings.find_one({"key": "credit_config"})
+    mode = config.get("mode", "unlimited") if config else "unlimited"
+    limit = config.get("limit", 4) if config else 4
+
+    if mode == "unlimited":
+        return {"mode": "unlimited", "limit": None, "used": 0, "remaining": None, "renews_at": None}
+
+    now = datetime.now(timezone.utc)
+    if mode == "monthly":
+        period_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        next_month = (period_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+        renews_at = next_month.strftime("%d/%m/%Y")
+    else:  # weekly
+        days_since_monday = now.weekday()
+        period_start = (now - timedelta(days=days_since_monday)).replace(hour=0, minute=0, second=0, microsecond=0)
+        renews_at = (period_start + timedelta(days=7)).strftime("%d/%m/%Y")
+
+    used = await db.essays.count_documents({
+        "student_id": current_user["_id"],
+        "submitted_at": {"$gte": period_start}
+    })
+    remaining = max(0, limit - used)
+
+    return {
+        "mode": mode,
+        "limit": limit,
+        "used": used,
+        "remaining": remaining,
+        "renews_at": renews_at
+    }
 
 app.include_router(api_router)
 
