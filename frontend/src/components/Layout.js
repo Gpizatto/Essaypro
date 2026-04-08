@@ -31,11 +31,13 @@ export const Layout = ({ children }) => {
       return [
         { path: '/dashboard', icon: Home, label: 'Início' },
         { path: '/correction-queue', icon: PenTool, label: 'Correções' },
-        { path: '/create-prompt', icon: BookOpen, label: 'Criar Tema' },
+        { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
+        { path: '/create-prompt', icon: BarChart3, label: 'Nova Proposta' },
       ];
     } else if (user.role === 'admin') {
       return [
         { path: '/dashboard', icon: Home, label: 'Início' },
+        { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
         { path: '/admin/users', icon: Users, label: 'Usuários' },
         { path: '/admin/stats', icon: BarChart3, label: 'Estatísticas' },
       ];
