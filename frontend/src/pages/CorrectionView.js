@@ -5,7 +5,8 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
 import { Separator } from '../components/ui/separator';
-import { Award, TrendingUp, Lightbulb, RotateCcw, Download, FileText, BookOpen, X } from 'lucide-react';
+import { Award, TrendingUp, Lightbulb, RotateCcw, Download, FileText, BookOpen, X, CalendarDays, User, CheckCircle2, Clock } from 'lucide-react';
+import { Badge } from '../components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Canvas, PencilBrush } from 'fabric';
@@ -223,11 +224,41 @@ export const CorrectionView = () => {
   return (
     <Layout>
       <div className="space-y-8">
-        <div>
-          <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="correction-title">
-            Correção da Redação
-          </h1>
-          <p className="text-lg mt-2 text-slate-600">{essay?.prompt_title}</p>
+        <div className="space-y-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }} data-testid="correction-title">
+              Correção da Redação
+            </h1>
+            {essay?.is_rewrite && (
+              <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ backgroundColor: '#FFF0E0', color: '#D66B27', border: '1px solid #D66B27' }}>
+                ✏️ Reescrita
+              </span>
+            )}
+            <Badge style={{ backgroundColor: '#36555A', color: '#FDF3E8' }}>
+              <CheckCircle2 size={12} className="mr-1" />
+              Corrigida
+            </Badge>
+          </div>
+
+          <p className="font-heading font-semibold text-lg" style={{ color: '#2C1A0E' }}>{essay?.prompt_title}</p>
+
+          {/* Linha de metadados */}
+          <div className="flex flex-wrap gap-4 text-sm" style={{ color: '#6B5B4E' }}>
+            <span className="flex items-center gap-1">
+              <CalendarDays size={14} />
+              Enviada em {essay ? new Date(essay.submitted_at).toLocaleDateString('pt-BR') : '—'}
+            </span>
+            <span className="flex items-center gap-1">
+              <CheckCircle2 size={14} style={{ color: '#36555A' }} />
+              Corrigida em {correction ? new Date(correction.corrected_at).toLocaleDateString('pt-BR') : '—'}
+            </span>
+            {correction?.teacher_name && (
+              <span className="flex items-center gap-1">
+                <User size={14} />
+                Por {correction.teacher_name}
+              </span>
+            )}
+          </div>
         </div>
 
         {/* BOTÕES DE AÇÃO */}
