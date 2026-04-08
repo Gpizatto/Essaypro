@@ -34,6 +34,7 @@ export const CorrectionView = () => {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [prompt, setPrompt] = useState(null);
+  const [courseSettings, setCourseSettings] = useState(null);
 
   useEffect(() => {
     fetchData();
@@ -80,6 +81,10 @@ export const CorrectionView = () => {
       const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
       const found = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
       if (found) setPrompt(found);
+
+      // Buscar configurações do curso
+      const settingsRes = await axios.get(`${API_URL}/api/settings/course`, { withCredentials: true });
+      setCourseSettings(settingsRes.data);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -252,7 +257,7 @@ export const CorrectionView = () => {
               <CheckCircle2 size={14} style={{ color: '#36555A' }} />
               Corrigida em {correction ? new Date(correction.corrected_at).toLocaleDateString('pt-BR') : '—'}
             </span>
-            {correction?.teacher_name && (
+            {correction?.teacher_name && courseSettings?.show_teacher_name !== false && (
               <span className="flex items-center gap-1">
                 <User size={14} />
                 Por {correction.teacher_name}
@@ -267,14 +272,18 @@ export const CorrectionView = () => {
             <BookOpen size={15} className="mr-2" />
             Ver Proposta
           </Button>
-          <Button variant="outline" size="sm" onClick={handleDownloadEssay}>
-            <FileText size={15} className="mr-2" />
-            Baixar Redação Original
-          </Button>
-          <Button variant="outline" size="sm" onClick={handleDownloadCorrection}>
-            <Download size={15} className="mr-2" />
-            Baixar Correção
-          </Button>
+          {courseSettings?.allow_download !== false && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleDownloadEssay}>
+                <FileText size={15} className="mr-2" />
+                Baixar Redação Original
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleDownloadCorrection}>
+                <Download size={15} className="mr-2" />
+                Baixar Correção
+              </Button>
+            </>
+          )}
         </div>
 
         <Card className="p-8 bg-white border shadow-sm" data-testid="total-score-card">
@@ -413,6 +422,7 @@ export const CorrectionView = () => {
       </div>
 
         {/* BOTÃO REESCRITA */}
+        {courseSettings?.allow_rewrite !== false && (
         <Card className="p-6 bg-white border" style={{ borderColor: '#DAB257', backgroundColor: '#FFFBF0' }}>
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
