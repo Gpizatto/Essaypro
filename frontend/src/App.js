@@ -16,7 +16,8 @@ import { CorrectionQueue } from './pages/CorrectionQueue';
 import { CorrectEssay } from './pages/CorrectEssay';
 import { CreatePrompt } from './pages/CreatePrompt';
 import { AdminUsers } from './pages/AdminUsers';
-import { ManagePrompts } from './pages/Manageprompts';
+import { ManagePrompts } from './pages/ManagePrompts';
+import { CourseSettings } from './pages/CourseSettings';
 import './App.css';
 
 const DashboardRouter = () => {
@@ -129,6 +130,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['teacher', 'admin']}>
                 <ManagePrompts />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <CourseSettings />
               </ProtectedRoute>
             }
           />
