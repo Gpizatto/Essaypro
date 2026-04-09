@@ -83,8 +83,11 @@ export const CorrectEssay = () => {
 
   const [quickComments, setQuickComments] = useState([]);
   const [quickCommentSearch, setQuickCommentSearch] = useState('');
+  const [quickCommentCategory, setQuickCommentCategory] = useState('all');
   const [showAddQuickComment, setShowAddQuickComment] = useState(false);
   const [newQuickComment, setNewQuickComment] = useState('');
+  const [newQuickCommentCategory, setNewQuickCommentCategory] = useState('geral');
+  const [sharedComments, setSharedComments] = useState([]);
 
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState(null);
@@ -267,8 +270,12 @@ export const CorrectEssay = () => {
 
   const loadQuickComments = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/api/users/quick-comments`, { withCredentials: true });
-      setQuickComments(data.quick_comments || []);
+      const [personalRes, sharedRes] = await Promise.all([
+        axios.get(`${API_URL}/api/users/quick-comments`, { withCredentials: true }),
+        axios.get(`${API_URL}/api/admin/quick-comments`, { withCredentials: true }).catch(() => ({ data: { quick_comments: [] } })),
+      ]);
+      setQuickComments(personalRes.data.quick_comments || []);
+      setSharedComments(sharedRes.data.quick_comments || []);
     } catch (error) {
       console.error('Error loading quick comments:', error);
     }
@@ -658,9 +665,27 @@ export const CorrectEssay = () => {
     return '#EF4444';
   };
 
-  const filteredQuickComments = quickComments.filter(qc => 
-    qc.text.toLowerCase().includes(quickCommentSearch.toLowerCase())
-  );
+  const CATEGORIES = [
+    { key: 'all', label: 'Todas' },
+    { key: 'gramatica', label: 'Gramática' },
+    { key: 'coesao', label: 'Coesão' },
+    { key: 'argumentacao', label: 'Argumentação' },
+    { key: 'repertorio', label: 'Repertório' },
+    { key: 'proposta', label: 'Proposta' },
+    { key: 'conclusao', label: 'Conclusão' },
+    { key: 'geral', label: 'Geral' },
+  ];
+
+  const allComments = [
+    ...quickComments,
+    ...sharedComments.filter(sc => !quickComments.find(qc => qc.text === sc.text)).map(sc => ({ ...sc, isShared: true }))
+  ];
+
+  const filteredQuickComments = allComments.filter(qc => {
+    const matchText = qc.text.toLowerCase().includes(quickCommentSearch.toLowerCase());
+    const matchCat = quickCommentCategory === 'all' || qc.category === quickCommentCategory;
+    return matchText && matchCat;
+  });
 
   const topFrequent = [...quickComments].sort((a, b) => (b.use_count || 0) - (a.use_count || 0)).slice(0, 3);
   const recentComments = [...quickComments]
@@ -1110,34 +1135,51 @@ export const CorrectEssay = () => {
               "{selectedTextRange?.text}"
             </p>
 
-            {/* Quick Comments */}
+            {/* Quick Comments — Banco de Comentários */}
             <div className="mb-4">
-              <Label className="text-xs mb-2 block">Comentários Prontos</Label>
-              
-              <div className="mb-2">
-                <div className="relative">
-                  <Search size={14} className="absolute left-3 top-2.5 text-slate-400" />
-                  <Input
-                    value={quickCommentSearch}
-                    onChange={(e) => setQuickCommentSearch(e.target.value)}
-                    placeholder="Buscar comentário..."
-                    className="pl-9"
-                    size="sm"
-                  />
-                </div>
+              <Label className="text-xs mb-2 block font-semibold" style={{ color: '#7C1805' }}>
+                Banco de Comentários
+              </Label>
+
+              {/* Busca */}
+              <div className="relative mb-2">
+                <Search size={13} className="absolute left-2.5 top-2.5" style={{ color: '#6B5B4E' }} />
+                <Input
+                  value={quickCommentSearch}
+                  onChange={(e) => setQuickCommentSearch(e.target.value)}
+                  placeholder="Buscar por palavra-chave..."
+                  className="pl-8 text-xs h-8"
+                  size="sm"
+                />
               </div>
 
-              {recentComments.length > 0 && (
-                <div className="mb-3">
-                  <p className="text-xs font-semibold text-slate-600 mb-1">Usados recentemente</p>
+              {/* Filtro por categoria */}
+              <div className="flex flex-wrap gap-1 mb-2">
+                {CATEGORIES.map(cat => (
+                  <button
+                    key={cat.key}
+                    onClick={() => setQuickCommentCategory(cat.key)}
+                    className="text-xs px-2 py-0.5 rounded-full border transition-all"
+                    style={{
+                      backgroundColor: quickCommentCategory === cat.key ? '#7C1805' : 'transparent',
+                      color: quickCommentCategory === cat.key ? '#FDF3E8' : '#6B5B4E',
+                      borderColor: quickCommentCategory === cat.key ? '#7C1805' : '#E8DDD0',
+                    }}
+                  >
+                    {cat.label}
+                  </button>
+                ))}
+              </div>
+
+              {/* Usados recentemente */}
+              {!quickCommentSearch && quickCommentCategory === 'all' && recentComments.length > 0 && (
+                <div className="mb-2">
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#6B5B4E' }}>Recentes</p>
                   <div className="flex flex-wrap gap-1">
-                    {recentComments.map((qc) => (
-                      <Badge
-                        key={qc.id}
-                        className="cursor-pointer hover:opacity-80"
-                        style={{ backgroundColor: '#E0E7FF' }}
-                        onClick={() => handleUseQuickComment(qc.id, qc.text)}
-                      >
+                    {recentComments.map(qc => (
+                      <Badge key={qc.id} className="cursor-pointer hover:opacity-80 text-xs"
+                        style={{ backgroundColor: '#FDF3E8', color: '#D66B27', border: '1px solid #D66B27' }}
+                        onClick={() => handleUseQuickComment(qc.id, qc.text)}>
                         {qc.text}
                       </Badge>
                     ))}
@@ -1145,54 +1187,70 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              <div className="flex flex-wrap gap-1 max-h-32 overflow-y-auto">
-                {filteredQuickComments.map((qc, index) => {
-                  const isFrequent = topFrequent.slice(0, 3).find(t => t.id === qc.id);
+              {/* Lista filtrada */}
+              <div className="space-y-1 max-h-40 overflow-y-auto">
+                {filteredQuickComments.length === 0 ? (
+                  <p className="text-xs text-center py-2" style={{ color: '#6B5B4E' }}>Nenhum comentário encontrado</p>
+                ) : filteredQuickComments.map(qc => {
+                  const isFrequent = topFrequent.find(t => t.id === qc.id);
                   return (
-                    <div key={qc.id} className="relative group">
-                      <Badge
-                        className="cursor-pointer hover:opacity-80"
+                    <div key={qc.id} className="relative group flex items-center gap-1">
+                      <button
+                        className="flex-1 text-left text-xs px-2 py-1.5 rounded border transition-all hover:border-[#D66B27]"
+                        style={{ borderColor: '#E8DDD0', color: '#2C1A0E', backgroundColor: qc.isShared ? '#F9F6FF' : 'white' }}
                         onClick={() => handleUseQuickComment(qc.id, qc.text)}
                       >
-                        {isFrequent && '⭐ '}{qc.text}
-                      </Badge>
-                      <button
-                        onClick={() => handleDeleteQuickComment(qc.id)}
-                        className="absolute -top-1 -right-1 hidden group-hover:block bg-red-500 text-white rounded-full w-4 h-4 text-xs"
-                      >
-                        ×
+                        {isFrequent && <span className="mr-1">⭐</span>}
+                        {qc.isShared && <span className="mr-1 text-xs" style={{ color: '#D9B2CF' }}>★</span>}
+                        {qc.text}
+                        {qc.category && qc.category !== 'geral' && (
+                          <span className="ml-1 text-xs px-1 rounded" style={{ backgroundColor: '#F0EBE3', color: '#6B5B4E' }}>
+                            {qc.category}
+                          </span>
+                        )}
                       </button>
+                      {!qc.isShared && (
+                        <button
+                          onClick={() => handleDeleteQuickComment(qc.id)}
+                          className="opacity-0 group-hover:opacity-100 text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: '#7C1805', color: 'white' }}
+                        >×</button>
+                      )}
                     </div>
                   );
                 })}
               </div>
 
+              {/* Adicionar novo */}
               {showAddQuickComment ? (
-                <div className="flex gap-2 mt-2">
+                <div className="mt-2 space-y-1">
                   <Input
                     value={newQuickComment}
                     onChange={(e) => setNewQuickComment(e.target.value)}
-                    placeholder="Novo comentário pronto..."
+                    placeholder="Texto do comentário..."
+                    className="text-xs h-8"
                     size="sm"
                   />
-                  <Button size="sm" onClick={handleAddQuickComment}>
-                    Salvar
-                  </Button>
-                  <Button size="sm" variant="ghost" onClick={() => {
-                    setShowAddQuickComment(false);
-                    setNewQuickComment('');
-                  }}>
-                    <X size={16} />
-                  </Button>
+                  <select
+                    value={newQuickCommentCategory}
+                    onChange={e => setNewQuickCommentCategory(e.target.value)}
+                    style={{ width: '100%', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', color: '#2C1A0E' }}
+                  >
+                    {CATEGORIES.filter(c => c.key !== 'all').map(c => (
+                      <option key={c.key} value={c.key}>{c.label}</option>
+                    ))}
+                  </select>
+                  <div className="flex gap-1">
+                    <Button size="sm" className="flex-1 h-7 text-xs" onClick={handleAddQuickComment}>Salvar</Button>
+                    <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => { setShowAddQuickComment(false); setNewQuickComment(''); }}>
+                      <X size={12} />
+                    </Button>
+                  </div>
                 </div>
               ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 w-full"
-                  onClick={() => setShowAddQuickComment(true)}
-                >
-                  <Plus size={14} className="mr-1" /> Criar Comentário Pronto
+                <Button variant="outline" size="sm" className="mt-2 w-full h-7 text-xs"
+                  onClick={() => setShowAddQuickComment(true)}>
+                  <Plus size={12} className="mr-1" /> Novo comentário
                 </Button>
               )}
             </div>
