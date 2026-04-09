@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
@@ -54,6 +54,7 @@ export const CorrectEssay = () => {
   const [submitting, setSubmitting] = useState(false);
   const textRef = useRef(null);
   const canvasContainerRef = useRef(null);
+  const textInitializedRef = useRef(false);
   const nativeCanvasRef = useRef(null);   // ref para o elemento <canvas>
   const ctxRef = useRef(null);            // CanvasRenderingContext2D
   const isDrawingRef = useRef(false);
@@ -114,18 +115,7 @@ export const CorrectEssay = () => {
     loadQuickComments();
   }, [essayId]);
 
-  // Setar innerHTML do texto UMA VEZ quando o HTML estiver disponível
-  // Injetar HTML do texto — só depois do loading terminar e o div estar no DOM
-  useEffect(() => {
-    if (!essayHtml || loading) return;
-    // Pequeno delay para garantir que o React finalizou o render do div
-    const t = setTimeout(() => {
-      if (textRef.current) {
-        textRef.current.innerHTML = essayHtml;
-      }
-    }, 50);
-    return () => clearTimeout(t);
-  }, [essayHtml, loading]);
+  // essayHtml é injetado via dangerouslySetInnerHTML no JSX
 
   // Sync refs
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
@@ -731,6 +721,12 @@ export const CorrectEssay = () => {
     }
   };
 
+  // Memoizar HTML inicial para não re-renderizar e apagar anotações
+  const initialHtml = useMemo(() => {
+    return essayHtml ? { __html: essayHtml } : undefined;
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [!!essayHtml]);  // só recalcula quando passa de vazio para preenchido
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1068,6 +1064,7 @@ export const CorrectEssay = () => {
                   userSelect: selectedTool === 'select' ? 'none' : 'text',
                 }}
                 data-testid="essay-text"
+                dangerouslySetInnerHTML={initialHtml}
               ></div>
               <canvas
                 ref={nativeCanvasRef}
