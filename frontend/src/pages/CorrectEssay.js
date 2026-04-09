@@ -113,12 +113,14 @@ export const CorrectEssay = () => {
     loadQuickComments();
   }, [essayId]);
 
-  // Setar innerHTML do texto UMA VEZ apenas, para nao apagar anotacoes em re-renders
+  // Setar innerHTML do texto UMA VEZ quando o HTML estiver disponível
+  const essayHtmlSetRef = useRef(false);
   useEffect(() => {
-    if (essayHtml && textRef.current && textRef.current.innerHTML === '') {
+    if (essayHtml && textRef.current && !essayHtmlSetRef.current) {
       textRef.current.innerHTML = essayHtml;
+      essayHtmlSetRef.current = true;
     }
-  }, [essayHtml]);
+  }, [essayHtml, textRef.current]);
 
   useEffect(() => {
     if (essay && textRef.current && !fabricCanvasRef.current) {
@@ -333,7 +335,7 @@ export const CorrectEssay = () => {
         if (d.inlineComments) setInlineComments(d.inlineComments);
         setDraftLoaded(true);
         toast.success('Rascunho carregado — continue de onde parou!', { duration: 3000 });
-      } catch (e) { /* sem rascunho */ }
+      } catch (e) { /* sem rascunho — 404 esperado */ }
 
       const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
       const promptData = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
