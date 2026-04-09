@@ -815,26 +815,46 @@ def generate_cloudinary_signature(
 async def get_quick_comments(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can access quick comments")
-    
+
     user = await db.users.find_one({"_id": ObjectId(current_user["_id"])}, {"_id": 0, "quick_comments": 1})
     comments = user.get("quick_comments", [])
-    
+
     migrated_comments = []
     for comment in comments:
         if isinstance(comment, str):
             migrated_comments.append({
                 "id": str(uuid.uuid4()),
                 "text": comment,
+                "category": "geral",
                 "use_count": 0,
                 "last_used_at": None,
                 "created_at": datetime.now(timezone.utc).isoformat()
             })
         else:
+            if "category" not in comment:
+                comment["category"] = "geral"
             migrated_comments.append(comment)
-    
+
     migrated_comments.sort(key=lambda x: x.get("use_count", 0), reverse=True)
-    
     return {"quick_comments": migrated_comments}
+
+@api_router.get("/admin/quick-comments")
+async def get_shared_quick_comments(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    config = await db.settings.find_one({"key": "shared_quick_comments"})
+    return {"quick_comments": config.get("comments", []) if config else []}
+
+@api_router.put("/admin/quick-comments")
+async def update_shared_quick_comments(body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    await db.settings.update_one(
+        {"key": "shared_quick_comments"},
+        {"$set": {"key": "shared_quick_comments", "comments": body.get("quick_comments", [])}},
+        upsert=True
+    )
+    return {"message": "Comentários compartilhados atualizados"}
 
 @api_router.put("/users/quick-comments")
 async def update_quick_comments(quick_comments: List[dict], current_user: dict = Depends(get_current_user)):
