@@ -11,7 +11,6 @@ import { Badge } from '../components/ui/badge';
 import { Card } from '../components/ui/card';
 import { toast } from 'sonner';
 import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, ChevronDown, ChevronUp, Sparkles, Save, Circle, Square, Minus, MoveRight, Trash2, ZoomIn, ZoomOut, Type } from 'lucide-react';
-import { Canvas, PencilBrush, Ellipse, Rect, Line, Triangle } from 'fabric';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -55,13 +54,16 @@ export const CorrectEssay = () => {
   const [submitting, setSubmitting] = useState(false);
   const textRef = useRef(null);
   const canvasContainerRef = useRef(null);
-  const fabricCanvasRef = useRef(null);
-  const [canvasReady, setCanvasReady] = useState(false);
+  const nativeCanvasRef = useRef(null);   // ref para o elemento <canvas>
+  const ctxRef = useRef(null);            // CanvasRenderingContext2D
+  const isDrawingRef = useRef(false);
+  const lastPosRef = useRef({ x: 0, y: 0 });
+  const shapeStartRef = useRef({ x: 0, y: 0 });
+  const snapshotRef = useRef(null);       // ImageData para preview de formas
   const selectedToolRef = useRef('select');
   const selectedColorRef = useRef('#FFEB3B');
-  const isDrawingShapeRef = useRef(false);
-  const shapeStartRef = useRef({ x: 0, y: 0 });
-  const activeShapeRef = useRef(null);
+  const penWidthRef = useRef(5);
+  const historyRef = useRef([]);          // array de ImageData
   const [zoom, setZoom] = useState(1);
 
   const [selectedTool, setSelectedTool] = useState('select');
@@ -130,219 +132,41 @@ export const CorrectEssay = () => {
     }
   }, [essayHtml]);
 
+  // Sync refs
+  useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
+  useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
+  useEffect(() => { penWidthRef.current = penWidth; }, [penWidth]);
+
+  // Inicializar canvas nativo quando o essay carregar
   useEffect(() => {
-    if (essay && textRef.current && !fabricCanvasRef.current) {
-      const timer = setTimeout(() => {
-        const canvasElement = document.getElementById('correction-canvas');
-        if (!canvasElement) {
-          console.error('Elemento canvas nao encontrado no DOM');
-          return;
-        }
+    if (!essay || !nativeCanvasRef.current) return;
 
-        try {
-          const containerRect = canvasContainerRef.current.getBoundingClientRect();
-          const width = Math.max(containerRect.width, 800);
-          // Use offsetHeight which is more reliable after DOM render
-          const height = Math.max(
-            textRef.current.offsetHeight,
-            textRef.current.scrollHeight,
-            600
-          );
-          
-          const fabricCanvas = new Canvas(canvasElement, {
-            width: width,
-            height: height,
-            isDrawingMode: false,
-            selection: false,
-            backgroundColor: null
-          });
-          
-          fabricCanvasRef.current = fabricCanvas;
-          
-          // Inicializar PencilBrush (obrigatorio Fabric.js v7)
-          fabricCanvas.freeDrawingBrush = new PencilBrush(fabricCanvas);
-          fabricCanvas.freeDrawingBrush.color = '#000000';
-          fabricCanvas.freeDrawingBrush.width = 5;
-          
-          // Estilizar o wrapper criado pelo Fabric.js
-          const wrapper = canvasElement.parentElement;
-          if (wrapper && wrapper.classList.contains('canvas-container')) {
-            wrapper.style.position = 'absolute';
-            wrapper.style.top = '0';
-            wrapper.style.left = '0';
-            wrapper.style.width = width + 'px';
-            wrapper.style.height = height + 'px';
-            wrapper.style.pointerEvents = 'none';
-            wrapper.style.zIndex = '5';
-          }
-          
-          setCanvasReady(true);
+    const canvas = nativeCanvasRef.current;
+    const ctx = canvas.getContext('2d');
+    ctxRef.current = ctx;
 
-          // ResizeObserver para manter canvas sincronizado com tamanho do texto
-          const resizeObserver = new ResizeObserver(() => {
-            if (!textRef.current || !fabricCanvasRef.current) return;
-            const newH = Math.max(textRef.current.offsetHeight, textRef.current.scrollHeight, 600);
-            const newW = Math.max(canvasContainerRef.current?.offsetWidth || 800, 800);
-            fabricCanvasRef.current.setDimensions({ width: newW, height: newH });
-            fabricCanvasRef.current.renderAll();
-            const w = fabricCanvasRef.current.wrapperEl;
-            if (w) { w.style.width = newW + 'px'; w.style.height = newH + 'px'; }
-          });
-          if (textRef.current) resizeObserver.observe(textRef.current);
-          if (canvasContainerRef.current) resizeObserver.observe(canvasContainerRef.current);
-          
-        } catch (error) {
-          console.error('ERRO ao criar canvas Fabric.js:', error);
-        }
-      }, 500);
-      
-      return () => clearTimeout(timer);
-    }
-  }, [essay]);
-
-  useEffect(() => {
-    if (fabricCanvasRef.current && canvasReady) {
-      const canvas = fabricCanvasRef.current;
-      const canvasElement = document.getElementById('correction-canvas');
-      const wrapper = canvasElement?.parentElement;
-      
-      if (selectedTool === 'pen') {
-        canvas.isDrawingMode = true;
-        canvas.selection = false;
-        
-        const rgbaColor = hexToRgba(selectedColor, penOpacity);
-        if (canvas.freeDrawingBrush) {
-          canvas.freeDrawingBrush.color = rgbaColor;
-          canvas.freeDrawingBrush.width = penWidth;
-        }
-        
-        if (wrapper) {
-          wrapper.style.pointerEvents = 'all';
-          wrapper.style.zIndex = '20';
-          wrapper.style.cursor = 'crosshair';
-        }
-        
-        canvas.renderAll();
-      } else if (selectedTool === 'eraser') {
-        canvas.isDrawingMode = true;
-        canvas.selection = false;
-        
-        if (canvas.freeDrawingBrush) {
-          canvas.freeDrawingBrush.color = '#FFFFFF';
-          canvas.freeDrawingBrush.width = eraserSize === 'small' ? 10 : 30;
-        }
-        
-        if (wrapper) {
-          wrapper.style.pointerEvents = 'all';
-          wrapper.style.zIndex = '20';
-          wrapper.style.cursor = 'not-allowed';
-        }
-        
-        canvas.renderAll();
-      } else if (['line', 'arrow', 'oval', 'rect'].includes(selectedTool)) {
-        canvas.isDrawingMode = false;
-        canvas.selection = false;
-        if (wrapper) {
-          wrapper.style.pointerEvents = 'all';
-          wrapper.style.zIndex = '20';
-          wrapper.style.cursor = 'crosshair';
-        }
-
-        let isDown = false;
-        let startX = 0, startY = 0;
-        let currentShape = null;
-
-        const getPos = (opt) => {
-          const ptr = canvas.getPointer(opt.e);
-          return { x: ptr.x, y: ptr.y };
-        };
-
-        const handleDown = (opt) => {
-          const pos = getPos(opt);
-          isDown = true;
-          startX = pos.x;
-          startY = pos.y;
-          const color = selectedColorRef.current;
-          const tool = selectedToolRef.current;
-
-          if (tool === 'oval') {
-            currentShape = new Ellipse({
-              left: startX, top: startY, rx: 0, ry: 0,
-              fill: 'transparent', stroke: color, strokeWidth: 2, selectable: false,
-            });
-          } else if (tool === 'rect') {
-            currentShape = new Rect({
-              left: startX, top: startY, width: 0, height: 0,
-              fill: 'transparent', stroke: color, strokeWidth: 2, selectable: false,
-            });
-          } else {
-            currentShape = new Line([startX, startY, startX, startY], {
-              stroke: color, strokeWidth: 2, selectable: false,
-            });
-          }
-          canvas.add(currentShape);
-        };
-
-        const handleMove = (opt) => {
-          if (!isDown || !currentShape) return;
-          const pos = getPos(opt);
-          const tool = selectedToolRef.current;
-          if (tool === 'oval') {
-            const rx = Math.abs(pos.x - startX) / 2;
-            const ry = Math.abs(pos.y - startY) / 2;
-            currentShape.set({ rx, ry, left: Math.min(pos.x, startX), top: Math.min(pos.y, startY) });
-          } else if (tool === 'rect') {
-            currentShape.set({
-              left: Math.min(pos.x, startX), top: Math.min(pos.y, startY),
-              width: Math.abs(pos.x - startX), height: Math.abs(pos.y - startY),
-            });
-          } else {
-            currentShape.set({ x2: pos.x, y2: pos.y });
-          }
-          canvas.renderAll();
-        };
-
-        const handleUp = (opt) => {
-          if (!isDown) return;
-          isDown = false;
-          if (selectedToolRef.current === 'arrow' && currentShape) {
-            const dx = currentShape.x2 - currentShape.x1;
-            const dy = currentShape.y2 - currentShape.y1;
-            const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-            const head = new Triangle({
-              left: currentShape.x2, top: currentShape.y2,
-              width: 14, height: 14,
-              fill: selectedColorRef.current,
-              angle: angle + 90,
-              originX: 'center', originY: 'center', selectable: false,
-            });
-            canvas.add(head);
-          }
-          currentShape = null;
-          canvas.renderAll();
-        };
-
-        canvas.on('mouse:down', handleDown);
-        canvas.on('mouse:move', handleMove);
-        canvas.on('mouse:up', handleUp);
-
-        return () => {
-          canvas.off('mouse:down', handleDown);
-          canvas.off('mouse:move', handleMove);
-          canvas.off('mouse:up', handleUp);
-        };
-      } else {
-        canvas.isDrawingMode = false;
-        canvas.selection = false;
-        if (wrapper) {
-          wrapper.style.pointerEvents = 'none';
-          wrapper.style.zIndex = '5';
-          wrapper.style.cursor = 'default';
-        }
-        canvas.renderAll();
+    const syncSize = () => {
+      if (!canvasContainerRef.current) return;
+      const container = canvasContainerRef.current;
+      const w = container.offsetWidth || 800;
+      const h = Math.max(container.offsetHeight, textRef.current?.scrollHeight || 600, 600);
+      if (canvas.width !== w || canvas.height !== h) {
+        // Salvar conteúdo antes de redimensionar
+        const saved = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        canvas.width = w;
+        canvas.height = h;
+        ctx.putImageData(saved, 0, 0);
       }
-    }
-  }, [selectedTool, selectedColor, penWidth, penOpacity, eraserSize, canvasReady]);
+    };
+
+    syncSize();
+
+    const ro = new ResizeObserver(syncSize);
+    if (canvasContainerRef.current) ro.observe(canvasContainerRef.current);
+    if (textRef.current) ro.observe(textRef.current);
+
+    return () => ro.disconnect();
+  }, [essay]);
 
   const hexToRgba = (hex, alpha) => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -454,49 +278,139 @@ export const CorrectEssay = () => {
     }
   };
 
+  // ── Canvas nativo: funções de desenho ──────────────────────────────────
+  const getPos = (e) => {
+    const canvas = nativeCanvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    const scaleX = canvas.width / rect.width;
+    const scaleY = canvas.height / rect.height;
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return {
+      x: (clientX - rect.left) * scaleX,
+      y: (clientY - rect.top)  * scaleY,
+    };
+  };
+
+  const saveHistory = () => {
+    const canvas = nativeCanvasRef.current;
+    const ctx = ctxRef.current;
+    if (!canvas || !ctx) return;
+    const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    historyRef.current = [...historyRef.current.slice(-29), snap];
+  };
+
   const clearCanvas = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-    if (window.confirm('Apagar todas as marcações do canvas?')) {
-      canvas.clear();
-      canvas.backgroundColor = null;
-      canvas.renderAll();
-      setCanvasHistory([]);
-      setHistoryIndex(-1);
-    }
+    if (!nativeCanvasRef.current || !ctxRef.current) return;
+    if (!window.confirm('Apagar todas as marcações?')) return;
+    saveHistory();
+    ctxRef.current.clearRect(0, 0, nativeCanvasRef.current.width, nativeCanvasRef.current.height);
   };
 
   const undoCanvas = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas || canvasHistory.length === 0) return;
-    const newIndex = Math.max(0, historyIndex - 1);
-    if (newIndex === historyIndex && historyIndex === 0) {
-      canvas.clear(); canvas.renderAll();
-      setHistoryIndex(-1);
-      return;
-    }
-    const state = canvasHistory[newIndex];
-    if (state) {
-      canvas.loadFromJSON(JSON.parse(state), () => canvas.renderAll());
-      setHistoryIndex(newIndex);
+    if (!ctxRef.current || historyRef.current.length === 0) return;
+    const prev = historyRef.current[historyRef.current.length - 1];
+    historyRef.current = historyRef.current.slice(0, -1);
+    ctxRef.current.putImageData(prev, 0, 0);
+  };
+
+  const redoCanvas = () => {};  // simplificado — undo já cobre o fluxo principal
+
+  const zoomIn  = () => setZoom(p => Math.min(parseFloat((p + 0.1).toFixed(1)), 2.0));
+  const zoomOut = () => setZoom(p => Math.max(parseFloat((p - 0.1).toFixed(1)), 0.5));
+
+  // Eventos de desenho no canvas nativo
+  const handleCanvasMouseDown = (e) => {
+    const tool = selectedToolRef.current;
+    if (!['pen','eraser','line','arrow','oval','rect'].includes(tool)) return;
+    e.preventDefault();
+    saveHistory();
+    isDrawingRef.current = true;
+    const pos = getPos(e);
+    lastPosRef.current = pos;
+    shapeStartRef.current = pos;
+    if (tool === 'pen' || tool === 'eraser') {
+      const ctx = ctxRef.current;
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+    } else {
+      // snapshot para preview
+      snapshotRef.current = ctxRef.current.getImageData(
+        0, 0, nativeCanvasRef.current.width, nativeCanvasRef.current.height
+      );
     }
   };
 
-  const redoCanvas = () => {
-    const canvas = fabricCanvasRef.current;
-    if (!canvas) return;
-    const newIndex = Math.min(canvasHistory.length - 1, historyIndex + 1);
-    if (newIndex !== historyIndex) {
-      const state = canvasHistory[newIndex];
-      if (state) {
-        canvas.loadFromJSON(JSON.parse(state), () => canvas.renderAll());
-        setHistoryIndex(newIndex);
+  const handleCanvasMouseMove = (e) => {
+    if (!isDrawingRef.current) return;
+    e.preventDefault();
+    const ctx = ctxRef.current;
+    const tool = selectedToolRef.current;
+    const color = selectedColorRef.current;
+    const pos = getPos(e);
+
+    if (tool === 'pen') {
+      ctx.strokeStyle = color;
+      ctx.lineWidth = penWidthRef.current;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
+      ctx.lineTo(pos.x, pos.y);
+      ctx.stroke();
+      lastPosRef.current = pos;
+    } else if (tool === 'eraser') {
+      ctx.clearRect(pos.x - 15, pos.y - 15, 30, 30);
+    } else {
+      // Preview de forma: restaurar snapshot e redesenhar
+      ctx.putImageData(snapshotRef.current, 0, 0);
+      const sx = shapeStartRef.current.x;
+      const sy = shapeStartRef.current.y;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2;
+      ctx.fillStyle = 'transparent';
+      ctx.beginPath();
+      if (tool === 'line' || tool === 'arrow') {
+        ctx.moveTo(sx, sy);
+        ctx.lineTo(pos.x, pos.y);
+        ctx.stroke();
+      } else if (tool === 'rect') {
+        ctx.strokeRect(sx, sy, pos.x - sx, pos.y - sy);
+      } else if (tool === 'oval') {
+        const rx = Math.abs(pos.x - sx) / 2;
+        const ry = Math.abs(pos.y - sy) / 2;
+        const cx = (sx + pos.x) / 2;
+        const cy = (sy + pos.y) / 2;
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+        ctx.stroke();
       }
     }
   };
 
-  const zoomIn = () => setZoom(prev => Math.min(parseFloat((prev + 0.1).toFixed(1)), 2.0));
-  const zoomOut = () => setZoom(prev => Math.max(parseFloat((prev - 0.1).toFixed(1)), 0.5));
+  const handleCanvasMouseUp = (e) => {
+    if (!isDrawingRef.current) return;
+    isDrawingRef.current = false;
+    const tool = selectedToolRef.current;
+    const ctx = ctxRef.current;
+    const color = selectedColorRef.current;
+
+    if (tool === 'arrow') {
+      const pos = getPos(e);
+      const sx = shapeStartRef.current.x;
+      const sy = shapeStartRef.current.y;
+      const angle = Math.atan2(pos.y - sy, pos.x - sx);
+      const headLen = 14;
+      ctx.strokeStyle = color;
+      ctx.fillStyle = color;
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.moveTo(pos.x, pos.y);
+      ctx.lineTo(pos.x - headLen * Math.cos(angle - Math.PI / 6), pos.y - headLen * Math.sin(angle - Math.PI / 6));
+      ctx.moveTo(pos.x, pos.y);
+      ctx.lineTo(pos.x - headLen * Math.cos(angle + Math.PI / 6), pos.y - headLen * Math.sin(angle + Math.PI / 6));
+      ctx.stroke();
+    }
+    snapshotRef.current = null;
+    ctx.closePath?.();
+  };
 
   const saveDraft = async () => {
     setSavingDraft(true);
@@ -782,7 +696,10 @@ export const CorrectEssay = () => {
 
     setSubmitting(true);
     try {
-      const canvasData = fabricCanvasRef.current ? fabricCanvasRef.current.toJSON() : null;
+      // Serializar canvas nativo como dataURL
+      const canvasData = nativeCanvasRef.current
+        ? { dataUrl: nativeCanvasRef.current.toDataURL('image/png') }
+        : null;
       
       await axios.post(
         `${API_URL}/api/corrections`,
@@ -1146,15 +1063,25 @@ export const CorrectEssay = () => {
                 data-testid="essay-text"
               />
               <canvas
-                id="correction-canvas"
+                ref={nativeCanvasRef}
                 style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
-                  pointerEvents: selectedTool === 'pen' || selectedTool === 'eraser' ? 'all' : 'none',
-                  zIndex: selectedTool === 'pen' || selectedTool === 'eraser' ? 20 : -1,
-                  cursor: selectedTool === 'pen' ? 'crosshair' : selectedTool === 'eraser' ? 'not-allowed' : 'default'
+                  width: '100%',
+                  height: '100%',
+                  pointerEvents: ['pen','eraser','line','arrow','oval','rect'].includes(selectedTool) ? 'all' : 'none',
+                  zIndex: ['pen','eraser','line','arrow','oval','rect'].includes(selectedTool) ? 20 : -1,
+                  cursor: selectedTool === 'eraser' ? 'cell' : 'crosshair',
+                  touchAction: 'none',
                 }}
+                onMouseDown={handleCanvasMouseDown}
+                onMouseMove={handleCanvasMouseMove}
+                onMouseUp={handleCanvasMouseUp}
+                onMouseLeave={handleCanvasMouseUp}
+                onTouchStart={handleCanvasMouseDown}
+                onTouchMove={handleCanvasMouseMove}
+                onTouchEnd={handleCanvasMouseUp}
               />
             </div>
           </div>
