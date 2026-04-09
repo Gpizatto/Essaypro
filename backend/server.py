@@ -552,6 +552,52 @@ async def toggle_user_active(user_id: str, current_user: dict = Depends(get_curr
     return {"is_active": new_status}
 
 # ============================================================
+# SISTEMA DE RASCUNHO E ORGANIZAÇÃO DO CORRETOR
+# ============================================================
+
+@api_router.post("/corrections/draft")
+async def save_draft(body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    essay_id = body.get("essay_id")
+    if not essay_id:
+        raise HTTPException(status_code=400, detail="essay_id required")
+    draft_data = {k: v for k, v in body.items() if k != "essay_id"}
+    draft_data["teacher_id"] = current_user["_id"]
+    draft_data["saved_at"] = datetime.now(timezone.utc)
+    await db.drafts.update_one(
+        {"essay_id": essay_id, "teacher_id": current_user["_id"]},
+        {"$set": {"essay_id": essay_id, **draft_data}},
+        upsert=True
+    )
+    await db.essays.update_one({"id": essay_id}, {"$set": {"status": "in_progress"}})
+    return {"message": "Rascunho salvo"}
+
+@api_router.get("/corrections/draft/{essay_id}")
+async def get_draft(essay_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    draft = await db.drafts.find_one(
+        {"essay_id": essay_id, "teacher_id": current_user["_id"]},
+        {"_id": 0}
+    )
+    if not draft:
+        raise HTTPException(status_code=404, detail="No draft found")
+    return draft
+
+@api_router.get("/essays/all-teacher")
+async def get_all_teacher_essays(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    essays = await db.essays.find({}, {"_id": 0}).to_list(5000)
+    for essay in essays:
+        student = await db.users.find_one({"_id": ObjectId(essay["student_id"])}, {"_id": 0, "name": 1})
+        prompt = await db.prompts.find_one({"id": essay["prompt_id"]}, {"_id": 0, "title": 1})
+        if student: essay["student_name"] = student["name"]
+        if prompt: essay["prompt_title"] = prompt["title"]
+    return [EssayResponse(**e) for e in essays]
+
+# ============================================================
 # INTERVENÇÃO PEDAGÓGICA DO PROFESSOR
 # ============================================================
 
