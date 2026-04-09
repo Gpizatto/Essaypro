@@ -10,7 +10,7 @@ import { Progress } from '../components/ui/progress';
 import { Badge } from '../components/ui/badge';
 import { Card } from '../components/ui/card';
 import { toast } from 'sonner';
-import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, ChevronDown, ChevronUp, Sparkles, Save, FlipVertical } from 'lucide-react';
 import { Canvas, PencilBrush } from 'fabric';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -92,6 +92,9 @@ export const CorrectEssay = () => {
   const [expandedSuggestions, setExpandedSuggestions] = useState({});
   const [essayHtml, setEssayHtml] = useState('');
   const [courseSettings, setCourseSettings] = useState(null);
+  const [draftSaved, setDraftSaved] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftLoaded, setDraftLoaded] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -232,6 +235,17 @@ export const CorrectEssay = () => {
         setCourseSettings(settingsRes.data);
       } catch (e) { console.error('Error fetching settings:', e); }
 
+      // Carregar rascunho se existir
+      try {
+        const draftRes = await axios.get(`${API_URL}/api/corrections/draft/${essayId}`, { withCredentials: true });
+        const d = draftRes.data;
+        if (d.scores) setScores(d.scores);
+        if (d.feedback) setFeedback(d.feedback);
+        if (d.inlineComments) setInlineComments(d.inlineComments);
+        setDraftLoaded(true);
+        toast.success('Rascunho carregado — continue de onde parou!', { duration: 3000 });
+      } catch (e) { /* sem rascunho */ }
+
       const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
       const promptData = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
       setPrompt(promptData);
@@ -300,6 +314,25 @@ export const CorrectEssay = () => {
       loadQuickComments();
     } catch (error) {
       console.error('Error recording quick comment usage:', error);
+    }
+  };
+
+  const saveDraft = async () => {
+    setSavingDraft(true);
+    try {
+      await axios.post(`${API_URL}/api/corrections/draft`, {
+        essay_id: essayId,
+        scores,
+        feedback,
+        inlineComments,
+      }, { withCredentials: true });
+      setDraftSaved(true);
+      toast.success('Rascunho salvo!');
+      setTimeout(() => setDraftSaved(false), 3000);
+    } catch (err) {
+      toast.error('Erro ao salvar rascunho');
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -655,15 +688,30 @@ export const CorrectEssay = () => {
           </h1>
           <p className="text-sm text-slate-500">Aluno: {essay.student_name}</p>
         </div>
-        <Button
-          onClick={handleSubmit}
-          disabled={submitting}
-          size="lg"
-          style={{ backgroundColor: '#36555A' }}
-          data-testid="finalize-correction-button"
-        >
-          {submitting ? 'Finalizando...' : '✓ Finalizar Correção'}
-        </Button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={saveDraft}
+            disabled={savingDraft}
+            className="flex items-center gap-1 px-4 py-2 rounded-md text-sm font-medium border transition-colors"
+            style={{
+              borderColor: draftSaved ? '#36555A' : '#E8DDD0',
+              color: draftSaved ? '#36555A' : '#6B5B4E',
+              backgroundColor: 'transparent',
+            }}
+          >
+            <Save size={14} />
+            {savingDraft ? 'Salvando...' : draftSaved ? 'Salvo ✓' : 'Rascunho'}
+          </button>
+          <Button
+            onClick={handleSubmit}
+            disabled={submitting}
+            size="lg"
+            style={{ backgroundColor: '#36555A' }}
+            data-testid="finalize-correction-button"
+          >
+            {submitting ? 'Finalizando...' : '✓ Finalizar Correção'}
+          </Button>
+        </div>
       </div>
 
       <div className="flex flex-1">
