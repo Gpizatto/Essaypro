@@ -10,8 +10,9 @@ import { Progress } from '../components/ui/progress';
 import { Badge } from '../components/ui/badge';
 import { Card } from '../components/ui/card';
 import { toast } from 'sonner';
-import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, ChevronDown, ChevronUp, Sparkles, Save, FlipVertical } from 'lucide-react';
-import { Canvas, PencilBrush } from 'fabric';
+import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, ChevronDown, ChevronUp, Sparkles, Save, Circle, Square, Minus, MoveRight, Trash2, ZoomIn, ZoomOut, Type } from 'lucide-react';
+import { Canvas, PencilBrush, Ellipse, Rect, Line, Triangle } from 'fabric';
+import * as fabric from 'fabric';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -25,13 +26,17 @@ const COLORS = [
 ];
 
 const TOOLS = [
-  { id: 'select', icon: MousePointer, label: 'Seleção' },
-  { id: 'underline', icon: Underline, label: 'Sublinhar' },
-  { id: 'highlight', icon: Highlighter, label: 'Grifar' },
-  { id: 'strikethrough', icon: Strikethrough, label: 'Riscar' },
-  { id: 'comment', icon: MessageSquare, label: 'Comentário' },
-  { id: 'pen', icon: Pen, label: 'Caneta Livre' },
-  { id: 'eraser', icon: Eraser, label: 'Borracha' }
+  { id: 'select',        icon: MousePointer, label: 'Seleção',    group: 'text' },
+  { id: 'underline',     icon: Underline,    label: 'Sublinhar',  group: 'text' },
+  { id: 'highlight',     icon: Highlighter,  label: 'Grifar',     group: 'text' },
+  { id: 'strikethrough', icon: Strikethrough,label: 'Riscar',     group: 'text' },
+  { id: 'comment',       icon: MessageSquare,label: 'Comentário', group: 'text' },
+  { id: 'pen',           icon: Pen,          label: 'Caneta',     group: 'draw' },
+  { id: 'line',          icon: Minus,        label: 'Linha',      group: 'draw' },
+  { id: 'arrow',         icon: MoveRight,    label: 'Seta',       group: 'draw' },
+  { id: 'oval',          icon: Circle,       label: 'Oval',       group: 'draw' },
+  { id: 'rect',          icon: Square,       label: 'Retângulo',  group: 'draw' },
+  { id: 'eraser',        icon: Eraser,       label: 'Borracha',   group: 'draw' },
 ];
 
 const TIPO_BADGES = {
@@ -55,6 +60,10 @@ export const CorrectEssay = () => {
   const [canvasReady, setCanvasReady] = useState(false);
   const selectedToolRef = useRef('select');
   const selectedColorRef = useRef('#FFEB3B');
+  const isDrawingShapeRef = useRef(false);
+  const shapeStartRef = useRef({ x: 0, y: 0 });
+  const activeShapeRef = useRef(null);
+  const [zoom, setZoom] = useState(1);
 
   const [selectedTool, setSelectedTool] = useState('select');
   const [selectedColor, setSelectedColor] = useState('#FFEB3B');
@@ -204,16 +213,93 @@ export const CorrectEssay = () => {
         }
         
         canvas.renderAll();
+      } else if (['line', 'arrow', 'oval', 'rect'].includes(selectedTool)) {
+        canvas.isDrawingMode = false;
+        canvas.selection = false;
+        if (wrapper) {
+          wrapper.style.pointerEvents = 'all';
+          wrapper.style.zIndex = '20';
+          wrapper.style.cursor = 'crosshair';
+        }
+
+        const getCanvasPos = (e) => {
+          const rect = canvasElement.getBoundingClientRect();
+          return { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        };
+
+        const onMouseDown = (e) => {
+          const pos = getCanvasPos(e.e || e);
+          isDrawingShapeRef.current = true;
+          shapeStartRef.current = pos;
+          const color = selectedColorRef.current;
+
+          let shape;
+          if (selectedToolRef.current === 'oval') {
+            shape = new fabric.Ellipse({ left: pos.x, top: pos.y, rx: 0, ry: 0, fill: 'transparent', stroke: color, strokeWidth: 2, selectable: true });
+          } else if (selectedToolRef.current === 'rect') {
+            shape = new fabric.Rect({ left: pos.x, top: pos.y, width: 0, height: 0, fill: 'transparent', stroke: color, strokeWidth: 2, selectable: true });
+          } else {
+            shape = new fabric.Line([pos.x, pos.y, pos.x, pos.y], { stroke: color, strokeWidth: 2, selectable: true });
+          }
+          activeShapeRef.current = shape;
+          canvas.add(shape);
+        };
+
+        const onMouseMove = (e) => {
+          if (!isDrawingShapeRef.current || !activeShapeRef.current) return;
+          const pos = getCanvasPos(e.e || e);
+          const start = shapeStartRef.current;
+          const shape = activeShapeRef.current;
+          const tool = selectedToolRef.current;
+
+          if (tool === 'oval') {
+            shape.set({ rx: Math.abs(pos.x - start.x) / 2, ry: Math.abs(pos.y - start.y) / 2,
+              left: Math.min(pos.x, start.x), top: Math.min(pos.y, start.y) });
+          } else if (tool === 'rect') {
+            shape.set({ left: Math.min(pos.x, start.x), top: Math.min(pos.y, start.y),
+              width: Math.abs(pos.x - start.x), height: Math.abs(pos.y - start.y) });
+          } else {
+            shape.set({ x2: pos.x, y2: pos.y });
+          }
+          canvas.renderAll();
+        };
+
+        const onMouseUp = (e) => {
+          if (!isDrawingShapeRef.current) return;
+          isDrawingShapeRef.current = false;
+
+          // Adicionar seta se for arrow
+          if (selectedToolRef.current === 'arrow' && activeShapeRef.current) {
+            const line = activeShapeRef.current;
+            const angle = Math.atan2(line.y2 - line.y1, line.x2 - line.x1) * 180 / Math.PI;
+            const arrowHead = new fabric.Triangle({
+              left: line.x2, top: line.y2, width: 12, height: 12,
+              fill: selectedColorRef.current, angle: angle + 90,
+              originX: 'center', originY: 'center', selectable: true,
+            });
+            canvas.add(arrowHead);
+          }
+          activeShapeRef.current = null;
+          canvas.renderAll();
+        };
+
+        canvas.on('mouse:down', onMouseDown);
+        canvas.on('mouse:move', onMouseMove);
+        canvas.on('mouse:up', onMouseUp);
+
+        return () => {
+          canvas.off('mouse:down', onMouseDown);
+          canvas.off('mouse:move', onMouseMove);
+          canvas.off('mouse:up', onMouseUp);
+        };
       } else {
         canvas.isDrawingMode = false;
         canvas.selection = false;
-        
         if (wrapper) {
           wrapper.style.pointerEvents = 'none';
           wrapper.style.zIndex = '5';
           wrapper.style.cursor = 'default';
         }
-        
         canvas.renderAll();
       }
     }
@@ -323,6 +409,50 @@ export const CorrectEssay = () => {
       console.error('Error recording quick comment usage:', error);
     }
   };
+
+  const clearCanvas = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    if (window.confirm('Apagar todas as marcações do canvas?')) {
+      canvas.clear();
+      canvas.backgroundColor = null;
+      canvas.renderAll();
+      setCanvasHistory([]);
+      setHistoryIndex(-1);
+    }
+  };
+
+  const undoCanvas = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas || canvasHistory.length === 0) return;
+    const newIndex = Math.max(0, historyIndex - 1);
+    if (newIndex === historyIndex && historyIndex === 0) {
+      canvas.clear(); canvas.renderAll();
+      setHistoryIndex(-1);
+      return;
+    }
+    const state = canvasHistory[newIndex];
+    if (state) {
+      canvas.loadFromJSON(JSON.parse(state), () => canvas.renderAll());
+      setHistoryIndex(newIndex);
+    }
+  };
+
+  const redoCanvas = () => {
+    const canvas = fabricCanvasRef.current;
+    if (!canvas) return;
+    const newIndex = Math.min(canvasHistory.length - 1, historyIndex + 1);
+    if (newIndex !== historyIndex) {
+      const state = canvasHistory[newIndex];
+      if (state) {
+        canvas.loadFromJSON(JSON.parse(state), () => canvas.renderAll());
+        setHistoryIndex(newIndex);
+      }
+    }
+  };
+
+  const zoomIn = () => setZoom(prev => Math.min(parseFloat((prev + 0.1).toFixed(1)), 2.0));
+  const zoomOut = () => setZoom(prev => Math.max(parseFloat((prev - 0.1).toFixed(1)), 0.5));
 
   const saveDraft = async () => {
     setSavingDraft(true);
@@ -744,21 +874,65 @@ export const CorrectEssay = () => {
         <div className="flex-1" style={{ width: '60%', maxWidth: '60%' }}>
           {/* TOOLBAR */}
           <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap sticky" style={{ top: '88px', zIndex: 40 }}>
-            {TOOLS.map(tool => {
-              const Icon = tool.icon;
-              return (
-                <Button
-                  key={tool.id}
-                  onClick={() => setSelectedTool(tool.id)}
-                  variant={selectedTool === tool.id ? 'default' : 'outline'}
-                  size="sm"
-                  title={tool.label}
-                  data-testid={`tool-${tool.id}`}
-                >
-                  <Icon size={16} />
-                </Button>
-              );
-            })}
+            {/* Ferramentas de texto */}
+            <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
+              {TOOLS.filter(t => t.group === 'text').map(tool => {
+                const Icon = tool.icon;
+                return (
+                  <Button
+                    key={tool.id}
+                    onClick={() => setSelectedTool(tool.id)}
+                    variant={selectedTool === tool.id ? 'default' : 'ghost'}
+                    size="sm"
+                    title={tool.label}
+                    data-testid={`tool-${tool.id}`}
+                  >
+                    <Icon size={16} />
+                  </Button>
+                );
+              })}
+            </div>
+
+            {/* Ferramentas de desenho */}
+            <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
+              {TOOLS.filter(t => t.group === 'draw').map(tool => {
+                const Icon = tool.icon;
+                return (
+                  <Button
+                    key={tool.id}
+                    onClick={() => setSelectedTool(tool.id)}
+                    variant={selectedTool === tool.id ? 'default' : 'ghost'}
+                    size="sm"
+                    title={tool.label}
+                    data-testid={`tool-${tool.id}`}
+                  >
+                    <Icon size={16} />
+                  </Button>
+                );
+              })}
+            </div>
+
+            {/* Ações do canvas */}
+            <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
+              <Button variant="ghost" size="sm" onClick={undoCanvas} title="Desfazer (Ctrl+Z)">
+                ↩
+              </Button>
+              <Button variant="ghost" size="sm" onClick={redoCanvas} title="Refazer (Ctrl+Y)">
+                ↪
+              </Button>
+              <Button variant="ghost" size="sm" onClick={zoomOut} title="Diminuir zoom">
+                <ZoomOut size={16} />
+              </Button>
+              <span className="flex items-center px-1 text-xs" style={{ color: '#6B5B4E' }}>
+                {Math.round(zoom * 100)}%
+              </span>
+              <Button variant="ghost" size="sm" onClick={zoomIn} title="Aumentar zoom">
+                <ZoomIn size={16} />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={clearCanvas} title="Apagar todas as marcações" style={{ color: '#7C1805' }}>
+                <Trash2 size={16} />
+              </Button>
+            </div>
 
             {(selectedTool === 'underline' || selectedTool === 'highlight' || selectedTool === 'pen' || selectedTool === 'strikethrough') && (
               <>
@@ -916,6 +1090,8 @@ export const CorrectEssay = () => {
                   fontFamily: 'Lora, serif',
                   lineHeight: '1.8',
                   minHeight: '600px',
+                  transform: zoom !== 1 ? `scale(${zoom})` : undefined,
+                  transformOrigin: 'top left',
                   cursor: selectedTool === 'strikethrough' ? 'crosshair'
                         : selectedTool === 'underline' ? 'text'
                         : selectedTool === 'highlight' ? 'text'
