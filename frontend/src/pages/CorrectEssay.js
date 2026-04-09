@@ -24,17 +24,17 @@ const COLORS = [
 ];
 
 const TOOLS = [
-  { id: 'select',        icon: MousePointer, label: 'Seleção',    group: 'text' },
-  { id: 'underline',     icon: Underline,    label: 'Sublinhar',  group: 'text' },
-  { id: 'highlight',     icon: Highlighter,  label: 'Grifar',     group: 'text' },
-  { id: 'strikethrough', icon: Strikethrough,label: 'Riscar',     group: 'text' },
-  { id: 'comment',       icon: MessageSquare,label: 'Comentário', group: 'text' },
-  { id: 'pen',           icon: Pen,          label: 'Caneta',     group: 'draw' },
-  { id: 'line',          icon: Minus,        label: 'Linha',      group: 'draw' },
-  { id: 'arrow',         icon: MoveRight,    label: 'Seta',       group: 'draw' },
-  { id: 'oval',          icon: Circle,       label: 'Oval',       group: 'draw' },
-  { id: 'rect',          icon: Square,       label: 'Retângulo',  group: 'draw' },
-  { id: 'eraser',        icon: Eraser,       label: 'Borracha',   group: 'draw' },
+  { id: 'select',        icon: MousePointer, label: 'Seleção (S)',    group: 'text' },
+  { id: 'underline',     icon: Underline,    label: 'Sublinhar (U)',  group: 'text' },
+  { id: 'highlight',     icon: Highlighter,  label: 'Grifar (H)',     group: 'text' },
+  { id: 'strikethrough', icon: Strikethrough,label: 'Riscar (X)',     group: 'text' },
+  { id: 'comment',       icon: MessageSquare,label: 'Comentário (M)', group: 'text' },
+  { id: 'pen',           icon: Pen,          label: 'Caneta (P)',     group: 'draw' },
+  { id: 'line',          icon: Minus,        label: 'Linha (L)',      group: 'draw' },
+  { id: 'arrow',         icon: MoveRight,    label: 'Seta (A)',       group: 'draw' },
+  { id: 'oval',          icon: Circle,       label: 'Oval (O)',       group: 'draw' },
+  { id: 'rect',          icon: Square,       label: 'Retângulo (R)',  group: 'draw' },
+  { id: 'eraser',        icon: Eraser,       label: 'Borracha (E)',   group: 'draw' },
 ];
 
 const TIPO_BADGES = {
@@ -130,6 +130,64 @@ export const CorrectEssay = () => {
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
   useEffect(() => { penWidthRef.current = penWidth; }, [penWidth]);
 
+  // 5.2 — Atalhos de teclado
+  useEffect(() => {
+    const handler = (e) => {
+      const tag = document.activeElement?.tagName;
+      if (['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
+
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 'z') { e.preventDefault(); undoCanvas(); }
+        if (e.key === 'y') { e.preventDefault(); redoCanvas(); }
+        if (e.key === 's') { e.preventDefault(); saveDraft(); }
+        return;
+      }
+
+      const map = {
+        'p': 'pen', 'c': 'pen',
+        'e': 'eraser',
+        'l': 'line',
+        's': 'select',
+        'a': 'arrow',
+        'o': 'oval',
+        'r': 'rect',
+        'u': 'underline',
+        'h': 'highlight',
+        'x': 'strikethrough',
+        'm': 'comment',
+      };
+      if (map[e.key]) setSelectedTool(map[e.key]);
+    };
+    document.addEventListener('keydown', handler);
+    return () => document.removeEventListener('keydown', handler);
+  }, []);
+
+  // 5.4 — Auto-save a cada 30 segundos
+  const autoSaveTimerRef = useRef(null);
+  const [autoSaveStatus, setAutoSaveStatus] = useState('');
+  useEffect(() => {
+    if (!essay) return;
+    const hasContent =
+      Object.values(scores).some(v => v > 0) ||
+      feedback.general_feedback.trim() ||
+      feedback.strengths.trim() ||
+      feedback.improvements.trim();
+    if (!hasContent) return;
+
+    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
+    autoSaveTimerRef.current = setTimeout(async () => {
+      setAutoSaveStatus('saving');
+      try {
+        await axios.post(`${API_URL}/api/corrections/draft`, {
+          essay_id: essayId, scores, feedback, inlineComments,
+        }, { withCredentials: true });
+        setAutoSaveStatus('saved');
+        setTimeout(() => setAutoSaveStatus(''), 3000);
+      } catch (e) { setAutoSaveStatus(''); }
+    }, 30000);
+    return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
+  }, [scores, feedback, inlineComments]);
+
   // Inicializar canvas nativo quando o essay carregar
   useEffect(() => {
     if (!essay || !nativeCanvasRef.current) return;
@@ -142,13 +200,24 @@ export const CorrectEssay = () => {
       if (!canvasContainerRef.current) return;
       const container = canvasContainerRef.current;
       const w = container.offsetWidth || 800;
-      const h = Math.max(container.offsetHeight, textRef.current?.scrollHeight || 600, 600);
+      const h = Math.max(
+        container.offsetHeight || 0,
+        textRef.current?.scrollHeight || 0,
+        textRef.current?.offsetHeight || 0,
+        600
+      );
+      if (w < 1 || h < 1) return; // evitar canvas com dimensão zero
       if (canvas.width !== w || canvas.height !== h) {
         // Salvar conteúdo antes de redimensionar
-        const saved = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let saved = null;
+        try {
+          if (canvas.width > 0 && canvas.height > 0) {
+            saved = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          }
+        } catch(e) {}
         canvas.width = w;
         canvas.height = h;
-        ctx.putImageData(saved, 0, 0);
+        if (saved) ctx.putImageData(saved, 0, 0);
       }
     };
 
@@ -702,9 +771,15 @@ export const CorrectEssay = () => {
     setSubmitting(true);
     try {
       // Serializar canvas nativo como dataURL
-      const canvasData = nativeCanvasRef.current
-        ? { dataUrl: nativeCanvasRef.current.toDataURL('image/png') }
-        : null;
+      // Serializar canvas — garante que tem dimensões antes do toDataURL
+      let canvasData = null;
+      if (nativeCanvasRef.current) {
+        const c = nativeCanvasRef.current;
+        // Canvas precisa ter width/height > 0 para toDataURL funcionar
+        if (c.width > 0 && c.height > 0) {
+          canvasData = { dataUrl: c.toDataURL('image/png') };
+        }
+      }
       
       await axios.post(
         `${API_URL}/api/corrections`,
@@ -821,8 +896,14 @@ export const CorrectEssay = () => {
             }}
           >
             <Save size={14} />
-            {savingDraft ? 'Salvando...' : draftSaved ? 'Salvo ✓' : 'Rascunho'}
+            {savingDraft ? 'Salvando...' : draftSaved ? 'Salvo ✓' : 'Rascunho (Ctrl+S)'}
           </button>
+          {autoSaveStatus === 'saving' && (
+            <span className="text-xs" style={{ color: '#6B5B4E' }}>auto-salvando...</span>
+          )}
+          {autoSaveStatus === 'saved' && (
+            <span className="text-xs" style={{ color: '#36555A' }}>✓ auto-salvo</span>
+          )}
           <Button
             onClick={handleSubmit}
             disabled={submitting}
@@ -1079,6 +1160,7 @@ export const CorrectEssay = () => {
                   zIndex: 15,
                   cursor: selectedTool === 'eraser' ? 'cell' : 'crosshair',
                   touchAction: 'none',
+                  display: 'block',
                 }}
                 onMouseDown={handleCanvasMouseDown}
                 onMouseMove={handleCanvasMouseMove}
