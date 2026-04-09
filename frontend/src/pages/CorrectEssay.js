@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
@@ -115,7 +115,15 @@ export const CorrectEssay = () => {
     loadQuickComments();
   }, [essayId]);
 
-  // essayHtml é injetado via dangerouslySetInnerHTML no JSX
+  // Injetar texto UMA VEZ no div — div não é controlado pelo React
+  const textInjectedRef = useRef(false);
+  useEffect(() => {
+    if (!essayHtml || loading || textInjectedRef.current) return;
+    if (textRef.current) {
+      textRef.current.innerHTML = essayHtml;
+      textInjectedRef.current = true;
+    }
+  });  // sem dependências — roda após CADA render até conseguir injetar
 
   // Sync refs
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
@@ -721,12 +729,6 @@ export const CorrectEssay = () => {
     }
   };
 
-  // Memoizar HTML inicial para não re-renderizar e apagar anotações
-  const initialHtml = useMemo(() => {
-    return essayHtml ? { __html: essayHtml } : undefined;
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [!!essayHtml]);  // só recalcula quando passa de vazio para preenchido
-
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1064,7 +1066,6 @@ export const CorrectEssay = () => {
                   userSelect: selectedTool === 'select' ? 'none' : 'text',
                 }}
                 data-testid="essay-text"
-                dangerouslySetInnerHTML={initialHtml}
               ></div>
               <canvas
                 ref={nativeCanvasRef}
