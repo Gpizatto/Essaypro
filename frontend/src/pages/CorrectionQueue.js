@@ -38,10 +38,19 @@ export const CorrectionQueue = () => {
 
   const fetchAll = async () => {
     try {
-      const { data } = await axios.get(`${API_URL}/api/essays/all-teacher`, { withCredentials: true });
+      // Tentar endpoint completo, fallback para queue básica
+      let data = [];
+      try {
+        const res = await axios.get(`${API_URL}/api/essays/all-teacher`, { withCredentials: true });
+        data = res.data;
+      } catch (err) {
+        // Fallback: carregar só pendentes
+        const res = await axios.get(`${API_URL}/api/essays/queue`, { withCredentials: true });
+        data = res.data;
+      }
       setAllEssays(data.sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)));
     } catch (err) {
-      console.error('Error:', err);
+      console.error('Error loading queue:', err);
     } finally {
       setLoading(false);
     }
