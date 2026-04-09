@@ -552,6 +552,71 @@ async def toggle_user_active(user_id: str, current_user: dict = Depends(get_curr
     return {"is_active": new_status}
 
 # ============================================================
+# RELATÓRIO PESSOAL DO CORRETOR
+# ============================================================
+
+@api_router.get("/teacher/my-stats")
+async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    tid = current_user["_id"]
+    corrections = await db.corrections.find({"teacher_id": tid}, {"_id": 0}).to_list(10000)
+    total = len(corrections)
+
+    # Tempo médio (entre submitted_at do essay e corrected_at)
+    durations = []
+    for c in corrections:
+        essay = await db.essays.find_one({"id": c["essay_id"]}, {"_id": 0, "submitted_at": 1})
+        if essay and c.get("corrected_at") and essay.get("submitted_at"):
+            diff = (c["corrected_at"] - essay["submitted_at"]).total_seconds() / 3600
+            if 0 < diff < 720:  # ignorar outliers > 30 dias
+                durations.append(diff)
+
+    avg_hours = sum(durations) / len(durations) if durations else 0
+
+    # Por mês — últimos 6 meses
+    from collections import defaultdict
+    monthly = defaultdict(int)
+    for c in corrections:
+        if c.get("corrected_at"):
+            key = c["corrected_at"].strftime("%Y-%m")
+            monthly[key] += 1
+
+    sorted_months = sorted(monthly.keys())[-6:]
+    monthly_data = [{"month": m, "count": monthly[m]} for m in sorted_months]
+
+    # Por semana — últimas 4 semanas
+    now = datetime.now(timezone.utc)
+    weekly = []
+    for i in range(3, -1, -1):
+        week_start = now - timedelta(days=now.weekday() + 7 * i)
+        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_end = week_start + timedelta(days=7)
+        count = sum(1 for c in corrections if c.get("corrected_at") and week_start <= c["corrected_at"] <= week_end)
+        weekly.append({"week": week_start.strftime("%d/%m"), "count": count})
+
+    # Hoje e esta semana
+    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start_curr = now - timedelta(days=now.weekday())
+    week_start_curr = week_start_curr.replace(hour=0, minute=0, second=0, microsecond=0)
+
+    today_count = sum(1 for c in corrections if c.get("corrected_at") and c["corrected_at"] >= today_start)
+    week_count = sum(1 for c in corrections if c.get("corrected_at") and c["corrected_at"] >= week_start_curr)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    month_count = sum(1 for c in corrections if c.get("corrected_at") and c["corrected_at"] >= month_start)
+
+    return {
+        "total_corrections": total,
+        "today": today_count,
+        "this_week": week_count,
+        "this_month": month_count,
+        "avg_hours": round(avg_hours, 1),
+        "monthly_data": monthly_data,
+        "weekly_data": weekly,
+    }
+
+# ============================================================
 # SISTEMA DE RASCUNHO E ORGANIZAÇÃO DO CORRETOR
 # ============================================================
 
