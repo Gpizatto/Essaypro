@@ -115,21 +115,18 @@ export const CorrectEssay = () => {
   }, [essayId]);
 
   // Setar innerHTML do texto UMA VEZ quando o HTML estiver disponível
-  // Injetar HTML do texto quando disponível, com retry se textRef ainda não está no DOM
+  // Injetar HTML do texto — tenta imediatamente e após pequeno delay
   useEffect(() => {
     if (!essayHtml) return;
-    const inject = () => {
+    const tryInject = () => {
       if (textRef.current) {
         textRef.current.innerHTML = essayHtml;
-        return true;
       }
-      return false;
     };
-    if (!inject()) {
-      // textRef ainda não montado, tentar novamente após render
-      const timer = setTimeout(() => inject(), 100);
-      return () => clearTimeout(timer);
-    }
+    tryInject();
+    const t1 = setTimeout(tryInject, 50);
+    const t2 = setTimeout(tryInject, 200);
+    return () => { clearTimeout(t1); clearTimeout(t2); };
   }, [essayHtml]);
 
   // Sync refs
@@ -279,8 +276,17 @@ export const CorrectEssay = () => {
   };
 
   // ── Canvas nativo: funções de desenho ──────────────────────────────────
+  // Inicializar ctx se ainda não foi feito
+  const ensureCtx = () => {
+    if (!ctxRef.current && nativeCanvasRef.current) {
+      ctxRef.current = nativeCanvasRef.current.getContext('2d');
+    }
+    return ctxRef.current;
+  };
+
   const getPos = (e) => {
     const canvas = nativeCanvasRef.current;
+    if (!canvas) return { x: 0, y: 0 };
     const rect = canvas.getBoundingClientRect();
     const scaleX = canvas.width / rect.width;
     const scaleY = canvas.height / rect.height;
@@ -294,7 +300,7 @@ export const CorrectEssay = () => {
 
   const saveHistory = () => {
     const canvas = nativeCanvasRef.current;
-    const ctx = ctxRef.current;
+    const ctx = ensureCtx();
     if (!canvas || !ctx) return;
     const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
     historyRef.current = [...historyRef.current.slice(-29), snap];
@@ -323,6 +329,7 @@ export const CorrectEssay = () => {
   const handleCanvasMouseDown = (e) => {
     const tool = selectedToolRef.current;
     if (!['pen','eraser','line','arrow','oval','rect'].includes(tool)) return;
+    if (!ensureCtx() || !nativeCanvasRef.current) return;
     e.preventDefault();
     saveHistory();
     isDrawingRef.current = true;
@@ -343,6 +350,7 @@ export const CorrectEssay = () => {
 
   const handleCanvasMouseMove = (e) => {
     if (!isDrawingRef.current) return;
+    if (!ensureCtx()) return;
     e.preventDefault();
     const ctx = ctxRef.current;
     const tool = selectedToolRef.current;
@@ -388,6 +396,7 @@ export const CorrectEssay = () => {
   const handleCanvasMouseUp = (e) => {
     if (!isDrawingRef.current) return;
     isDrawingRef.current = false;
+    if (!ensureCtx()) return;
     const tool = selectedToolRef.current;
     const ctx = ctxRef.current;
     const color = selectedColorRef.current;
