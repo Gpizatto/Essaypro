@@ -434,6 +434,19 @@ async def get_correction_queue(current_user: dict = Depends(get_current_user)):
     
     return [EssayResponse(**e) for e in essays]
 
+@api_router.patch("/essays/{essay_id}/status")
+async def update_essay_status(essay_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    new_status = body.get("status")
+    valid = ["pending", "in_progress", "corrected", "returned"]
+    if new_status not in valid:
+        raise HTTPException(status_code=400, detail=f"Status must be one of {valid}")
+    result = await db.essays.update_one({"id": essay_id}, {"$set": {"status": new_status}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Essay not found")
+    return {"status": new_status}
+
 @api_router.get("/essays/all-teacher")
 async def get_all_teacher_essays(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
@@ -799,7 +812,7 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     total_students = await db.users.count_documents({"role": "student"})
     total_teachers = await db.users.count_documents({"role": "teacher"})
     total_essays = await db.essays.count_documents({})
-    total_pending = await db.essays.count_documents({"status": "pending"})
+    total_pending = await db.essays.count_documents({"status": {"$in": ["pending", "in_progress"]}})
     total_corrections = await db.corrections.count_documents({})
     total_rewrites = await db.essays.count_documents({"is_rewrite": True})
 
