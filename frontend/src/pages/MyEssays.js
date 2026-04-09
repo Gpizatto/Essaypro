@@ -8,16 +8,18 @@ import { FileText, Clock, Filter, X } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+const STATUS_MAP = {
+  pending:     { label: 'Enviada',      bg: '#6B5B4E', icon: '📤' },
+  in_progress: { label: 'Em correção',  bg: '#D66B27', icon: '✏️' },
+  corrected:   { label: 'Corrigida',    bg: '#36555A', icon: '✅' },
+  returned:    { label: 'Devolvida',    bg: '#DAB257', icon: '↩️' },
+};
+
 const getStatusBadge = (status) => {
-  const statusMap = {
-    pending:      { label: 'Pendente',   bg: '#64748B', text: '#FFFFFF' },
-    under_review: { label: 'Em Revisão', bg: '#D97706', text: '#FFFFFF' },
-    corrected:    { label: 'Corrigida',  bg: '#36555A', text: '#FFFFFF' },
-  };
-  const config = statusMap[status] || statusMap.pending;
+  const config = STATUS_MAP[status] || STATUS_MAP.pending;
   return (
-    <Badge style={{ backgroundColor: config.bg, color: config.text }} data-testid={`status-badge-${status}`}>
-      {config.label}
+    <Badge style={{ backgroundColor: config.bg, color: '#FDF3E8', fontSize: '11px' }} data-testid={`status-badge-${status}`}>
+      {config.icon} {config.label}
     </Badge>
   );
 };
@@ -137,11 +139,12 @@ export const MyEssays = () => {
                 style={selectStyle}
                 data-testid="filter-status"
               >
-                <option value="all">Todos os status</option>
-                <option value="pending">Pendente</option>
-                <option value="under_review">Em Revisão</option>
-                <option value="corrected">Corrigida</option>
-              </select>
+                                <option value="all">Todos os status</option>
+                <option value="pending">📤 Enviada</option>
+                <option value="in_progress">✏️ Em correção</option>
+                <option value="corrected">✅ Corrigida</option>
+                <option value="returned">↩️ Devolvida</option>
+                </select>
 
               {monthOptions.length > 1 && (
                 <select
