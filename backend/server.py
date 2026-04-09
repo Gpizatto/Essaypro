@@ -187,6 +187,10 @@ class CorrectionResponse(BaseModel):
     inline_comments: Optional[List[dict]] = None
     canvas_annotations: Optional[dict] = None
     corrected_at: datetime
+    teacher_comment: Optional[str] = None
+    suggest_rewrite: bool = False
+    mark_important: bool = False
+    extra_material: Optional[str] = None
 
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
@@ -546,6 +550,39 @@ async def toggle_user_active(user_id: str, current_user: dict = Depends(get_curr
     new_status = not user.get("is_active", True)
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
     return {"is_active": new_status}
+
+# ============================================================
+# INTERVENÇÃO PEDAGÓGICA DO PROFESSOR
+# ============================================================
+
+@api_router.post("/corrections/{essay_id}/intervention")
+async def save_teacher_intervention(essay_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    allowed = {"teacher_comment", "suggest_rewrite", "mark_important", "extra_material"}
+    update = {k: v for k, v in body.items() if k in allowed}
+    update["intervention_by"] = current_user["_id"]
+    update["intervention_at"] = datetime.now(timezone.utc)
+
+    await db.corrections.update_one(
+        {"essay_id": essay_id},
+        {"$set": update}
+    )
+    return {"message": "Intervenção salva", **update}
+
+@api_router.get("/corrections/{essay_id}/intervention")
+async def get_teacher_intervention(essay_id: str, current_user: dict = Depends(get_current_user)):
+    correction = await db.corrections.find_one({"essay_id": essay_id}, {"_id": 0})
+    if not correction:
+        raise HTTPException(status_code=404, detail="Correction not found")
+    return {
+        "teacher_comment": correction.get("teacher_comment", ""),
+        "suggest_rewrite": correction.get("suggest_rewrite", False),
+        "mark_important": correction.get("mark_important", False),
+        "extra_material": correction.get("extra_material", ""),
+        "intervention_at": correction.get("intervention_at"),
+    }
 
 @api_router.get("/teacher/students")
 async def get_teacher_students(current_user: dict = Depends(get_current_user)):
