@@ -19,8 +19,10 @@ const getScoreColor = (score) => {
 
 const StatusBadge = ({ status }) => {
   const map = {
-    pending:   { label: 'Pendente',  bg: '#6B5B4E' },
-    corrected: { label: 'Corrigida', bg: '#36555A' },
+    pending:     { label: '📤 Enviada',      bg: '#6B5B4E' },
+    in_progress: { label: '✏️ Em correção',  bg: '#D66B27' },
+    corrected:   { label: '✅ Corrigida',    bg: '#36555A' },
+    returned:    { label: '↩️ Devolvida',    bg: '#DAB257' },
   };
   const c = map[status] || map.pending;
   return <Badge style={{ backgroundColor: c.bg, color: '#FDF3E8', fontSize: '11px' }}>{c.label}</Badge>;
