@@ -18,9 +18,16 @@ const getWaitTime = (submitted_at) => {
   return { label: 'agora', urgent: false };
 };
 
+const STATUS_MAP = {
+  pending:     { label: 'Enviada',      bg: '#6B5B4E', icon: '📤' },
+  in_progress: { label: 'Em correção',  bg: '#D66B27', icon: '✏️' },
+  corrected:   { label: 'Corrigida',    bg: '#36555A', icon: '✅' },
+  returned:    { label: 'Devolvida',    bg: '#DAB257', icon: '↩️' },
+};
+
 const STATUS_TABS = [
-  { key: 'pending',     label: 'Pendentes',    icon: Clock,         color: '#D97706' },
-  { key: 'in_progress', label: 'Em andamento', icon: Edit3,         color: '#D66B27' },
+  { key: 'pending',     label: 'Enviadas',     icon: Clock,         color: '#6B5B4E' },
+  { key: 'in_progress', label: 'Em correção',  icon: Edit3,         color: '#D66B27' },
   { key: 'corrected',   label: 'Concluídas',   icon: CheckCircle2,  color: '#36555A' },
 ];
 
