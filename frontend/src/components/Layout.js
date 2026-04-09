@@ -33,6 +33,7 @@ export const Layout = ({ children }) => {
         { path: '/correction-queue', icon: PenTool, label: 'Correções' },
         { path: '/teacher/students', icon: Users, label: 'Alunos' },
         { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
+        { path: '/teacher/report', icon: BarChart3, label: 'Meu Relatório' },
       ];
     } else if (user.role === 'admin') {
       return [
