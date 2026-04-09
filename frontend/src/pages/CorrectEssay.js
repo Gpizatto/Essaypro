@@ -115,19 +115,17 @@ export const CorrectEssay = () => {
   }, [essayId]);
 
   // Setar innerHTML do texto UMA VEZ quando o HTML estiver disponível
-  // Injetar HTML do texto — tenta imediatamente e após pequeno delay
+  // Injetar HTML do texto — só depois do loading terminar e o div estar no DOM
   useEffect(() => {
-    if (!essayHtml) return;
-    const tryInject = () => {
+    if (!essayHtml || loading) return;
+    // Pequeno delay para garantir que o React finalizou o render do div
+    const t = setTimeout(() => {
       if (textRef.current) {
         textRef.current.innerHTML = essayHtml;
       }
-    };
-    tryInject();
-    const t1 = setTimeout(tryInject, 50);
-    const t2 = setTimeout(tryInject, 200);
-    return () => { clearTimeout(t1); clearTimeout(t2); };
-  }, [essayHtml]);
+    }, 50);
+    return () => clearTimeout(t);
+  }, [essayHtml, loading]);
 
   // Sync refs
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
