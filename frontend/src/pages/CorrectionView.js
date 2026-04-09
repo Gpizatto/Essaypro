@@ -11,7 +11,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { Textarea } from '../components/ui/textarea';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
-import { Canvas, PencilBrush } from 'fabric';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -32,7 +31,6 @@ export const CorrectionView = () => {
   const [loading, setLoading] = useState(true);
   const textRef = useRef(null);
   const canvasContainerRef = useRef(null);
-  const fabricCanvasRef = useRef(null);
   const [hoveredCommentId, setHoveredCommentId] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [showPromptModal, setShowPromptModal] = useState(false);
@@ -46,27 +44,7 @@ export const CorrectionView = () => {
     fetchData();
   }, [essayId]);
 
-  useEffect(() => {
-    if (correction && correction.canvas_annotations && canvasContainerRef.current && !fabricCanvasRef.current) {
-      const rect = canvasContainerRef.current.getBoundingClientRect();
-      const canvas = new Canvas('readonly-canvas', {
-        width: rect.width,
-        height: rect.height,
-        isDrawingMode: false,
-        selection: false
-      });
-      
-      canvas.loadFromJSON(correction.canvas_annotations, () => {
-        canvas.renderAll();
-        canvas.forEachObject((obj) => {
-          obj.selectable = false;
-          obj.evented = false;
-        });
-      });
-      
-      fabricCanvasRef.current = canvas;
-    }
-  }, [correction]);
+
 
   useEffect(() => {
     if (correction && correction.inline_comments && textRef.current) {
@@ -353,18 +331,22 @@ export const CorrectionView = () => {
               }}
               className="relative z-10 bg-white p-8"
               style={{ fontSize: '18px', fontFamily: 'Lora, serif', lineHeight: '1.8', minHeight: '400px' }}
-            >
-              {essay?.content || 'Conteúdo não disponível'}
-            </div>
-            {correction.canvas_annotations && (
-              <canvas
-                id="readonly-canvas"
+              ref={textRef}
+              dangerouslySetInnerHTML={{ __html: essay?.content ? essay.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível' }}
+            />
+            {correction.canvas_annotations?.dataUrl && (
+              <img
+                src={correction.canvas_annotations.dataUrl}
+                alt="Anotações da correção"
                 style={{
                   position: 'absolute',
                   top: 0,
                   left: 0,
+                  width: '100%',
+                  height: '100%',
                   pointerEvents: 'none',
-                  zIndex: 5
+                  zIndex: 15,
+                  objectFit: 'fill',
                 }}
               />
             )}
