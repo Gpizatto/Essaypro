@@ -5,8 +5,10 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Progress } from '../components/ui/progress';
 import { Separator } from '../components/ui/separator';
-import { Award, TrendingUp, Lightbulb, RotateCcw, Download, FileText, BookOpen, X, CalendarDays, User, CheckCircle2, Clock } from 'lucide-react';
+import { Award, TrendingUp, Lightbulb, RotateCcw, Download, FileText, BookOpen, X, CalendarDays, User, CheckCircle2, Clock, MessageSquarePlus, Star, ExternalLink, Save, Bookmark } from 'lucide-react';
 import { Badge } from '../components/ui/badge';
+import { useAuth } from '../contexts/AuthContext';
+import { Textarea } from '../components/ui/textarea';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '../components/ui/button';
 import { Canvas, PencilBrush } from 'fabric';
@@ -24,6 +26,7 @@ const getScoreColor = (score, max) => {
 export const CorrectionView = () => {
   const { essayId } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [essay, setEssay] = useState(null);
   const [correction, setCorrection] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +38,9 @@ export const CorrectionView = () => {
   const [showPromptModal, setShowPromptModal] = useState(false);
   const [prompt, setPrompt] = useState(null);
   const [courseSettings, setCourseSettings] = useState(null);
+  const [intervention, setIntervention] = useState({ teacher_comment: '', suggest_rewrite: false, mark_important: false, extra_material: '' });
+  const [savingIntervention, setSavingIntervention] = useState(false);
+  const [interventionDirty, setInterventionDirty] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -85,6 +91,12 @@ export const CorrectionView = () => {
       // Buscar configurações do curso
       const settingsRes = await axios.get(`${API_URL}/api/settings/course`, { withCredentials: true });
       setCourseSettings(settingsRes.data);
+
+      // Buscar intervenção do professor
+      try {
+        const intRes = await axios.get(`${API_URL}/api/corrections/${essayId}/intervention`, { withCredentials: true });
+        setIntervention(intRes.data);
+      } catch (e) { /* sem intervenção ainda */ }
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -222,6 +234,24 @@ export const CorrectionView = () => {
       </Layout>
     );
   }
+
+  const saveIntervention = async () => {
+    setSavingIntervention(true);
+    try {
+      await axios.post(`${API_URL}/api/corrections/${essayId}/intervention`, intervention, { withCredentials: true });
+      setInterventionDirty(false);
+      toast.success('Intervenção salva!');
+    } catch (err) {
+      toast.error('Erro ao salvar intervenção');
+    } finally {
+      setSavingIntervention(false);
+    }
+  };
+
+  const updateIntervention = (key, value) => {
+    setIntervention(prev => ({ ...prev, [key]: value }));
+    setInterventionDirty(true);
+  };
 
   const totalScore = correction.total_score || 0;
   const maxScore = correction.criteria_scores?.reduce((sum, cs) => sum + cs.max, 0) || 1000;
@@ -395,6 +425,107 @@ export const CorrectionView = () => {
             <p className="text-slate-700 leading-relaxed">{correction.improvements || 'Nenhum comentário'}</p>
           </Card>
         </div>
+
+        {/* COMENTÁRIO COMPLEMENTAR DO PROFESSOR — visível ao aluno */}
+        {correction.teacher_comment && user?.role === 'student' && (
+          <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid #D9B2CF' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <MessageSquarePlus size={16} style={{ color: '#D9B2CF' }} />
+              <p className="font-semibold text-sm" style={{ color: '#7C1805' }}>Observação da Professora</p>
+            </div>
+            <p className="text-sm leading-relaxed" style={{ color: '#2C1A0E' }}>{correction.teacher_comment}</p>
+          </Card>
+        )}
+
+        {/* MATERIAL EXTRA — visível ao aluno */}
+        {correction.extra_material && user?.role === 'student' && (
+          <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid #DAB257' }}>
+            <div className="flex items-center gap-2 mb-2">
+              <ExternalLink size={16} style={{ color: '#DAB257' }} />
+              <p className="font-semibold text-sm" style={{ color: '#7C1805' }}>Material Complementar</p>
+            </div>
+            <p className="text-sm" style={{ color: '#2C1A0E' }}>{correction.extra_material}</p>
+          </Card>
+        )}
+
+        {/* PAINEL DE INTERVENÇÃO — visível apenas ao professor/admin */}
+        {user?.role !== 'student' && (
+          <Card className="p-5 bg-white border shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <MessageSquarePlus size={18} style={{ color: '#7C1805' }} />
+                <h3 className="font-semibold" style={{ color: '#7C1805' }}>Intervenção Pedagógica</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                {interventionDirty && (
+                  <span className="text-xs" style={{ color: '#D66B27' }}>Alterações não salvas</span>
+                )}
+                <Button size="sm" onClick={saveIntervention} disabled={savingIntervention || !interventionDirty}>
+                  <Save size={13} className="mr-1" />
+                  {savingIntervention ? 'Salvando...' : 'Salvar'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {/* Toggles */}
+              <div className="flex flex-wrap gap-3">
+                <button
+                  onClick={() => updateIntervention('mark_important', !intervention.mark_important)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all"
+                  style={{
+                    backgroundColor: intervention.mark_important ? '#FDF3E8' : 'white',
+                    borderColor: intervention.mark_important ? '#D66B27' : '#E8DDD0',
+                    color: intervention.mark_important ? '#D66B27' : '#6B5B4E',
+                  }}
+                >
+                  <Bookmark size={14} />
+                  {intervention.mark_important ? '★ Marcada para revisão em aula' : 'Marcar para revisão em aula'}
+                </button>
+                <button
+                  onClick={() => updateIntervention('suggest_rewrite', !intervention.suggest_rewrite)}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all"
+                  style={{
+                    backgroundColor: intervention.suggest_rewrite ? '#FFF0E0' : 'white',
+                    borderColor: intervention.suggest_rewrite ? '#D66B27' : '#E8DDD0',
+                    color: intervention.suggest_rewrite ? '#D66B27' : '#6B5B4E',
+                  }}
+                >
+                  <RotateCcw size={14} />
+                  {intervention.suggest_rewrite ? 'Reescrita sugerida ✓' : 'Sugerir reescrita ao aluno'}
+                </button>
+              </div>
+
+              {/* Comentário complementar */}
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>
+                  Comentário complementar <span style={{ color: '#6B5B4E' }}>(visível ao aluno)</span>
+                </label>
+                <Textarea
+                  rows={3}
+                  value={intervention.teacher_comment || ''}
+                  onChange={e => updateIntervention('teacher_comment', e.target.value)}
+                  placeholder="Adicione uma observação complementar à correção..."
+                  className="text-sm"
+                />
+              </div>
+
+              {/* Material extra */}
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>
+                  Material extra <span style={{ color: '#6B5B4E' }}>(link ou descrição — visível ao aluno)</span>
+                </label>
+                <input
+                  type="text"
+                  value={intervention.extra_material || ''}
+                  onChange={e => updateIntervention('extra_material', e.target.value)}
+                  placeholder="Ex: https://... ou 'Ver página 45 do caderno'"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E' }}
+                />
+              </div>
+            </div>
+          </Card>
+        )}
 
         {correction.inline_comments && correction.inline_comments.length > 0 && (
           <Card className="p-6 bg-white border">
