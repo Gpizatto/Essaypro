@@ -434,6 +434,18 @@ async def get_correction_queue(current_user: dict = Depends(get_current_user)):
     
     return [EssayResponse(**e) for e in essays]
 
+@api_router.get("/essays/all-teacher")
+async def get_all_teacher_essays(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    essays = await db.essays.find({}, {"_id": 0}).to_list(5000)
+    for essay in essays:
+        student = await db.users.find_one({"_id": ObjectId(essay["student_id"])}, {"_id": 0, "name": 1})
+        prompt = await db.prompts.find_one({"id": essay["prompt_id"]}, {"_id": 0, "title": 1})
+        if student: essay["student_name"] = student["name"]
+        if prompt: essay["prompt_title"] = prompt["title"]
+    return [EssayResponse(**e) for e in essays]
+
 @api_router.get("/essays/{essay_id}", response_model=EssayResponse)
 async def get_essay(essay_id: str, current_user: dict = Depends(get_current_user)):
     essay = await db.essays.find_one({"id": essay_id}, {"_id": 0})
@@ -649,18 +661,6 @@ async def get_draft(essay_id: str, current_user: dict = Depends(get_current_user
     if not draft:
         raise HTTPException(status_code=404, detail="No draft found")
     return draft
-
-@api_router.get("/essays/all-teacher")
-async def get_all_teacher_essays(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
-        raise HTTPException(status_code=403, detail="Access denied")
-    essays = await db.essays.find({}, {"_id": 0}).to_list(5000)
-    for essay in essays:
-        student = await db.users.find_one({"_id": ObjectId(essay["student_id"])}, {"_id": 0, "name": 1})
-        prompt = await db.prompts.find_one({"id": essay["prompt_id"]}, {"_id": 0, "title": 1})
-        if student: essay["student_name"] = student["name"]
-        if prompt: essay["prompt_title"] = prompt["title"]
-    return [EssayResponse(**e) for e in essays]
 
 # ============================================================
 # INTERVENÇÃO PEDAGÓGICA DO PROFESSOR
