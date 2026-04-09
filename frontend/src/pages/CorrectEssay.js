@@ -1076,7 +1076,7 @@ export const CorrectEssay = () => {
                   width: '100%',
                   height: '100%',
                   pointerEvents: ['pen','eraser','line','arrow','oval','rect'].includes(selectedTool) ? 'all' : 'none',
-                  zIndex: ['pen','eraser','line','arrow','oval','rect'].includes(selectedTool) ? 20 : -1,
+                  zIndex: 15,
                   cursor: selectedTool === 'eraser' ? 'cell' : 'crosshair',
                   touchAction: 'none',
                 }}
