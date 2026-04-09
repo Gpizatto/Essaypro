@@ -574,6 +574,7 @@ export const CorrectionView = () => {
             </Button>
           </div>
         </Card>
+        )}
 
       {/* MODAL DA PROPOSTA */}
       {showPromptModal && prompt && (
