@@ -11,7 +11,7 @@ import { Badge } from '../components/ui/badge';
 import { Card } from '../components/ui/card';
 import { toast } from 'sonner';
 import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, ChevronDown, ChevronUp, Sparkles, Save, Circle, Square, Minus, MoveRight, Trash2, ZoomIn, ZoomOut, Type } from 'lucide-react';
-import { Canvas, PencilBrush } from 'fabric';
+import { Canvas, PencilBrush, Ellipse, Rect, Line, Triangle } from 'fabric';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -131,10 +131,14 @@ export const CorrectEssay = () => {
         }
 
         try {
-          const textRect = textRef.current.getBoundingClientRect();
           const containerRect = canvasContainerRef.current.getBoundingClientRect();
           const width = Math.max(containerRect.width, 800);
-          const height = Math.max(textRef.current.scrollHeight, 600);
+          // Use offsetHeight which is more reliable after DOM render
+          const height = Math.max(
+            textRef.current.offsetHeight,
+            textRef.current.scrollHeight,
+            600
+          );
           
           const fabricCanvas = new Canvas(canvasElement, {
             width: width,
@@ -145,10 +149,7 @@ export const CorrectEssay = () => {
           });
           
           fabricCanvasRef.current = fabricCanvas;
-
-          // Expor classes fabric globalmente para uso nas ferramentas de forma
-          import('fabric').then(fab => { window._fabricLib = fab; });
-
+          
           // Inicializar PencilBrush (obrigatorio Fabric.js v7)
           fabricCanvas.freeDrawingBrush = new PencilBrush(fabricCanvas);
           fabricCanvas.freeDrawingBrush.color = '#000000';
@@ -168,17 +169,18 @@ export const CorrectEssay = () => {
           
           setCanvasReady(true);
 
-          // Redimensionar canvas quando texto mudar de altura
+          // ResizeObserver para manter canvas sincronizado com tamanho do texto
           const resizeObserver = new ResizeObserver(() => {
-            if (textRef.current && fabricCanvasRef.current) {
-              const newH = Math.max(textRef.current.scrollHeight, 600);
-              fabricCanvasRef.current.setHeight(newH);
-              fabricCanvasRef.current.renderAll();
-              const w2 = fabricCanvasRef.current.wrapperEl;
-              if (w2) w2.style.height = newH + 'px';
-            }
+            if (!textRef.current || !fabricCanvasRef.current) return;
+            const newH = Math.max(textRef.current.offsetHeight, textRef.current.scrollHeight, 600);
+            const newW = Math.max(canvasContainerRef.current?.offsetWidth || 800, 800);
+            fabricCanvasRef.current.setDimensions({ width: newW, height: newH });
+            fabricCanvasRef.current.renderAll();
+            const w = fabricCanvasRef.current.wrapperEl;
+            if (w) { w.style.width = newW + 'px'; w.style.height = newH + 'px'; }
           });
           if (textRef.current) resizeObserver.observe(textRef.current);
+          if (canvasContainerRef.current) resizeObserver.observe(canvasContainerRef.current);
           
         } catch (error) {
           console.error('ERRO ao criar canvas Fabric.js:', error);
@@ -255,17 +257,17 @@ export const CorrectEssay = () => {
           const tool = selectedToolRef.current;
 
           if (tool === 'oval') {
-            currentShape = new window._fabricLib.Ellipse({
+            currentShape = new Ellipse({
               left: startX, top: startY, rx: 0, ry: 0,
               fill: 'transparent', stroke: color, strokeWidth: 2, selectable: false,
             });
           } else if (tool === 'rect') {
-            currentShape = new window._fabricLib.Rect({
+            currentShape = new Rect({
               left: startX, top: startY, width: 0, height: 0,
               fill: 'transparent', stroke: color, strokeWidth: 2, selectable: false,
             });
           } else {
-            currentShape = new window._fabricLib.Line([startX, startY, startX, startY], {
+            currentShape = new Line([startX, startY, startX, startY], {
               stroke: color, strokeWidth: 2, selectable: false,
             });
           }
@@ -281,7 +283,10 @@ export const CorrectEssay = () => {
             const ry = Math.abs(pos.y - startY) / 2;
             currentShape.set({ rx, ry, left: Math.min(pos.x, startX), top: Math.min(pos.y, startY) });
           } else if (tool === 'rect') {
-            currentShape.set({ left: Math.min(pos.x, startX), top: Math.min(pos.y, startY), width: Math.abs(pos.x - startX), height: Math.abs(pos.y - startY) });
+            currentShape.set({
+              left: Math.min(pos.x, startX), top: Math.min(pos.y, startY),
+              width: Math.abs(pos.x - startX), height: Math.abs(pos.y - startY),
+            });
           } else {
             currentShape.set({ x2: pos.x, y2: pos.y });
           }
@@ -295,10 +300,12 @@ export const CorrectEssay = () => {
             const dx = currentShape.x2 - currentShape.x1;
             const dy = currentShape.y2 - currentShape.y1;
             const angle = Math.atan2(dy, dx) * 180 / Math.PI;
-            const head = new window._fabricLib.Triangle({
+            const head = new Triangle({
               left: currentShape.x2, top: currentShape.y2,
-              width: 14, height: 14, fill: selectedColorRef.current,
-              angle: angle + 90, originX: 'center', originY: 'center', selectable: false,
+              width: 14, height: 14,
+              fill: selectedColorRef.current,
+              angle: angle + 90,
+              originX: 'center', originY: 'center', selectable: false,
             });
             canvas.add(head);
           }
@@ -1115,7 +1122,10 @@ export const CorrectEssay = () => {
                   minHeight: '600px',
                   transform: zoom !== 1 ? `scale(${zoom})` : undefined,
                   transformOrigin: 'top left',
-                  cursor: ['strikethrough', 'underline', 'highlight', 'comment'].includes(selectedTool) ? 'text'
+                  cursor: selectedTool === 'strikethrough' ? 'crosshair'
+                        : selectedTool === 'underline' ? 'text'
+                        : selectedTool === 'highlight' ? 'text'
+                        : selectedTool === 'comment' ? 'text'
                         : 'default',
                   userSelect: selectedTool === 'select' ? 'none' : 'text',
                 }}
@@ -1127,8 +1137,8 @@ export const CorrectEssay = () => {
                   position: 'absolute',
                   top: 0,
                   left: 0,
-                  pointerEvents: ['pen', 'eraser', 'line', 'arrow', 'oval', 'rect'].includes(selectedTool) ? 'all' : 'none',
-                  zIndex: ['pen', 'eraser', 'line', 'arrow', 'oval', 'rect'].includes(selectedTool) ? 20 : -1,
+                  pointerEvents: selectedTool === 'pen' || selectedTool === 'eraser' ? 'all' : 'none',
+                  zIndex: selectedTool === 'pen' || selectedTool === 'eraser' ? 20 : -1,
                   cursor: selectedTool === 'pen' ? 'crosshair' : selectedTool === 'eraser' ? 'not-allowed' : 'default'
                 }}
               />
