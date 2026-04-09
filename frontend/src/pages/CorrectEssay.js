@@ -113,13 +113,22 @@ export const CorrectEssay = () => {
   }, [essayId]);
 
   // Setar innerHTML do texto UMA VEZ quando o HTML estiver disponível
-  const essayHtmlSetRef = useRef(false);
+  // Injetar HTML do texto quando disponível, com retry se textRef ainda não está no DOM
   useEffect(() => {
-    if (essayHtml && textRef.current && !essayHtmlSetRef.current) {
-      textRef.current.innerHTML = essayHtml;
-      essayHtmlSetRef.current = true;
+    if (!essayHtml) return;
+    const inject = () => {
+      if (textRef.current) {
+        textRef.current.innerHTML = essayHtml;
+        return true;
+      }
+      return false;
+    };
+    if (!inject()) {
+      // textRef ainda não montado, tentar novamente após render
+      const timer = setTimeout(() => inject(), 100);
+      return () => clearTimeout(timer);
     }
-  }, [essayHtml, textRef.current]);
+  }, [essayHtml]);
 
   useEffect(() => {
     if (essay && textRef.current && !fabricCanvasRef.current) {
@@ -354,16 +363,21 @@ export const CorrectEssay = () => {
         setCourseSettings(settingsRes.data);
       } catch (e) { console.error('Error fetching settings:', e); }
 
-      // Carregar rascunho se existir
+      // Carregar rascunho se existir (404 é esperado quando não há rascunho)
       try {
-        const draftRes = await axios.get(`${API_URL}/api/corrections/draft/${essayId}`, { withCredentials: true });
-        const d = draftRes.data;
-        if (d.scores) setScores(d.scores);
-        if (d.feedback) setFeedback(d.feedback);
-        if (d.inlineComments) setInlineComments(d.inlineComments);
-        setDraftLoaded(true);
-        toast.success('Rascunho carregado — continue de onde parou!', { duration: 3000 });
-      } catch (e) { /* sem rascunho — 404 esperado */ }
+        const draftRes = await axios.get(`${API_URL}/api/corrections/draft/${essayId}`, {
+          withCredentials: true,
+          validateStatus: (status) => status === 200 || status === 404,
+        });
+        if (draftRes.status === 200) {
+          const d = draftRes.data;
+          if (d.scores) setScores(d.scores);
+          if (d.feedback) setFeedback(d.feedback);
+          if (d.inlineComments) setInlineComments(d.inlineComments);
+          setDraftLoaded(true);
+          toast.success('Rascunho carregado — continue de onde parou!', { duration: 3000 });
+        }
+      } catch (e) { /* ignorar */ }
 
       const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
       const promptData = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
