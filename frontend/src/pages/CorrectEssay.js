@@ -1070,7 +1070,7 @@ export const CorrectEssay = () => {
                   userSelect: selectedTool === 'select' ? 'none' : 'text',
                 }}
                 data-testid="essay-text"
-              />
+              ></div>
               <canvas
                 ref={nativeCanvasRef}
                 style={{
