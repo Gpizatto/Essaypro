@@ -101,11 +101,17 @@ class UserResponse(BaseModel):
     is_active: bool = True
     created_at: datetime
 
+class LevelDescription(BaseModel):
+    pontuacao: int
+    proficiencia: str
+    descricao: str
+
 class Criterion(BaseModel):
     id: str
     nome: str
     descricao: str
     peso_maximo: int = Field(..., ge=40, le=400)
+    level_descriptions: Optional[List[LevelDescription]] = None
 
 class PromptCreate(BaseModel):
     title: str
