@@ -9,12 +9,13 @@ import { FileText, Clock, User, Search, AlertCircle, CheckCircle2, Edit3, Histor
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const getWaitTime = (submitted_at) => {
+const getWaitTime = (submitted_at, deadlineDays = 3) => {
   const diff = Date.now() - new Date(submitted_at).getTime();
   const hours = Math.floor(diff / (1000 * 60 * 60));
   const days = Math.floor(hours / 24);
-  if (days > 0) return { label: `${days}d`, urgent: days >= 3 };
-  if (hours > 0) return { label: `${hours}h`, urgent: hours >= 48 };
+  const urgentAfter = deadlineDays > 0 ? deadlineDays : 3;
+  if (days > 0) return { label: `${days}d`, urgent: days >= urgentAfter };
+  if (hours > 0) return { label: `${hours}h`, urgent: hours >= urgentAfter * 24 };
   return { label: 'agora', urgent: false };
 };
 
@@ -37,11 +38,17 @@ export const CorrectionQueue = () => {
   const [allEssays, setAllEssays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
+  const [deadlineDays, setDeadlineDays] = useState(3);
   const [search, setSearch] = useState('');
   const [filterPrompt, setFilterPrompt] = useState('all');
   const navigate = useNavigate();
 
-  useEffect(() => { fetchAll(); }, []);
+  useEffect(() => {
+    fetchAll();
+    axios.get(`${API_URL}/api/settings/course`, { withCredentials: true })
+      .then(r => { if (r.data.correction_deadline_days > 0) setDeadlineDays(r.data.correction_deadline_days); })
+      .catch(() => {});
+  }, []);
 
   const fetchAll = async () => {
     try {
@@ -82,7 +89,7 @@ export const CorrectionQueue = () => {
     return matchSearch && matchPrompt;
   }), [currentList, search, filterPrompt]);
 
-  const urgentCount = byStatus.pending.filter(e => getWaitTime(e.submitted_at).urgent).length;
+  const urgentCount = byStatus.pending.filter(e => getWaitTime(e.submitted_at, deadlineDays).urgent).length;
 
   const selectStyle = {
     padding: '6px 10px', borderRadius: '6px',
