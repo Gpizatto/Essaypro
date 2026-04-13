@@ -698,8 +698,12 @@ export const CorrectEssay = () => {
       toast.success(`Análise concluída! ${count} ponto${count !== 1 ? 's' : ''} encontrado${count !== 1 ? 's' : ''}.`);
     } catch (error) {
       console.error('AI analysis error:', error);
-      const msg = error.response?.data?.detail || 'Não foi possível analisar. Verifique se a chave de IA está configurada.';
-      toast.error(msg);
+      if (error.response?.status === 429) {
+        toast.error('Limite de requisições da IA atingido. Aguarde 30 segundos e tente novamente.');
+      } else {
+        const msg = error.response?.data?.detail || 'Não foi possível analisar. Tente novamente.';
+        toast.error(msg);
+      }
     } finally {
       setAiAnalyzing(false);
     }
@@ -1274,24 +1278,22 @@ export const CorrectEssay = () => {
                     </div>
 
                     {/* Descrição do nível selecionado */}
-                    {current > 0 && (
-                      <p className="text-xs mt-1 italic" style={{ color: '#6B5B4E' }}>
-                        {current === criterion.peso_maximo
-                          ? '✓ Atendeu plenamente todos os requisitos'
-                          : current >= criterion.peso_maximo * 0.8
-                          ? 'Atendeu a maioria dos requisitos, com pequenas ressalvas'
-                          : current >= criterion.peso_maximo * 0.6
-                          ? 'Atendeu parcialmente, com aspectos a desenvolver'
-                          : current >= criterion.peso_maximo * 0.4
-                          ? 'Atendeu de forma insuficiente, com problemas relevantes'
-                          : 'Apresentou domínio precário / grave falha'}
-                      </p>
-                    )}
-                    {current === 0 && (
-                      <p className="text-xs mt-1 italic" style={{ color: '#7C1805' }}>
-                        Não atendeu aos requisitos / fuga ao tema
-                      </p>
-                    )}
+                    {(() => {
+                      const levelInfo = criterion.level_descriptions?.find(l => l.pontuacao === current);
+                      if (levelInfo?.proficiencia || levelInfo?.descricao) {
+                        return (
+                          <div className="mt-2 p-2 rounded" style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
+                            {levelInfo.proficiencia && (
+                              <p className="text-xs font-semibold mb-0.5" style={{ color: '#7C1805' }}>{levelInfo.proficiencia}</p>
+                            )}
+                            {levelInfo.descricao && (
+                              <p className="text-xs leading-relaxed" style={{ color: '#6B5B4E' }}>{levelInfo.descricao}</p>
+                            )}
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
                   </div>
                 );
               })}
