@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
-  const { branding, roleLabel } = useBranding();
+  const { branding, roleLabel: brandingRoleLabel } = useBranding();
   const navigate = useNavigate();
   const location = useLocation();
   const [notifications, setNotifications] = useState([]);
