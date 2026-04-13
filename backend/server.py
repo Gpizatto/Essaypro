@@ -401,6 +401,24 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
         "submitted_at": datetime.now(timezone.utc)
     }
     await db.essays.insert_one(essay_doc)
+
+    # Notificar professores/admins sobre nova redação
+    try:
+        teachers = await db.users.find({"role": {"$in": ["teacher", "admin"]}}, {"_id": 1}).to_list(100)
+        prompt_doc2 = await db.prompts.find_one({"id": essay_doc["prompt_id"]}, {"_id": 0, "title": 1})
+        prompt_title2 = prompt_doc2["title"] if prompt_doc2 else "proposta"
+        student_doc = await db.users.find_one({"_id": ObjectId(current_user["_id"])}, {"_id": 0, "name": 1})
+        student_name = student_doc["name"] if student_doc else "Um aluno"
+        for t in teachers:
+            await create_notification(
+                user_id=str(t["_id"]),
+                title="Nova redação para corrigir 📝",
+                message=f"{student_name} enviou uma redação sobre '{prompt_title2}'.",
+                type="essay",
+                link="/correction-queue"
+            )
+    except Exception: pass
+
     return EssayResponse(**essay_doc)
 
 @api_router.get("/essays/my", response_model=List[EssayResponse])
@@ -501,7 +519,20 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
     }
     await db.corrections.insert_one(correction_doc)
     await db.essays.update_one({"id": correction_data.essay_id}, {"$set": {"status": "corrected"}})
-    
+
+    # Notificar aluno que a correção ficou pronta
+    essay_doc = await db.essays.find_one({"id": correction_data.essay_id})
+    if essay_doc:
+        prompt_doc = await db.prompts.find_one({"id": essay_doc.get("prompt_id")}, {"_id": 0, "title": 1})
+        prompt_title = prompt_doc["title"] if prompt_doc else "sua redação"
+        await create_notification(
+            user_id=essay_doc["student_id"],
+            title="Correção disponível! ✅",
+            message=f"Sua redação sobre '{prompt_title}' foi corrigida.",
+            type="success",
+            link=f"/essay/{correction_data.essay_id}/correction"
+        )
+
     return CorrectionResponse(**correction_doc)
 
 @api_router.get("/corrections/{essay_id}", response_model=CorrectionResponse)
@@ -575,6 +606,50 @@ async def toggle_user_active(user_id: str, current_user: dict = Depends(get_curr
     new_status = not user.get("is_active", True)
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
     return {"is_active": new_status}
+
+# ============================================================
+# SISTEMA DE NOTIFICAÇÕES
+# ============================================================
+
+async def create_notification(user_id: str, title: str, message: str, type: str = "info", link: str = None):
+    """Cria uma notificação para um usuário. Tipos: info, success, warning, essay"""
+    notif = {
+        "id": str(ObjectId()),
+        "user_id": user_id,
+        "title": title,
+        "message": message,
+        "type": type,
+        "link": link,
+        "read": False,
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.notifications.insert_one(notif)
+    return notif
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: dict = Depends(get_current_user)):
+    notifs = await db.notifications.find(
+        {"user_id": current_user["_id"]},
+        {"_id": 0}
+    ).sort("created_at", -1).limit(30).to_list(30)
+    unread = sum(1 for n in notifs if not n.get("read"))
+    return {"notifications": notifs, "unread": unread}
+
+@api_router.patch("/notifications/{notif_id}/read")
+async def mark_notification_read(notif_id: str, current_user: dict = Depends(get_current_user)):
+    await db.notifications.update_one(
+        {"id": notif_id, "user_id": current_user["_id"]},
+        {"$set": {"read": True}}
+    )
+    return {"ok": True}
+
+@api_router.patch("/notifications/read-all")
+async def mark_all_read(current_user: dict = Depends(get_current_user)):
+    await db.notifications.update_many(
+        {"user_id": current_user["_id"], "read": False},
+        {"$set": {"read": True}}
+    )
+    return {"ok": True}
 
 # ============================================================
 # RELATÓRIO PESSOAL DO CORRETOR
