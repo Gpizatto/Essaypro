@@ -772,7 +772,9 @@ async def save_draft(body: dict, current_user: dict = Depends(get_current_user))
     essay_id = body.get("essay_id")
     if not essay_id:
         raise HTTPException(status_code=400, detail="essay_id required")
-    draft_data = {k: v for k, v in body.items() if k != "essay_id"}
+    # Salvar todos os campos incluindo canvasDataUrl e textAnnotations
+    allowed = {"scores", "feedback", "inlineComments", "canvasDataUrl", "textAnnotations"}
+    draft_data = {k: v for k, v in body.items() if k in allowed}
     draft_data["teacher_id"] = current_user["_id"]
     draft_data["saved_at"] = datetime.now(timezone.utc)
     await db.drafts.update_one(
