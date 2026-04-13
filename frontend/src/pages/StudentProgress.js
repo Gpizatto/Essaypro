@@ -5,7 +5,8 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { ArrowLeft, FileText, CheckCircle2, Clock, RotateCcw, TrendingUp, BookOpen, BookX } from 'lucide-react';
+import { ArrowLeft, FileText, CheckCircle2, Clock, RotateCcw, TrendingUp, BookOpen, BookX, Download } from 'lucide-react';
+import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -47,6 +48,50 @@ export const StudentProgress = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    if (!data) return;
+    const { student, essays, stats } = data;
+    const scores = essays.filter(e => e.score != null).map(e => e.score);
+    const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
+    exportToPDF(`Evolução — ${student.name}`, `
+      <h1>Evolução do Aluno</h1>
+      <p class="subtitle">${student.name} · ${student.email}</p>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value">${stats.total}</div><div class="stat-label">Total de Redações</div></div>
+        <div class="stat-box"><div class="stat-value">${stats.corrected}</div><div class="stat-label">Corrigidas</div></div>
+        <div class="stat-box"><div class="stat-value">${avg || '—'}</div><div class="stat-label">Média de Pontos</div></div>
+        <div class="stat-box"><div class="stat-value">${stats.rewrites}</div><div class="stat-label">Reescritas</div></div>
+        <div class="stat-box"><div class="stat-value">${stats.pending}</div><div class="stat-label">Pendentes</div></div>
+      </div>
+      <h2>Histórico de Redações</h2>
+      <table>
+        <tr><th>Proposta</th><th>Status</th><th>Enviada em</th><th>Nota</th></tr>
+        ${essays.map(e => `<tr>
+          <td>${e.prompt_title}</td>
+          <td>${e.status === 'corrected' ? 'Corrigida' : e.status === 'pending' ? 'Pendente' : e.status}</td>
+          <td>${new Date(e.submitted_at).toLocaleDateString('pt-BR')}</td>
+          <td>${e.score ?? '—'}</td>
+        </tr>`).join('')}
+      </table>
+    `);
+  };
+
+  const handleExportExcel = () => {
+    if (!data) return;
+    const { student, essays } = data;
+    exportToExcel(`evolucao-${student.name.replace(/\s+/g,'-').toLowerCase()}`,
+      ['Proposta', 'Status', 'Reescrita', 'Data Envio', 'Data Correção', 'Nota'],
+      essays.map(e => [
+        e.prompt_title,
+        e.status === 'corrected' ? 'Corrigida' : 'Pendente',
+        e.is_rewrite ? 'Sim' : 'Não',
+        new Date(e.submitted_at).toLocaleDateString('pt-BR'),
+        e.corrected_at ? new Date(e.corrected_at).toLocaleDateString('pt-BR') : '',
+        e.score ?? '',
+      ])
+    );
+  };
+
   if (loading) return (
     <Layout>
       <div className="animate-pulse space-y-4">
@@ -85,6 +130,18 @@ export const StudentProgress = () => {
               {student.name}
             </h1>
             <p className="text-sm" style={{ color: '#6B5B4E' }}>{student.email}</p>
+          <div className="flex gap-2 mt-2">
+            <button onClick={handleExportPDF}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
+              <Download size={13} /> PDF
+            </button>
+            <button onClick={handleExportExcel}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#36555A', color: '#36555A', backgroundColor: 'white' }}>
+              <Download size={13} /> Excel
+            </button>
+          </div>
           </div>
         </div>
 
