@@ -1070,11 +1070,14 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
         "Retorne 3 a 10 erros. Use portugues brasileiro."
     )
 
-    # Modelos gratuitos confiáveis no OpenRouter
+    # Modelos gratuitos no OpenRouter — lista ampla com fallbacks
     MODELS_TO_TRY = [
-        "meta-llama/llama-3.3-70b-instruct:free",
-        "deepseek/deepseek-chat:free",
-        "mistralai/mistral-7b-instruct:free",
+        "meta-llama/llama-3.1-8b-instruct:free",
+        "meta-llama/llama-3.2-3b-instruct:free",
+        "google/gemma-3-12b-it:free",
+        "google/gemma-2-9b-it:free",
+        "qwen/qwen-2.5-7b-instruct:free",
+        "microsoft/phi-3-mini-128k-instruct:free",
     ]
 
     import httpx
