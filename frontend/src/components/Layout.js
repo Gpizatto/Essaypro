@@ -94,6 +94,7 @@ export const Layout = ({ children }) => {
         { path: '/dashboard', icon: Home, label: 'Início' },
         { path: '/correction-queue', icon: PenTool, label: 'Correções' },
         { path: '/teacher/students', icon: Users, label: 'Alunos' },
+        { path: '/admin/reports', icon: BarChart3, label: 'Relatórios' },
         { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
         { path: '/teacher/report', icon: BarChart3, label: 'Meu Relatório' },
       ];
@@ -102,6 +103,7 @@ export const Layout = ({ children }) => {
         { path: '/dashboard', icon: Home, label: 'Início' },
         { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
         { path: '/admin/users', icon: Users, label: 'Usuários' },
+        { path: '/admin/reports', icon: BarChart3, label: 'Relatórios' },
         { path: '/settings', icon: Settings, label: 'Configurações' },
         { path: '/admin/branding', icon: Palette, label: 'Personalização' },
       ];
