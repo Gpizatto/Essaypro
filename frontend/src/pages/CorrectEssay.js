@@ -1425,39 +1425,7 @@ export const CorrectEssay = () => {
         </div>
       </div>
 
-      {/* MODAL CONFIRMAÇÃO PUBLICAR */}
-      {showConfirmPublish && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px]">
-            <h3 className="font-heading font-bold text-lg mb-2" style={{ color: '#7C1805' }}>
-              Publicar correção?
-            </h3>
-            <p className="text-sm mb-1" style={{ color: '#2C1A0E' }}>
-              <strong>{essay?.student_name}</strong> receberá a correção imediatamente.
-            </p>
-            <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>
-              Total: <strong style={{ color: '#7C1805' }}>{prompt?.criteria?.reduce((s, c) => s + (scores[c.id] || 0), 0)} pts</strong>
-              {' '}de {prompt?.criteria?.reduce((s, c) => s + c.peso_maximo, 0)} pts
-            </p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowConfirmPublish(false)}
-                className="flex-1 py-2 rounded-lg border text-sm font-medium"
-                style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={() => { setShowConfirmPublish(false); handleSubmit(); }}
-                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
-                style={{ backgroundColor: '#36555A' }}
-              >
-                ✓ Confirmar e publicar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+     
 
       {/* POPUP DE COMENTÁRIO */}
       {showCommentPopup && (
