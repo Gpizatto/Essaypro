@@ -1070,35 +1070,52 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
         "Retorne 3 a 10 erros. Use portugues brasileiro."
     )
 
-    payload = {
-        "model": "deepseek/deepseek-chat-v3-0324:free",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Redacao:\n\n{texto}"}
-        ],
-        "max_tokens": 2048,
-        "temperature": 0.2,
-    }
+    # Modelos gratuitos confiáveis no OpenRouter
+    MODELS_TO_TRY = [
+        "meta-llama/llama-3.3-70b-instruct:free",
+        "deepseek/deepseek-chat:free",
+        "mistralai/mistral-7b-instruct:free",
+    ]
 
     import httpx
     response_text = ""
-    try:
-        async with httpx.AsyncClient(timeout=90.0) as client:
-            resp = await client.post(
-                "https://openrouter.ai/api/v1/chat/completions",
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer {openrouter_key}",
-                    "Content-Type": "application/json",
-                    "HTTP-Referer": "https://essaypro-frontend.onrender.com",
-                    "X-Title": "RcN Correcao de Redacoes",
-                }
-            )
-            resp.raise_for_status()
-            response_text = resp.json()["choices"][0]["message"]["content"]
+    last_error = None
 
-        response_text = response_text.strip()
-        # Limpar markdown se presente
+    async with httpx.AsyncClient(timeout=90.0) as client:
+        for model in MODELS_TO_TRY:
+            try:
+                payload = {
+                    "model": model,
+                    "messages": [
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": f"Redacao:\n\n{texto}"}
+                    ],
+                    "max_tokens": 2048,
+                    "temperature": 0.2,
+                }
+                resp = await client.post(
+                    "https://openrouter.ai/api/v1/chat/completions",
+                    json=payload,
+                    headers={
+                        "Authorization": f"Bearer {openrouter_key}",
+                        "Content-Type": "application/json",
+                        "HTTP-Referer": "https://essaypro-frontend.onrender.com",
+                        "X-Title": "RcN Correcao de Redacoes",
+                    }
+                )
+                if resp.status_code in (404, 503):
+                    last_error = f"Modelo {model} indisponível"
+                    continue
+                resp.raise_for_status()
+                response_text = resp.json()["choices"][0]["message"]["content"].strip()
+                break
+            except Exception as e:
+                last_error = str(e)
+                continue
+        else:
+            raise HTTPException(status_code=503, detail=f"Nenhum modelo IA disponível no momento. Erro: {last_error}")
+
+    try:
         if "```" in response_text:
             for part in response_text.split("```"):
                 part = part.strip().lstrip("json").strip()
