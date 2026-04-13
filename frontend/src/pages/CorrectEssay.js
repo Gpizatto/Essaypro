@@ -1481,7 +1481,7 @@ export const CorrectEssay = () => {
                 Cancelar
               </button>
               <button
-                onClick={() => { setShowConfirmPublish(false); handleSubmit(); }}
+                onClick={handleConfirmPublish}
                 className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
                 style={{ backgroundColor: '#36555A' }}
               >
