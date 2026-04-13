@@ -966,7 +966,7 @@ export const CorrectEssay = () => {
 
       <div className="flex flex-1">
         {/* PAINEL ESQUERDO - Texto + Anotações */}
-        <div className="flex-1" style={{ width: '60%', maxWidth: '60%' }}>
+        <div className="flex-1 overflow-hidden" style={{ width: '60%', maxWidth: '60%' }}>
           {/* TOOLBAR */}
           <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap sticky top-0 z-40">
             {/* Ferramentas de texto */}
