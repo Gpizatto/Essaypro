@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
-import { Users, FileText, CheckCircle, Award, Zap, Save, Clock, RotateCcw, BookOpen, TrendingUp } from 'lucide-react';
+import { Users, FileText, CheckCircle, Award, Zap, Save, Clock, RotateCcw, BookOpen, TrendingUp, Download } from 'lucide-react';
+import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { Button } from '../components/ui/button';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -84,6 +85,48 @@ export const AdminDashboard = () => {
     );
   }
 
+  const handleExportPDF = () => {
+    exportToPDF('Relatório do Curso — RcN', `
+      <h1>Relatório Geral do Curso</h1>
+      <p class="subtitle">Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value">${stats?.total_users || 0}</div><div class="stat-label">Usuários</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.total_essays || 0}</div><div class="stat-label">Redações</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.total_corrections || 0}</div><div class="stat-label">Corrigidas</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.total_pending || 0}</div><div class="stat-label">Pendentes</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.total_rewrites || 0}</div><div class="stat-label">Reescritas</div></div>
+        <div class="stat-box"><div class="stat-value">${Math.round(stats?.average_score || 0)}</div><div class="stat-label">Média Geral</div></div>
+      </div>
+      ${stats?.top_prompts?.length ? `
+        <h2>Propostas Mais Enviadas</h2>
+        <table>
+          <tr><th>#</th><th>Proposta</th><th>Envios</th></tr>
+          ${stats.top_prompts.map((p, i) => `<tr><td>${i+1}</td><td>${p.title}</td><td>${p.count}</td></tr>`).join('')}
+        </table>` : ''}
+      ${stats?.top_students?.length ? `
+        <h2>Alunos Mais Ativos</h2>
+        <table>
+          <tr><th>#</th><th>Aluno</th><th>Redações</th></tr>
+          ${stats.top_students.map((s, i) => `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.count}</td></tr>`).join('')}
+        </table>` : ''}
+    `);
+  };
+
+  const handleExportExcel = () => {
+    const headers = ['Métrica', 'Valor'];
+    const rows = [
+      ['Total de Usuários', stats?.total_users || 0],
+      ['Total de Alunos', stats?.total_students || 0],
+      ['Total de Professores', stats?.total_teachers || 0],
+      ['Redações Enviadas', stats?.total_essays || 0],
+      ['Redações Pendentes', stats?.total_pending || 0],
+      ['Correções Realizadas', stats?.total_corrections || 0],
+      ['Reescritas', stats?.total_rewrites || 0],
+      ['Média Geral de Pontos', Math.round(stats?.average_score || 0)],
+    ];
+    exportToExcel('relatorio-curso-rcn', headers, rows);
+  };
+
   const pendingRate = stats?.total_essays > 0
     ? Math.round((stats.total_pending / stats.total_essays) * 100)
     : 0;
@@ -96,6 +139,18 @@ export const AdminDashboard = () => {
             Painel Administrativo
           </h1>
           <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>Visão geral da plataforma</p>
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleExportPDF}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
+              <Download size={13} /> PDF
+            </button>
+            <button onClick={handleExportExcel}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#36555A', color: '#36555A', backgroundColor: 'white' }}>
+              <Download size={13} /> Excel
+            </button>
+          </div>
         </div>
 
         {/* MÉTRICAS PRINCIPAIS */}
