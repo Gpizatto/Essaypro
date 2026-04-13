@@ -1056,69 +1056,46 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can analyze essays")
 
-    openrouter_key = os.getenv("OPENROUTER_API_KEY")
-    if not openrouter_key:
-        raise HTTPException(status_code=503, detail="Chave OPENROUTER_API_KEY não configurada no servidor.")
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_key:
+        raise HTTPException(status_code=503, detail="Chave GEMINI_API_KEY não configurada no servidor.")
 
     texto = request.content[:4000] if len(request.content) > 4000 else request.content
 
-    system_prompt = (
-        "Voce e um professor especialista em redacao do ENEM e lingua portuguesa. "
-        "Analise a redacao e retorne APENAS JSON valido, sem markdown, sem texto fora do JSON. "
-        'Formato: {"erros": [{"id": "1", "trecho": "trecho exato", "tipo": "gramatical", "descricao": "descricao", "sugestao": "sugestao"}], "resumo": "analise em 2 frases"} '
-        "Tipos validos: gramatical, coesao, argumentacao, tematico, estilo. "
-        "Retorne 3 a 10 erros. Use portugues brasileiro."
+    prompt = (
+        "Voce e um professor de lingua portuguesa especialista em gramatica. "
+        "Identifique APENAS os erros gramaticais da redacao abaixo: ortografia, concordancia, regencia, pontuacao, acentuacao e uso inadequado de palavras. "
+        "NAO analise argumentacao, coesao, tema ou estrutura — apenas erros gramaticais. "
+        "Retorne APENAS JSON valido, sem markdown, sem texto fora do JSON. "
+        'Formato: {"erros": [{"id": "1", "trecho": "trecho exato com erro", '
+        '"tipo": "gramatical", "descricao": "qual e o erro", "sugestao": "forma correta"}], '
+        '"resumo": "resumo dos principais problemas gramaticais em 1-2 frases"} '
+        "Retorne entre 0 e 15 erros. Se nao houver erros, retorne lista vazia. Use portugues brasileiro.\n\n"
+        f"Redacao:\n\n{texto}"
     )
 
-    # Modelos gratuitos no OpenRouter — lista ampla com fallbacks
-    MODELS_TO_TRY = [
-        "meta-llama/llama-3.1-8b-instruct:free",
-        "meta-llama/llama-3.2-3b-instruct:free",
-        "google/gemma-3-12b-it:free",
-        "google/gemma-2-9b-it:free",
-        "qwen/qwen-2.5-7b-instruct:free",
-        "microsoft/phi-3-mini-128k-instruct:free",
-    ]
+    payload = {
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.1, "maxOutputTokens": 2048}
+    }
 
-    import httpx
+    import httpx, asyncio
     response_text = ""
-    last_error = None
-
-    async with httpx.AsyncClient(timeout=90.0) as client:
-        for model in MODELS_TO_TRY:
-            try:
-                payload = {
-                    "model": model,
-                    "messages": [
-                        {"role": "system", "content": system_prompt},
-                        {"role": "user", "content": f"Redacao:\n\n{texto}"}
-                    ],
-                    "max_tokens": 2048,
-                    "temperature": 0.2,
-                }
-                resp = await client.post(
-                    "https://openrouter.ai/api/v1/chat/completions",
-                    json=payload,
-                    headers={
-                        "Authorization": f"Bearer {openrouter_key}",
-                        "Content-Type": "application/json",
-                        "HTTP-Referer": "https://essaypro-frontend.onrender.com",
-                        "X-Title": "RcN Correcao de Redacoes",
-                    }
-                )
-                if resp.status_code in (404, 503):
-                    last_error = f"Modelo {model} indisponível"
+    try:
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key={gemini_key}"
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            for attempt in range(3):
+                resp = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                if resp.status_code == 429:
+                    await asyncio.sleep(2 ** attempt)
                     continue
                 resp.raise_for_status()
-                response_text = resp.json()["choices"][0]["message"]["content"].strip()
                 break
-            except Exception as e:
-                last_error = str(e)
-                continue
-        else:
-            raise HTTPException(status_code=503, detail=f"Nenhum modelo IA disponível no momento. Erro: {last_error}")
+            else:
+                raise HTTPException(status_code=429, detail="Limite da IA atingido. Aguarde alguns segundos e tente novamente.")
 
-    try:
+        response_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"].strip()
+
         if "```" in response_text:
             for part in response_text.split("```"):
                 part = part.strip().lstrip("json").strip()
@@ -1130,13 +1107,16 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
         for erro in analysis.get("erros", []):
             if not erro.get("id"):
                 erro["id"] = str(uuid.uuid4())
+            erro["tipo"] = "gramatical"  # forçar tipo gramatical
         return analysis
 
     except json_module.JSONDecodeError:
-        logger.error(f"Failed to parse OpenRouter response: {response_text}")
+        logger.error(f"Failed to parse Gemini response: {response_text}")
         raise HTTPException(status_code=500, detail="A IA retornou um formato inesperado. Tente novamente.")
+    except HTTPException:
+        raise
     except Exception as e:
-        logger.error(f"OpenRouter error: {str(e)}")
+        logger.error(f"Gemini error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro na analise: {str(e)}")
 
 @api_router.get("/settings/course")
