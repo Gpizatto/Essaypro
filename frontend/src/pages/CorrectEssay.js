@@ -934,9 +934,9 @@ export const CorrectEssay = () => {
   const visibleAiErrors = aiSuggestions?.erros?.filter(e => !dismissedErrors.includes(e.id)) || [];
 
   return (
-    <div className="min-h-screen flex flex-col" style={{ backgroundColor: '#FDF3E8' }}>
+    <div style={{ backgroundColor: '#FDF3E8', minHeight: '100vh' }}>
       {/* HEADER FIXO */}
-      <div className="bg-white border-b px-6 py-4 flex items-center justify-between sticky top-0 z-50 shadow-sm">
+      <div className="bg-white border-b px-6 py-4 flex items-center justify-between" style={{ position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
         <div>
           <Button
             onClick={() => navigate('/correction-queue')}
@@ -983,9 +983,9 @@ export const CorrectEssay = () => {
         </div>
       </div>
 
-      <div className="flex flex-1">
+      <div className="flex" style={{ alignItems: 'flex-start' }}>
         {/* PAINEL ESQUERDO - Texto + Anotações */}
-        <div className="flex-1" style={{ width: '60%', maxWidth: '60%' }}>
+        <div style={{ flex: 1, minWidth: 0 }}>
           {/* TOOLBAR */}
           <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap">
             {/* Ferramentas de texto */}
@@ -1183,7 +1183,7 @@ export const CorrectEssay = () => {
           )}
 
           {/* TEXTO DA REDAÇÃO */}
-          <div className="flex-1 overflow-y-auto p-8">
+          <div className="p-8">
             <div
               ref={canvasContainerRef}
               style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}
@@ -1245,7 +1245,7 @@ export const CorrectEssay = () => {
         </div>
 
         {/* PAINEL DIREITO - Avaliação */}
-        <div className="w-[40%] bg-white border-l overflow-y-auto" style={{ maxHeight: 'calc(100vh - 88px)' }}>
+        <div className="bg-white border-l" style={{ width: '38%', minWidth: '360px', maxWidth: '480px', position: 'sticky', top: '72px', height: 'calc(100vh - 72px)', overflowY: 'auto' }}>
           <div className="p-6 space-y-6">
             {/* PONTUAÇÃO */}
             <div>
