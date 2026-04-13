@@ -109,6 +109,7 @@ export const CorrectEssay = () => {
   const [draftSaved, setDraftSaved] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [showConfirmPublish, setShowConfirmPublish] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -649,19 +650,33 @@ export const CorrectEssay = () => {
   };
 
   const handleAnalyzeWithAI = async () => {
+    // Para redações com upload, pegar texto do DOM se content estiver vazio
+    const textContent = essay.content?.trim()
+      || textRef.current?.innerText?.trim()
+      || '';
+
+    if (!textContent || textContent === 'Conteúdo não disponível') {
+      toast.error('Esta redação foi enviada como imagem — sem texto para a IA analisar.');
+      return;
+    }
+
     setAiAnalyzing(true);
+    setAiSuggestions(null);
     try {
       const { data } = await axios.post(
         `${API_URL}/api/ai/analyze-essay`,
-        { essay_id: essayId, content: essay.content },
+        { essay_id: essayId, content: textContent },
         { withCredentials: true }
       );
       setAiSuggestions(data);
       setDismissedErrors([]);
-      toast.success('Análise concluída!');
+      setExpandedSuggestions({});
+      const count = data.erros?.length || 0;
+      toast.success(`Análise concluída! ${count} ponto${count !== 1 ? 's' : ''} encontrado${count !== 1 ? 's' : ''}.`);
     } catch (error) {
       console.error('AI analysis error:', error);
-      toast.error(error.response?.data?.detail || 'Não foi possível analisar. Tente novamente.');
+      const msg = error.response?.data?.detail || 'Não foi possível analisar. Verifique se a chave de IA está configurada.';
+      toast.error(msg);
     } finally {
       setAiAnalyzing(false);
     }
@@ -752,12 +767,16 @@ export const CorrectEssay = () => {
       toast.error('Feedback geral é obrigatório');
       return;
     }
-
     const hasScoreErrors = Object.values(scoreErrors).some(err => err);
     if (hasScoreErrors) {
       toast.error('Corrija os erros de pontuação antes de finalizar');
       return;
     }
+    setShowConfirmPublish(true);
+  };
+
+  const handleConfirmPublish = async () => {
+    setShowConfirmPublish(false);
 
     const criteria_scores = prompt.criteria.map(c => ({
       criteria_id: c.id,
@@ -1273,80 +1292,91 @@ export const CorrectEssay = () => {
               <>
                 <Separator />
                 <div>
-                  <h3 className="font-semibold mb-3" style={{ color: '#7C1805' }}>Sugestões da IA</h3>
-                  
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-semibold" style={{ color: '#7C1805' }}>
+                      🤖 Análise da IA
+                    </h3>
+                    <div className="flex items-center gap-2">
+                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                        style={{ backgroundColor: '#FDF3E8', color: '#D66B27' }}>
+                        {visibleAiErrors.length} ponto{visibleAiErrors.length !== 1 ? 's' : ''}
+                      </span>
+                      <button
+                        onClick={() => setAiSuggestions(null)}
+                        className="text-xs"
+                        style={{ color: '#6B5B4E' }}
+                        title="Fechar análise"
+                      >
+                        <X size={14} />
+                      </button>
+                    </div>
+                  </div>
+
                   {aiSuggestions.resumo && (
-                    <Card className="p-4 mb-4 border-2" style={{ backgroundColor: '#EFF6FF', borderColor: '#3B82F6' }}>
-                      <div className="flex justify-between items-start">
-                        <div className="flex-1">
-                          <p className="text-sm flex items-center gap-2 font-bold mb-2" style={{ color: '#1E40AF' }}>
-                            <span>🤖</span> Resumo Geral da IA
-                          </p>
-                          <p className="text-sm italic font-medium" style={{ color: '#1E3A8A' }}>{aiSuggestions.resumo}</p>
-                        </div>
-                      </div>
-                    </Card>
+                    <div className="p-3 rounded-lg mb-3" style={{ backgroundColor: '#FDF3E8', border: '1px solid #DAB257' }}>
+                      <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>Resumo geral</p>
+                      <p className="text-xs leading-relaxed" style={{ color: '#2C1A0E' }}>{aiSuggestions.resumo}</p>
+                    </div>
                   )}
 
-                  {visibleAiErrors.length === 0 && aiSuggestions.resumo && (
-                    <Card className="p-6 text-center border-2" style={{ backgroundColor: '#F0FDF4', borderColor: '#36555A' }}>
-                      <p className="text-sm font-semibold" style={{ color: '#065F46' }}>✓ Nenhum erro específico encontrado pela IA</p>
-                      <p className="text-xs mt-1" style={{ color: '#047857' }}>Veja o resumo geral acima para orientações</p>
-                    </Card>
-                  )}
-
-                  {visibleAiErrors.map((erro) => {
-                    const badge = TIPO_BADGES[erro.tipo] || TIPO_BADGES.gramatical;
-                    const isExpanded = expandedSuggestions[erro.id];
-                    
-                    return (
-                      <Card key={erro.id} className="p-4 mb-3 border-2" style={{ borderColor: badge.color, backgroundColor: '#FFFFFF' }}>
-                        <div className="flex items-start justify-between mb-2">
-                          <Badge style={{ backgroundColor: badge.color, color: '#FFFFFF', fontWeight: 'bold' }}>
-                            {badge.icon} {badge.label}
-                          </Badge>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleDismissError(erro.id)}
-                            className="hover:bg-red-50"
-                          >
-                            <X size={14} className="text-red-600" />
-                          </Button>
-                        </div>
-                        
-                        <div className="p-3 rounded mb-2" style={{ backgroundColor: '#FEF3C7', border: '1px solid #F59E0B' }}>
-                          <p className="text-sm font-mono font-semibold">"{erro.trecho}"</p>
-                        </div>
-                        
-                        <p className="text-sm mb-2 font-medium" style={{ color: '#1E293B' }}>{erro.descricao}</p>
-                        
-                        <button
-                          onClick={() => setExpandedSuggestions({ ...expandedSuggestions, [erro.id]: !isExpanded })}
-                          className="text-xs font-semibold text-blue-700 hover:text-blue-900 hover:underline flex items-center gap-1 mb-2"
-                        >
-                          {isExpanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
-                          Ver sugestão
-                        </button>
-                        
-                        {isExpanded && (
-                          <div className="p-3 rounded mb-2" style={{ backgroundColor: '#DBEAFE', border: '1px solid #3B82F6' }}>
-                            <p className="text-sm font-medium" style={{ color: '#1E3A8A' }}>{erro.sugestao}</p>
+                  {visibleAiErrors.length === 0 ? (
+                    <div className="p-4 rounded-lg text-center" style={{ backgroundColor: '#F0F5F5', border: '1px solid #36555A' }}>
+                      <p className="text-xs font-semibold" style={{ color: '#36555A' }}>✓ Nenhum ponto específico encontrado</p>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      {visibleAiErrors.map((erro) => {
+                        const badge = TIPO_BADGES[erro.tipo] || TIPO_BADGES.gramatical;
+                        const isExpanded = expandedSuggestions[erro.id];
+                        return (
+                          <div key={erro.id} className="rounded-lg overflow-hidden"
+                            style={{ border: `1px solid ${badge.color}20`, backgroundColor: '#FFF' }}>
+                            {/* Header */}
+                            <div className="flex items-center justify-between px-3 py-2"
+                              style={{ backgroundColor: `${badge.color}15` }}>
+                              <span className="text-xs font-bold" style={{ color: badge.color }}>
+                                {badge.icon} {badge.label}
+                              </span>
+                              <button onClick={() => handleDismissError(erro.id)}
+                                style={{ color: '#6B5B4E' }}>
+                                <X size={12} />
+                              </button>
+                            </div>
+                            {/* Trecho */}
+                            <div className="px-3 py-2">
+                              <p className="text-xs italic mb-1" style={{ color: '#6B5B4E' }}>
+                                "{erro.trecho?.substring(0, 80)}{erro.trecho?.length > 80 ? '...' : ''}"
+                              </p>
+                              <p className="text-xs" style={{ color: '#2C1A0E' }}>{erro.descricao}</p>
+                            </div>
+                            {/* Ações */}
+                            <div className="px-3 pb-2 flex gap-2">
+                              <button
+                                onClick={() => setExpandedSuggestions({ ...expandedSuggestions, [erro.id]: !isExpanded })}
+                                className="text-xs flex items-center gap-1"
+                                style={{ color: '#D66B27' }}>
+                                {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
+                                Sugestão
+                              </button>
+                              <button
+                                onClick={() => handleAddErrorAsComment(erro)}
+                                className="text-xs flex items-center gap-1"
+                                style={{ color: '#7C1805' }}>
+                                <Plus size={11} /> Comentário
+                              </button>
+                            </div>
+                            {isExpanded && (
+                              <div className="px-3 pb-3">
+                                <p className="text-xs p-2 rounded" style={{ backgroundColor: '#FDF3E8', color: '#2C1A0E' }}>
+                                  {erro.sugestao}
+                                </p>
+                              </div>
+                            )}
                           </div>
-                        )}
-                        
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => handleAddErrorAsComment(erro)}
-                          className="w-full font-semibold"
-                          style={{ borderColor: badge.color, color: badge.color }}
-                        >
-                          <Plus size={14} className="mr-1" /> Adicionar como comentário
-                        </Button>
-                      </Card>
-                    );
-                  })}
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </>
             )}
@@ -1500,6 +1530,35 @@ export const CorrectEssay = () => {
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowCommentPopup(false)}>Cancelar</Button>
               <Button onClick={handleAddComment}>Adicionar</Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CONFIRMAR PUBLICAÇÃO */}
+      {showConfirmPublish && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+        >
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
+            <h3 className="font-heading font-bold text-lg mb-2" style={{ color: '#7C1805' }}>
+              Publicar correção?
+            </h3>
+            <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>
+              A correção será enviada ao aluno e não poderá ser editada depois. Confirma?
+            </p>
+            <div className="flex gap-3 justify-end">
+              <Button variant="outline" onClick={() => setShowConfirmPublish(false)}>
+                Cancelar
+              </Button>
+              <Button
+                onClick={handleConfirmPublish}
+                disabled={submitting}
+                style={{ backgroundColor: '#36555A' }}
+              >
+                {submitting ? 'Publicando...' : '✓ Confirmar e Publicar'}
+              </Button>
             </div>
           </div>
         </div>
