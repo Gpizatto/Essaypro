@@ -24,11 +24,33 @@ export const CreatePrompt = () => {
     supporting_texts: '',
     instructions: '',
   });
-  const [criteria, setCriteria] = useState(CRITERIA_MODELS.enem.criteria);
+  const [criteria, setCriteria] = useState(() => {
+    return CRITERIA_MODELS.enem.criteria.map(c => ({
+      ...c,
+      level_descriptions: c.level_descriptions || [],
+    }));
+  });
+  const [showLevels, setShowLevels] = useState({});
 
   const handleModelChange = (modelKey) => {
     setSelectedModel(modelKey);
-    setCriteria(JSON.parse(JSON.stringify(CRITERIA_MODELS[modelKey].criteria)));
+    const modelCriteria = JSON.parse(JSON.stringify(CRITERIA_MODELS[modelKey].criteria));
+    // Garantir que todos os critérios têm level_descriptions
+    modelCriteria.forEach(c => {
+      if (!c.level_descriptions) {
+        c.level_descriptions = buildEmptyLevels(c.peso_maximo);
+      }
+    });
+    setCriteria(modelCriteria);
+  };
+
+  // Gera array de níveis vazio com base no peso_maximo
+  const buildEmptyLevels = (pesoMaximo) => {
+    const levels = [];
+    for (let v = 0; v <= pesoMaximo; v += 40) {
+      levels.push({ pontuacao: v, proficiencia: '', descricao: '' });
+    }
+    return levels;
   };
 
   const handleAddCriterion = () => {
@@ -37,7 +59,8 @@ export const CreatePrompt = () => {
       id: newId,
       nome: '',
       descricao: '',
-      peso_maximo: 200
+      peso_maximo: 200,
+      level_descriptions: buildEmptyLevels(200),
     }]);
   };
 
@@ -52,6 +75,24 @@ export const CreatePrompt = () => {
   const handleCriterionChange = (index, field, value) => {
     const updated = [...criteria];
     updated[index] = { ...updated[index], [field]: value };
+    // Se mudou o peso_maximo, reconstruir níveis mantendo descrições existentes
+    if (field === 'peso_maximo' && !isNaN(value) && value > 0) {
+      const existing = updated[index].level_descriptions || [];
+      const newLevels = [];
+      for (let v = 0; v <= value; v += 40) {
+        const prev = existing.find(l => l.pontuacao === v);
+        newLevels.push(prev || { pontuacao: v, proficiencia: '', descricao: '' });
+      }
+      updated[index].level_descriptions = newLevels;
+    }
+    setCriteria(updated);
+  };
+
+  const handleLevelChange = (criterionIndex, levelIndex, field, value) => {
+    const updated = [...criteria];
+    const levels = [...(updated[criterionIndex].level_descriptions || [])];
+    levels[levelIndex] = { ...levels[levelIndex], [field]: value };
+    updated[criterionIndex] = { ...updated[criterionIndex], level_descriptions: levels };
     setCriteria(updated);
   };
 
@@ -253,6 +294,48 @@ export const CreatePrompt = () => {
                         className="mt-1"
                         data-testid={`criterion-peso-${index}`}
                       />
+                    </div>
+
+                    {/* Descrições por nível */}
+                    <div>
+                      <button
+                        type="button"
+                        onClick={() => setShowLevels(prev => ({ ...prev, [index]: !prev[index] }))}
+                        className="text-xs font-semibold flex items-center gap-1 mt-1"
+                        style={{ color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+                      >
+                        {showLevels[index] ? '▲' : '▼'} Descrições por nível ({criterion.level_descriptions?.length || 0} níveis)
+                      </button>
+
+                      {showLevels[index] && (
+                        <div className="mt-2 space-y-3">
+                          <p className="text-xs" style={{ color: '#6B5B4E' }}>
+                            Preencha o nome e a descrição de cada nível de pontuação. Serão exibidos para o corretor durante a avaliação.
+                          </p>
+                          {(criterion.level_descriptions || []).map((level, li) => (
+                            <div key={li} className="p-3 rounded-lg border" style={{ backgroundColor: '#FFF', borderColor: '#E8DDD0' }}>
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: '#7C1805', color: '#FFF' }}>
+                                  {level.pontuacao} pts
+                                </span>
+                                <Input
+                                  value={level.proficiencia}
+                                  onChange={(e) => handleLevelChange(index, li, 'proficiencia', e.target.value)}
+                                  placeholder={`Ex: Nível ${li} — Bom domínio`}
+                                  className="flex-1 h-7 text-xs"
+                                />
+                              </div>
+                              <Textarea
+                                value={level.descricao}
+                                onChange={(e) => handleLevelChange(index, li, 'descricao', e.target.value)}
+                                placeholder="Descreva o que caracteriza este nível de desempenho..."
+                                rows={2}
+                                className="text-xs"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   </div>
                 </Card>
