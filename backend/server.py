@@ -1056,11 +1056,11 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can analyze essays")
 
-    groq_key = os.getenv("GROQ_API_KEY")
-    if not groq_key:
-        raise HTTPException(status_code=503, detail="Chave GROQ_API_KEY não configurada no servidor.")
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if not gemini_key:
+        raise HTTPException(status_code=503, detail="Chave GEMINI_API_KEY não configurada no servidor.")
 
-    system_prompt = (
+    prompt = (
         "Voce e um professor especialista em redacao do ENEM e lingua portuguesa. "
         "Analise a redacao abaixo e retorne APENAS um JSON valido, sem texto adicional, sem markdown, sem explicacoes fora do JSON. "
         "Retorne exatamente neste formato: "
@@ -1069,35 +1069,27 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
         '"descricao": "explicacao clara do erro", "sugestao": "como corrigir"}], '
         '"resumo": "breve analise geral da redacao em 2-3 frases"} '
         "O campo tipo deve ser um de: gramatical, coesao, argumentacao, tematico, estilo. "
-        "Retorne entre 3 e 12 erros. Seja preciso e util. Use portugues brasileiro."
+        "Retorne entre 3 e 12 erros. Seja preciso e util. Use portugues brasileiro.\n\n"
+        f"Redacao para analise:\n\n{request.content}"
     )
 
     payload = {
-        "model": "llama-3.3-70b-versatile",
-        "messages": [
-            {"role": "system", "content": system_prompt},
-            {"role": "user", "content": f"Redacao para analise:\n\n{request.content}"}
-        ],
-        "max_tokens": 2048,
-        "temperature": 0.3,
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {
+            "temperature": 0.3,
+            "maxOutputTokens": 2048,
+        }
     }
 
     try:
         import httpx
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
         async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(
-                "https://api.groq.com/openai/v1/chat/completions",
-                json=payload,
-                headers={
-                    "Authorization": f"Bearer {groq_key}",
-                    "Content-Type": "application/json",
-                }
-            )
+            resp = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
             resp.raise_for_status()
-            response_text = resp.json()["choices"][0]["message"]["content"]
+            response_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
 
         response_text = response_text.strip()
-        # Remover markdown code blocks se presentes
         if "```" in response_text:
             response_text = response_text.split("```")[1]
             if response_text.startswith("json"):
@@ -1106,17 +1098,17 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
 
         analysis = json_module.loads(response_text)
 
-        for i, erro in enumerate(analysis.get("erros", [])):
+        for erro in analysis.get("erros", []):
             if not erro.get("id"):
                 erro["id"] = str(uuid.uuid4())
 
         return analysis
 
-    except json_module.JSONDecodeError as e:
-        logger.error(f"Failed to parse Groq response: {response_text}")
+    except json_module.JSONDecodeError:
+        logger.error(f"Failed to parse Gemini response: {response_text}")
         raise HTTPException(status_code=500, detail="A IA retornou um formato inesperado. Tente novamente.")
     except Exception as e:
-        logger.error(f"Groq AI error: {str(e)}")
+        logger.error(f"Gemini AI error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
 
 # ============================================================
