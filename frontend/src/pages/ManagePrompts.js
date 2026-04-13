@@ -9,7 +9,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Pencil, Archive, Copy, Search, X, Check, BookOpen } from 'lucide-react';
+import { Plus, Pencil, Archive, Copy, Search, X, Check, BookOpen, Trash2 } from 'lucide-react';
 import { CRITERIA_MODELS } from '../utils/criteriaModels';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -24,6 +24,7 @@ export const ManagePrompts = () => {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(null);
+  const [confirmDelete, setConfirmDelete] = useState(null);
   const [showCopyCriteria, setShowCopyCriteria] = useState(null); // promptId de destino
   const [copySource, setCopySource] = useState('');
 
@@ -72,6 +73,18 @@ export const ManagePrompts = () => {
       fetchPrompts();
     } catch (err) {
       toast.error('Erro ao arquivar');
+    }
+  };
+
+  const deletePrompt = async (promptId) => {
+    try {
+      await axios.delete(`${API_URL}/api/prompts/${promptId}`, { withCredentials: true });
+      toast.success('Proposta apagada!');
+      setConfirmDelete(null);
+      fetchPrompts();
+    } catch (err) {
+      toast.error(err.response?.data?.detail || 'Erro ao apagar');
+      setConfirmDelete(null);
     }
   };
 
@@ -221,8 +234,35 @@ export const ManagePrompts = () => {
                         >
                           <Archive size={15} />
                         </Button>
+                        <Button
+                          variant="ghost" size="sm"
+                          onClick={() => setConfirmDelete(prompt.id)}
+                          title="Apagar permanentemente"
+                          style={{ color: '#7C1805' }}
+                        >
+                          <Trash2 size={15} />
+                        </Button>
                       </div>
                     </div>
+
+                    {/* Confirmação de apagar */}
+                    {confirmDelete === prompt.id && (
+                      <div className="mt-3 pt-3 border-t" style={{ borderColor: '#FCA5A5' }}>
+                        <p className="text-sm font-semibold mb-2" style={{ color: '#7C1805' }}>
+                          ⚠️ Apagar permanentemente? Esta ação não pode ser desfeita.
+                        </p>
+                        <div className="flex items-center gap-2">
+                          <Button size="sm" variant="outline" onClick={() => setConfirmDelete(null)}>
+                            Cancelar
+                          </Button>
+                          <Button size="sm"
+                            style={{ backgroundColor: '#7C1805' }}
+                            onClick={() => deletePrompt(prompt.id)}>
+                            Apagar permanentemente
+                          </Button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Confirmação de arquivar */}
                     {confirmArchive === prompt.id && (
