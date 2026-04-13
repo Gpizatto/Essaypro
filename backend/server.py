@@ -1166,6 +1166,56 @@ async def update_course_settings(body: dict, current_user: dict = Depends(get_cu
     return {"message": "Configurações salvas", **clean}
 
 # ============================================================
+# WHITE LABEL / PERSONALIZAÇÃO
+# ============================================================
+
+DEFAULT_BRANDING = {
+    "platform_name": "redação com nicolle",
+    "logo_url": "",
+    "favicon_url": "",
+    "primary_color": "#7C1805",
+    "secondary_color": "#D66B27",
+    "accent_color": "#36555A",
+    "role_student": "Aluno",
+    "role_teacher": "Professor",
+    "role_admin": "Admin",
+    "welcome_message": "",
+    "footer_text": "",
+}
+
+@api_router.get("/settings/branding")
+async def get_branding(current_user: dict = Depends(get_current_user)):
+    config = await db.settings.find_one({"key": "branding"}, {"_id": 0})
+    if not config:
+        return DEFAULT_BRANDING
+    result = {**DEFAULT_BRANDING}
+    result.update({k: v for k, v in config.items() if k in DEFAULT_BRANDING})
+    return result
+
+@api_router.get("/settings/branding/public")
+async def get_branding_public():
+    """Endpoint público para carregar branding antes do login"""
+    config = await db.settings.find_one({"key": "branding"}, {"_id": 0})
+    if not config:
+        return DEFAULT_BRANDING
+    result = {**DEFAULT_BRANDING}
+    result.update({k: v for k, v in config.items() if k in DEFAULT_BRANDING})
+    return result
+
+@api_router.put("/settings/branding")
+async def update_branding(body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    allowed = set(DEFAULT_BRANDING.keys())
+    clean = {k: str(v) for k, v in body.items() if k in allowed}
+    await db.settings.update_one(
+        {"key": "branding"},
+        {"$set": {"key": "branding", **clean}},
+        upsert=True
+    )
+    return {"message": "Personalização salva", **clean}
+
+# ============================================================
 # SISTEMA DE CRÉDITOS
 # ============================================================
 
