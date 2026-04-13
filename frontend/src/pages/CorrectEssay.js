@@ -113,6 +113,7 @@ export const CorrectEssay = () => {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [showConfirmPublish, setShowConfirmPublish] = useState(false);
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
+  const pendingDraftRef = useRef(null);
 
   useEffect(() => {
     fetchData();
@@ -123,11 +124,39 @@ export const CorrectEssay = () => {
   const textInjectedRef = useRef(false);
   useEffect(() => {
     if (!essayHtml || loading || textInjectedRef.current) return;
-    if (textRef.current) {
+    if (!textRef.current) return;
+
+    const draft = pendingDraftRef.current;
+    if (draft && draft.textAnnotations) {
+      textRef.current.innerHTML = draft.textAnnotations;
+    } else {
       textRef.current.innerHTML = essayHtml;
-      textInjectedRef.current = true;
     }
-  });  // sem dependências — roda após CADA render até conseguir injetar
+    textInjectedRef.current = true;
+
+    if (draft && draft.canvasDataUrl) {
+      const savedUrl = draft.canvasDataUrl;
+      pendingDraftRef.current = null;
+      const tryDraw = (attempts) => {
+        const canvas = nativeCanvasRef.current;
+        const ctx = ctxRef.current || (canvas && canvas.getContext('2d'));
+        if (ctx && canvas && canvas.width > 0) {
+          const img = new Image();
+          img.onload = () => {
+            ctx.drawImage(img, 0, 0);
+            toast.success('Rascunho carregado — continue de onde parou!', { duration: 3000 });
+          };
+          img.src = savedUrl;
+        } else if (attempts < 15) {
+          setTimeout(() => tryDraw(attempts + 1), 200);
+        }
+      };
+      setTimeout(() => tryDraw(0), 600);
+    } else if (draft) {
+      pendingDraftRef.current = null;
+      toast.success('Rascunho carregado — continue de onde parou!', { duration: 3000 });
+    }
+  });
 
   // Sync refs
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
@@ -265,27 +294,11 @@ export const CorrectEssay = () => {
           if (d.scores) setScores(d.scores);
           if (d.feedback) setFeedback(d.feedback);
           if (d.inlineComments) setInlineComments(d.inlineComments);
-
-          // Restaurar anotações de texto
-          if (d.textAnnotations && textRef.current) {
-            textRef.current.innerHTML = d.textAnnotations;
-            textInjectedRef.current = true; // impede sobrescrever depois
-          }
-
-          // Restaurar canvas
-          if (d.canvasDataUrl) {
-            const img = new Image();
-            img.onload = () => {
-              const ctx = ctxRef.current || (nativeCanvasRef.current?.getContext('2d'));
-              if (ctx && nativeCanvasRef.current) {
-                ctx.drawImage(img, 0, 0);
-              }
-            };
-            img.src = d.canvasDataUrl;
-          }
-
+          pendingDraftRef.current = {
+            textAnnotations: d.textAnnotations || null,
+            canvasDataUrl: d.canvasDataUrl || null,
+          };
           setDraftLoaded(true);
-          toast.success('Rascunho carregado — continue de onde parou!', { duration: 3000 });
         }
       } catch (e) { /* ignorar */ }
 
