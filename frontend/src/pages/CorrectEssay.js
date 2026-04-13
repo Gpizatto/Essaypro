@@ -304,11 +304,15 @@ export const CorrectEssay = () => {
 
   const saveQuickComments = async (comments) => {
     try {
-      await axios.put(`${API_URL}/api/users/quick-comments`, comments, { withCredentials: true });
+      // FastAPI recebe List[dict] diretamente como body JSON array
+      await axios.put(`${API_URL}/api/users/quick-comments`, comments, {
+        withCredentials: true,
+        headers: { 'Content-Type': 'application/json' },
+      });
       setQuickComments(comments);
     } catch (error) {
       console.error('Error saving quick comments:', error);
-      toast.error('Erro ao salvar comentário pronto');
+      // Não mostrar toast de erro para não atrapalhar o fluxo
     }
   };
 
