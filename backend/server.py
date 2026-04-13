@@ -1056,96 +1056,68 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can analyze essays")
 
-    gemini_key = os.getenv("GEMINI_API_KEY")
-    if not gemini_key:
-        raise HTTPException(status_code=503, detail="Chave GEMINI_API_KEY não configurada no servidor.")
+    openrouter_key = os.getenv("OPENROUTER_API_KEY")
+    if not openrouter_key:
+        raise HTTPException(status_code=503, detail="Chave OPENROUTER_API_KEY não configurada no servidor.")
 
-    prompt = (
+    texto = request.content[:4000] if len(request.content) > 4000 else request.content
+
+    system_prompt = (
         "Voce e um professor especialista em redacao do ENEM e lingua portuguesa. "
-        "Analise a redacao abaixo e retorne APENAS um JSON valido, sem texto adicional, sem markdown, sem explicacoes fora do JSON. "
-        "Retorne exatamente neste formato: "
-        '{"erros": [{"id": "e1", "trecho": "trecho exato do texto com erro", '
-        '"tipo": "gramatical", '
-        '"descricao": "explicacao clara do erro", "sugestao": "como corrigir"}], '
-        '"resumo": "breve analise geral da redacao em 2-3 frases"} '
-        "O campo tipo deve ser um de: gramatical, coesao, argumentacao, tematico, estilo. "
-        "Retorne entre 3 e 12 erros. Seja preciso e util. Use portugues brasileiro.\n\n"
-        f"Redacao para analise:\n\n{request.content}"
+        "Analise a redacao e retorne APENAS JSON valido, sem markdown, sem texto fora do JSON. "
+        'Formato: {"erros": [{"id": "1", "trecho": "trecho exato", "tipo": "gramatical", "descricao": "descricao", "sugestao": "sugestao"}], "resumo": "analise em 2 frases"} '
+        "Tipos validos: gramatical, coesao, argumentacao, tematico, estilo. "
+        "Retorne 3 a 10 erros. Use portugues brasileiro."
     )
 
     payload = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.3,
-            "maxOutputTokens": 2048,
-        }
+        "model": "deepseek/deepseek-chat-v3-0324:free",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Redacao:\n\n{texto}"}
+        ],
+        "max_tokens": 2048,
+        "temperature": 0.2,
     }
 
     import httpx
-    import asyncio
-
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key={gemini_key}"
     response_text = ""
-
-    # Retry com backoff para lidar com rate limit (429)
-    for attempt in range(3):
-        try:
-            async with httpx.AsyncClient(timeout=60.0) as client:
-                resp = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
-                if resp.status_code == 429:
-                    wait = 10 * (attempt + 1)
-                    logger.warning(f"Gemini rate limit, aguardando {wait}s (tentativa {attempt+1})")
-                    await asyncio.sleep(wait)
-                    continue
-                resp.raise_for_status()
-                response_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
-                break
-        except httpx.HTTPStatusError as e:
-            if attempt == 2:
-                if "429" in str(e):
-                    raise HTTPException(status_code=429, detail="Limite de requisições da IA atingido. Aguarde 1 minuto e tente novamente.")
-                raise HTTPException(status_code=500, detail=f"Erro na IA: {e.response.status_code}")
-            await asyncio.sleep(10 * (attempt + 1))
-        except Exception as e:
-            if attempt == 2:
-                raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
-            await asyncio.sleep(5)
-
-    if not response_text:
-        raise HTTPException(status_code=429, detail="Limite de requisições da IA atingido. Aguarde 1 minuto e tente novamente.")
-
     try:
+        async with httpx.AsyncClient(timeout=90.0) as client:
+            resp = await client.post(
+                "https://openrouter.ai/api/v1/chat/completions",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {openrouter_key}",
+                    "Content-Type": "application/json",
+                    "HTTP-Referer": "https://essaypro-frontend.onrender.com",
+                    "X-Title": "RcN Correcao de Redacoes",
+                }
+            )
+            resp.raise_for_status()
+            response_text = resp.json()["choices"][0]["message"]["content"]
+
         response_text = response_text.strip()
+        # Limpar markdown se presente
         if "```" in response_text:
-            response_text = response_text.split("```")[1]
-            if response_text.startswith("json"):
-                response_text = response_text[4:]
-        response_text = response_text.strip()
+            for part in response_text.split("```"):
+                part = part.strip().lstrip("json").strip()
+                if part.startswith("{"):
+                    response_text = part
+                    break
 
         analysis = json_module.loads(response_text)
-
         for erro in analysis.get("erros", []):
             if not erro.get("id"):
                 erro["id"] = str(uuid.uuid4())
-
         return analysis
 
     except json_module.JSONDecodeError:
-        logger.error(f"Failed to parse Gemini response: {response_text}")
+        logger.error(f"Failed to parse OpenRouter response: {response_text}")
         raise HTTPException(status_code=500, detail="A IA retornou um formato inesperado. Tente novamente.")
-
-# ============================================================
-# CONFIGURAÇÕES PEDAGÓGICAS DO CURSO
-# ============================================================
-
-DEFAULT_COURSE_SETTINGS = {
-    "show_teacher_name": True,
-    "allow_post_correction_doubt": True,
-    "allow_download": True,
-    "allow_rewrite": True,
-    "require_rewrite": False,
-    "allow_ai_analysis": True,
-}
+    except Exception as e:
+        logger.error(f"OpenRouter error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Erro na analise: {str(e)}")
 
 @api_router.get("/settings/course")
 async def get_course_settings(current_user: dict = Depends(get_current_user)):
