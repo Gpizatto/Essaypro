@@ -1065,10 +1065,19 @@ async def update_shared_quick_comments(body: dict, current_user: dict = Depends(
     return {"message": "Comentários compartilhados atualizados"}
 
 @api_router.put("/users/quick-comments")
-async def update_quick_comments(quick_comments: List[dict], current_user: dict = Depends(get_current_user)):
+async def update_quick_comments(request: Request, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can update quick comments")
     
+    body = await request.json()
+    # Aceita tanto array direto quanto objeto com chave quick_comments
+    if isinstance(body, list):
+        quick_comments = body
+    elif isinstance(body, dict):
+        quick_comments = body.get("quick_comments", [])
+    else:
+        quick_comments = []
+
     await db.users.update_one(
         {"_id": ObjectId(current_user["_id"])},
         {"$set": {"quick_comments": quick_comments}}
