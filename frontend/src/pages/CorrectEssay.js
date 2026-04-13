@@ -63,7 +63,7 @@ export const CorrectEssay = () => {
   const snapshotRef = useRef(null);       // ImageData para preview de formas
   const selectedToolRef = useRef('select');
   const selectedColorRef = useRef('#FFEB3B');
-  const penWidthRef = useRef(1);
+  const penWidthRef = useRef(0.5);
   const historyRef = useRef([]);          // array de ImageData
   const [zoom, setZoom] = useState(1);
 
@@ -73,7 +73,7 @@ export const CorrectEssay = () => {
   // Manter refs sincronizados para usar em event listeners sem stale closure
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
-  const [penWidth, setPenWidth] = useState(1);
+  const [penWidth, setPenWidth] = useState(0.5);
   const [penOpacity, setPenOpacity] = useState(1);
   const [eraserSize, setEraserSize] = useState('medium');
 
@@ -429,6 +429,10 @@ export const CorrectEssay = () => {
     shapeStartRef.current = pos;
     if (tool === 'pen' || tool === 'eraser') {
       const ctx = ctxRef.current;
+      ctx.strokeStyle = selectedColorRef.current;
+      ctx.lineWidth = penWidthRef.current;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       ctx.beginPath();
       ctx.moveTo(pos.x, pos.y);
     } else {
@@ -453,6 +457,11 @@ export const CorrectEssay = () => {
       ctx.lineWidth = penWidthRef.current;
       ctx.lineCap = 'round';
       ctx.lineJoin = 'round';
+      ctx.miterLimit = 1;
+      // Novo path por segmento — evita acúmulo que engrossa traço horizontal
+      const last = lastPosRef.current;
+      ctx.beginPath();
+      ctx.moveTo(last.x, last.y);
       ctx.lineTo(pos.x, pos.y);
       ctx.stroke();
       lastPosRef.current = pos;
@@ -1073,10 +1082,10 @@ export const CorrectEssay = () => {
                 <Separator orientation="vertical" className="h-6" />
                 <div className="flex gap-1">
                   {[
-                    { w: 1,  label: '·', title: 'Fina (1px)' },
-                    { w: 3,  label: '–', title: 'Média (3px)' },
-                    { w: 6,  label: '—', title: 'Grossa (6px)' },
-                    { w: 12, label: '█', title: 'Extra Grossa (12px)' },
+                    { w: 0.5, label: '·', title: 'Extra fina (0.5px)' },
+                    { w: 1,   label: '–', title: 'Fina (1px)' },
+                    { w: 3,   label: '—', title: 'Média (3px)' },
+                    { w: 6,   label: '█', title: 'Grossa (6px)' },
                   ].map(({ w, label, title }) => (
                     <Button
                       key={w}
