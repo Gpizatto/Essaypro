@@ -99,6 +99,8 @@ export const CorrectEssay = () => {
   const [newQuickComment, setNewQuickComment] = useState('');
   const [newQuickCommentCategory, setNewQuickCommentCategory] = useState('geral');
   const [sharedComments, setSharedComments] = useState([]);
+  const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
+  const [showAutocomplete, setShowAutocomplete] = useState(false);
 
   const [aiAnalyzing, setAiAnalyzing] = useState(false);
   const [aiSuggestions, setAiSuggestions] = useState(null);
@@ -109,6 +111,7 @@ export const CorrectEssay = () => {
   const [draftSaved, setDraftSaved] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [showConfirmPublish, setShowConfirmPublish] = useState(false);
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
   const [showConfirmPublish, setShowConfirmPublish] = useState(false);
 
@@ -592,6 +595,23 @@ export const CorrectEssay = () => {
     applyAnnotationWithTool(range, selectedToolRef.current, selectedColorRef.current);
   };
 
+  const handleCommentTextChange = (val) => {
+    setCommentText(val);
+    if (val.trim().length >= 2) {
+      const allComments = [
+        ...quickComments,
+        ...sharedComments.filter(sc => !quickComments.find(qc => qc.text === sc.text))
+      ];
+      const matches = allComments.filter(qc =>
+        qc.text.toLowerCase().includes(val.toLowerCase())
+      ).slice(0, 5);
+      setAutocompleteSuggestions(matches);
+      setShowAutocomplete(matches.length > 0);
+    } else {
+      setShowAutocomplete(false);
+    }
+  };
+
   const handleAddComment = () => {
     if (commentText.trim() && selectedTextRange) {
       saveDomHistory();
@@ -966,9 +986,9 @@ export const CorrectEssay = () => {
 
       <div className="flex flex-1">
         {/* PAINEL ESQUERDO - Texto + Anotações */}
-        <div className="flex-1 overflow-hidden" style={{ width: '60%', maxWidth: '60%' }}>
+        <div className="flex-1" style={{ width: '60%', maxWidth: '60%' }}>
           {/* TOOLBAR */}
-          <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap sticky top-0 z-40">
+          <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap">
             {/* Ferramentas de texto */}
             <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
               {TOOLS.filter(t => t.group === 'text').map(tool => {
@@ -1425,7 +1445,39 @@ export const CorrectEssay = () => {
         </div>
       </div>
 
-     
+      {/* MODAL CONFIRMAÇÃO PUBLICAR */}
+      {showConfirmPublish && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px]">
+            <h3 className="font-heading font-bold text-lg mb-2" style={{ color: '#7C1805' }}>
+              Publicar correção?
+            </h3>
+            <p className="text-sm mb-1" style={{ color: '#2C1A0E' }}>
+              <strong>{essay?.student_name}</strong> receberá a correção imediatamente.
+            </p>
+            <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>
+              Total: <strong style={{ color: '#7C1805' }}>{prompt?.criteria?.reduce((s, c) => s + (scores[c.id] || 0), 0)} pts</strong>
+              {' '}de {prompt?.criteria?.reduce((s, c) => s + c.peso_maximo, 0)} pts
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowConfirmPublish(false)}
+                className="flex-1 py-2 rounded-lg border text-sm font-medium"
+                style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={() => { setShowConfirmPublish(false); handleSubmit(); }}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
+                style={{ backgroundColor: '#36555A' }}
+              >
+                ✓ Confirmar e publicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* POPUP DE COMENTÁRIO */}
       {showCommentPopup && (
