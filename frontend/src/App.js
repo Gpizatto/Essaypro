@@ -22,6 +22,7 @@ import { TeacherStudents } from './pages/TeacherStudents';
 import { StudentProgress } from './pages/StudentProgress';
 import { TeacherReport } from './pages/TeacherReport';
 import { BrandingSettings } from './pages/BrandingSettings';
+import { AdvancedReports } from './pages/AdvancedReports';
 import './App.css';
 
 const DashboardRouter = () => {
@@ -174,6 +175,14 @@ function App() {
             element={
               <ProtectedRoute allowedRoles={['admin']}>
                 <BrandingSettings />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/reports"
+            element={
+              <ProtectedRoute allowedRoles={['teacher', 'admin']}>
+                <AdvancedReports />
               </ProtectedRoute>
             }
           />
