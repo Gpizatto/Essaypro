@@ -166,6 +166,72 @@ export const AdminDashboard = () => {
           <StatCard label="MÉDIA GERAL" value={Math.round(stats?.average_score || 0)} icon={Award} color="#A03217" />
         </div>
 
+        {/* FREQUÊNCIA DE ENVIO */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="p-4 bg-white border shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS (7 DIAS)</p>
+                <p className="text-3xl font-bold mt-1" style={{ color: '#7C1805' }}>
+                  {stats?.essays_last_7_days ?? 0}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>redações enviadas</p>
+              </div>
+              <div className="p-2 rounded-md" style={{ backgroundColor: '#D9B2CF' }}>
+                <TrendingUp className="text-white" size={20} />
+              </div>
+            </div>
+          </Card>
+          <Card className="p-4 bg-white border shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS (30 DIAS)</p>
+                <p className="text-3xl font-bold mt-1" style={{ color: '#7C1805' }}>
+                  {stats?.essays_last_30_days ?? 0}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                  ~{stats?.essays_last_30_days ? Math.round(stats.essays_last_30_days / 4) : 0}/semana
+                </p>
+              </div>
+              <div className="p-2 rounded-md" style={{ backgroundColor: '#DAB257' }}>
+                <TrendingUp className="text-white" size={20} />
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* FREQUÊNCIA DE ENVIO */}
+        {(stats?.essays_last_7_days !== undefined || stats?.essays_last_30_days !== undefined) && (
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="p-5 bg-white border shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS — ÚLTIMOS 7 DIAS</p>
+                  <p className="text-3xl font-bold mt-1" style={{ color: '#D66B27' }}>
+                    {stats?.essays_last_7_days || 0}
+                  </p>
+                </div>
+                <div className="p-2 rounded-md" style={{ backgroundColor: '#D66B27' }}>
+                  <TrendingUp className="text-white" size={20} />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-5 bg-white border shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS — ÚLTIMOS 30 DIAS</p>
+                  <p className="text-3xl font-bold mt-1" style={{ color: '#D66B27' }}>
+                    {stats?.essays_last_30_days || 0}
+                  </p>
+                </div>
+                <div className="p-2 rounded-md" style={{ backgroundColor: '#DAB257' }}>
+                  <TrendingUp className="text-white" size={20} />
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
         {/* SEGUNDA LINHA — Top propostas + Top alunos */}
         <div className="grid md:grid-cols-2 gap-6">
           {/* Propostas mais enviadas */}
