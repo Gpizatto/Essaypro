@@ -1,12 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
 import { Button } from './ui/button';
-import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell } from 'lucide-react';
+import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Moon, Sun } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
+  const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
   const [notifications, setNotifications] = useState([]);
@@ -168,6 +170,17 @@ export const Layout = ({ children }) => {
               {roleLabel}
             </span>
           </div>
+          {/* Modo escuro */}
+          <button
+            onClick={toggleTheme}
+            className="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-md mb-1"
+            style={{ color: 'rgba(253,243,232,0.7)', backgroundColor: 'transparent' }}
+            title={isDark ? 'Modo claro' : 'Modo escuro'}
+          >
+            {isDark ? <Sun size={16} /> : <Moon size={16} />}
+            <span>{isDark ? 'Modo Claro' : 'Modo Escuro'}</span>
+          </button>
+
           {/* Notificações */}
           <div ref={notifRef} style={{ position: 'relative', marginBottom: '8px' }}>
             <button
