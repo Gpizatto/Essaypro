@@ -340,6 +340,20 @@ async def archive_prompt(prompt_id: str, current_user: dict = Depends(get_curren
     await db.prompts.update_one({"id": prompt_id}, {"$set": {"is_active": new_status}})
     return {"is_active": new_status}
 
+@api_router.delete("/prompts/{prompt_id}")
+async def delete_prompt(prompt_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can delete prompts")
+    prompt = await db.prompts.find_one({"id": prompt_id})
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Prompt not found")
+    # Verificar se há redações vinculadas
+    essay_count = await db.essays.count_documents({"prompt_id": prompt_id})
+    if essay_count > 0:
+        raise HTTPException(status_code=400, detail=f"Não é possível apagar: há {essay_count} redação(ões) vinculada(s) a esta proposta. Arquive-a em vez de apagar.")
+    await db.prompts.delete_one({"id": prompt_id})
+    return {"ok": True}
+
 @api_router.post("/prompts/{prompt_id}/duplicate", response_model=PromptResponse)
 async def duplicate_prompt(prompt_id: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
