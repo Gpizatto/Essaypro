@@ -1166,6 +1166,95 @@ async def update_course_settings(body: dict, current_user: dict = Depends(get_cu
     return {"message": "Configurações salvas", **clean}
 
 # ============================================================
+# RELATÓRIOS AVANÇADOS / RANKING
+# ============================================================
+
+@api_router.get("/admin/reports/ranking")
+async def get_ranking(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    students = await db.users.find({"role": "student"}, {"_id": 1, "name": 1, "created_at": 1}).to_list(1000)
+    result = []
+
+    for student in students:
+        sid = str(student["_id"])
+        essays = await db.essays.find({"student_id": sid}, {"_id": 0}).to_list(1000)
+        if not essays:
+            continue
+
+        scores = []
+        submission_dates = []
+        for essay in essays:
+            if essay.get("submitted_at"):
+                submission_dates.append(essay["submitted_at"])
+            if essay.get("status") == "corrected":
+                corr = await db.corrections.find_one({"essay_id": essay["id"]}, {"_id": 0, "total_score": 1, "corrected_at": 1})
+                if corr:
+                    scores.append({"score": corr["total_score"], "date": corr.get("corrected_at")})
+
+        scores.sort(key=lambda x: x["date"] if x["date"] else "")
+        avg = sum(s["score"] for s in scores) / len(scores) if scores else 0
+        best = max((s["score"] for s in scores), default=0)
+
+        # Evolução: diferença entre primeira e última nota
+        evolution = 0
+        if len(scores) >= 2:
+            evolution = scores[-1]["score"] - scores[0]["score"]
+
+        # Frequência: essays por semana desde o cadastro
+        weeks_active = max(1, (datetime.now(timezone.utc) - student["created_at"]).days / 7)
+        frequency = round(len(essays) / weeks_active, 2)
+
+        result.append({
+            "id": sid,
+            "name": student["name"],
+            "total_essays": len(essays),
+            "corrected": len([e for e in essays if e.get("status") == "corrected"]),
+            "rewrites": len([e for e in essays if e.get("is_rewrite")]),
+            "average_score": round(avg, 1),
+            "best_score": best,
+            "evolution": evolution,
+            "frequency_per_week": frequency,
+            "scores_history": [s["score"] for s in scores[-6:]],
+            "last_submission": max(submission_dates).isoformat() if submission_dates else None,
+        })
+
+    return sorted(result, key=lambda x: -x["average_score"])
+
+@api_router.get("/admin/reports/prompts")
+async def get_prompt_stats(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    prompts = await db.prompts.find({}, {"_id": 0, "id": 1, "title": 1}).to_list(1000)
+    result = []
+
+    for prompt in prompts:
+        essays = await db.essays.find({"prompt_id": prompt["id"]}, {"_id": 0}).to_list(1000)
+        if not essays:
+            continue
+
+        scores = []
+        for essay in essays:
+            if essay.get("status") == "corrected":
+                corr = await db.corrections.find_one({"essay_id": essay["id"]}, {"_id": 0, "total_score": 1})
+                if corr:
+                    scores.append(corr["total_score"])
+
+        avg = round(sum(scores) / len(scores), 1) if scores else 0
+        result.append({
+            "id": prompt["id"],
+            "title": prompt["title"],
+            "total_submissions": len(essays),
+            "corrected": len(scores),
+            "average_score": avg,
+            "difficulty": "Alta" if avg < 400 else "Média" if avg < 700 else "Baixa",
+        })
+
+    return sorted(result, key=lambda x: -x["total_submissions"])
+
+# ============================================================
 # WHITE LABEL / PERSONALIZAÇÃO
 # ============================================================
 
