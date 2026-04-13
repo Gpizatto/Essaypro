@@ -24,7 +24,6 @@ import { TeacherReport } from './pages/TeacherReport';
 import { BrandingSettings } from './pages/BrandingSettings';
 import { AdvancedReports } from './pages/AdvancedReports';
 import { ActivityLogs } from './pages/ActivityLogs';
-import './App.css';
 
 const DashboardRouter = () => {
   const { user, loading } = useAuth();
