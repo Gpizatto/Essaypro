@@ -1081,14 +1081,40 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
         }
     }
 
-    try:
-        import httpx
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={gemini_key}"
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            resp = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
-            resp.raise_for_status()
-            response_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+    import httpx
+    import asyncio
 
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key={gemini_key}"
+    response_text = ""
+
+    # Retry com backoff para lidar com rate limit (429)
+    for attempt in range(3):
+        try:
+            async with httpx.AsyncClient(timeout=60.0) as client:
+                resp = await client.post(url, json=payload, headers={"Content-Type": "application/json"})
+                if resp.status_code == 429:
+                    wait = 10 * (attempt + 1)
+                    logger.warning(f"Gemini rate limit, aguardando {wait}s (tentativa {attempt+1})")
+                    await asyncio.sleep(wait)
+                    continue
+                resp.raise_for_status()
+                response_text = resp.json()["candidates"][0]["content"]["parts"][0]["text"]
+                break
+        except httpx.HTTPStatusError as e:
+            if attempt == 2:
+                if "429" in str(e):
+                    raise HTTPException(status_code=429, detail="Limite de requisições da IA atingido. Aguarde 1 minuto e tente novamente.")
+                raise HTTPException(status_code=500, detail=f"Erro na IA: {e.response.status_code}")
+            await asyncio.sleep(10 * (attempt + 1))
+        except Exception as e:
+            if attempt == 2:
+                raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
+            await asyncio.sleep(5)
+
+    if not response_text:
+        raise HTTPException(status_code=429, detail="Limite de requisições da IA atingido. Aguarde 1 minuto e tente novamente.")
+
+    try:
         response_text = response_text.strip()
         if "```" in response_text:
             response_text = response_text.split("```")[1]
@@ -1107,9 +1133,6 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
     except json_module.JSONDecodeError:
         logger.error(f"Failed to parse Gemini response: {response_text}")
         raise HTTPException(status_code=500, detail="A IA retornou um formato inesperado. Tente novamente.")
-    except Exception as e:
-        logger.error(f"Gemini AI error: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
 
 # ============================================================
 # CONFIGURAÇÕES PEDAGÓGICAS DO CURSO
