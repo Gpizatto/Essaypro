@@ -109,7 +109,6 @@ export const CorrectEssay = () => {
   const [draftSaved, setDraftSaved] = useState(false);
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
-  const [showConfirmPublish, setShowConfirmPublish] = useState(false);
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
   const [showConfirmPublish, setShowConfirmPublish] = useState(false);
 
