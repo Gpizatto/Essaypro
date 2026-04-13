@@ -63,7 +63,7 @@ export const CorrectEssay = () => {
   const snapshotRef = useRef(null);       // ImageData para preview de formas
   const selectedToolRef = useRef('select');
   const selectedColorRef = useRef('#FFEB3B');
-  const penWidthRef = useRef(5);
+  const penWidthRef = useRef(1);
   const historyRef = useRef([]);          // array de ImageData
   const [zoom, setZoom] = useState(1);
 
@@ -73,7 +73,7 @@ export const CorrectEssay = () => {
   // Manter refs sincronizados para usar em event listeners sem stale closure
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
-  const [penWidth, setPenWidth] = useState(5);
+  const [penWidth, setPenWidth] = useState(1);
   const [penOpacity, setPenOpacity] = useState(1);
   const [eraserSize, setEraserSize] = useState('medium');
 
@@ -368,8 +368,11 @@ export const CorrectEssay = () => {
     const canvas = nativeCanvasRef.current;
     const ctx = ensureCtx();
     if (!canvas || !ctx) return;
-    const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    historyRef.current = [...historyRef.current.slice(-29), snap];
+    if (canvas.width < 1 || canvas.height < 1) return;
+    try {
+      const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
+      historyRef.current = [...historyRef.current.slice(-29), snap];
+    } catch(e) {}
   };
 
   const clearCanvas = () => {
@@ -379,11 +382,29 @@ export const CorrectEssay = () => {
     ctxRef.current.clearRect(0, 0, nativeCanvasRef.current.width, nativeCanvasRef.current.height);
   };
 
+  // Histórico unificado: canvas ImageData + snapshot do innerHTML do texto
+  const domHistoryRef = useRef([]);
+
+  const saveDomHistory = () => {
+    if (textRef.current) {
+      domHistoryRef.current = [...domHistoryRef.current.slice(-29), textRef.current.innerHTML];
+    }
+  };
+
   const undoCanvas = () => {
-    if (!ctxRef.current || historyRef.current.length === 0) return;
-    const prev = historyRef.current[historyRef.current.length - 1];
-    historyRef.current = historyRef.current.slice(0, -1);
-    ctxRef.current.putImageData(prev, 0, 0);
+    // Desfazer canvas
+    if (ctxRef.current && historyRef.current.length > 0) {
+      const prev = historyRef.current[historyRef.current.length - 1];
+      historyRef.current = historyRef.current.slice(0, -1);
+      ctxRef.current.putImageData(prev, 0, 0);
+      return;
+    }
+    // Desfazer anotação de texto (sublinhar, grifar, riscar, comentário)
+    if (textRef.current && domHistoryRef.current.length > 0) {
+      const prev = domHistoryRef.current[domHistoryRef.current.length - 1];
+      domHistoryRef.current = domHistoryRef.current.slice(0, -1);
+      textRef.current.innerHTML = prev;
+    }
   };
 
   const redoCanvas = () => {};  // simplificado — undo já cobre o fluxo principal
@@ -507,6 +528,7 @@ export const CorrectEssay = () => {
   };
 
   const applyAnnotationWithTool = (range, tool, color) => {
+    saveDomHistory(); // salvar antes de modificar
     const span = document.createElement('span');
 
     if (tool === 'underline') {
@@ -570,6 +592,7 @@ export const CorrectEssay = () => {
 
   const handleAddComment = () => {
     if (commentText.trim() && selectedTextRange) {
+      saveDomHistory();
       const newComment = {
         id: inlineComments.length + 1,
         selected_text: selectedTextRange.text,
@@ -939,7 +962,7 @@ export const CorrectEssay = () => {
         {/* PAINEL ESQUERDO - Texto + Anotações */}
         <div className="flex-1" style={{ width: '60%', maxWidth: '60%' }}>
           {/* TOOLBAR */}
-          <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap sticky" style={{ top: '88px', zIndex: 40 }}>
+          <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap" style={{ position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
             {/* Ferramentas de texto */}
             <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
               {TOOLS.filter(t => t.group === 'text').map(tool => {
@@ -1023,24 +1046,27 @@ export const CorrectEssay = () => {
               <>
                 <Separator orientation="vertical" className="h-6" />
                 <div className="flex gap-1">
+                  {[
+                    { w: 1,  label: '·', title: 'Fina (1px)' },
+                    { w: 3,  label: '–', title: 'Média (3px)' },
+                    { w: 6,  label: '—', title: 'Grossa (6px)' },
+                    { w: 12, label: '█', title: 'Extra Grossa (12px)' },
+                  ].map(({ w, label, title }) => (
+                    <Button
+                      key={w}
+                      variant={penWidth === w ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setPenWidth(w)}
+                      title={title}
+                    >
+                      <span style={{ fontSize: w <= 3 ? '10px' : w <= 6 ? '14px' : '18px' }}>{label}</span>
+                    </Button>
+                  ))}
                   <Button
-                    variant={penWidth === 2 ? 'default' : 'outline'}
+                    variant={penWidth === 99 ? 'default' : 'outline'}
                     size="sm"
-                    onClick={() => setPenWidth(2)}
-                  >
-                    Fina
-                  </Button>
-                  <Button
-                    variant={penWidth === 5 ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPenWidth(5)}
-                  >
-                    Média
-                  </Button>
-                  <Button
-                    variant={penWidth === 10 ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPenWidth(10)}
+                    style={{ display: 'none' }}
+                    onClick={() => setPenWidth(99)}
                   >
                     Grossa
                   </Button>
@@ -1198,35 +1224,77 @@ export const CorrectEssay = () => {
           <div className="p-6 space-y-6">
             {/* PONTUAÇÃO */}
             <div>
-              <h3 className="font-semibold mb-4" style={{ color: '#7C1805' }}>Pontuação por Critério</h3>
-              {prompt.criteria.map((criterion) => (
-                <div key={criterion.id} className="mb-4" data-testid={`score-${criterion.id}`}>
-                  <div className="flex justify-between items-start mb-2">
-                    <div className="flex-1">
-                      <Label className="text-sm font-semibold">{criterion.nome}</Label>
-                      <p className="text-xs text-slate-500 mt-0.5">{criterion.descricao}</p>
+              <h3 className="font-semibold mb-3" style={{ color: '#7C1805' }}>Pontuação por Critério</h3>
+              {prompt.criteria.map((criterion) => {
+                const levels = [];
+                for (let v = 0; v <= criterion.peso_maximo; v += 40) levels.push(v);
+                const current = scores[criterion.id] || 0;
+                const pct = criterion.peso_maximo > 0 ? current / criterion.peso_maximo : 0;
+                const levelColor = pct === 1 ? '#36555A' : pct >= 0.8 ? '#36555A' : pct >= 0.6 ? '#D66B27' : pct >= 0.4 ? '#DAB257' : pct > 0 ? '#7C1805' : '#6B5B4E';
+                return (
+                  <div key={criterion.id} className="mb-5" data-testid={`score-${criterion.id}`}>
+                    <div className="flex justify-between items-start mb-1">
+                      <div className="flex-1 pr-2">
+                        <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{criterion.nome}</p>
+                        <p className="text-xs" style={{ color: '#6B5B4E' }}>{criterion.descricao}</p>
+                      </div>
+                      <span className="text-lg font-black" style={{ color: levelColor }}>
+                        {current}<span className="text-xs font-normal" style={{ color: '#6B5B4E' }}>/{criterion.peso_maximo}</span>
+                      </span>
                     </div>
-                    <div className="flex items-center gap-2 ml-4">
-                      <Input
-                        type="number"
-                        value={scores[criterion.id] || 0}
-                        onChange={(e) => handleScoreChange(criterion.id, e.target.value, criterion.peso_maximo)}
-                        min={0}
-                        max={criterion.peso_maximo}
-                        step={40}
-                        className="w-20 text-right"
-                        style={{ fontSize: '16px', fontWeight: 'bold' }}
-                      />
-                      <span className="text-sm text-slate-600">/ {criterion.peso_maximo}</span>
+
+                    {/* Botões de nível */}
+                    <div className="flex gap-1 mt-2">
+                      {levels.map((val) => {
+                        const isSelected = current === val;
+                        const levelPct = criterion.peso_maximo > 0 ? val / criterion.peso_maximo : 0;
+                        const btnColor = levelPct === 1 ? '#36555A' : levelPct >= 0.6 ? '#D66B27' : levelPct >= 0.4 ? '#DAB257' : levelPct > 0 ? '#7C1805' : '#6B5B4E';
+                        return (
+                          <button
+                            key={val}
+                            onClick={() => handleScoreChange(criterion.id, val, criterion.peso_maximo)}
+                            title={`${val} pontos${val === 0 ? ' — Não atendeu' : val === criterion.peso_maximo ? ' — Atendeu plenamente' : ''}`}
+                            style={{
+                              flex: 1,
+                              padding: '6px 2px',
+                              borderRadius: '6px',
+                              border: isSelected ? `2px solid ${btnColor}` : '2px solid #E8DDD0',
+                              backgroundColor: isSelected ? btnColor : '#FFF',
+                              color: isSelected ? '#FFF' : '#6B5B4E',
+                              fontSize: '11px',
+                              fontWeight: isSelected ? 700 : 500,
+                              cursor: 'pointer',
+                              transition: 'all 0.15s',
+                            }}
+                          >
+                            {val}
+                          </button>
+                        );
+                      })}
                     </div>
+
+                    {/* Descrição do nível selecionado */}
+                    {current > 0 && (
+                      <p className="text-xs mt-1 italic" style={{ color: '#6B5B4E' }}>
+                        {current === criterion.peso_maximo
+                          ? '✓ Atendeu plenamente todos os requisitos'
+                          : current >= criterion.peso_maximo * 0.8
+                          ? 'Atendeu a maioria dos requisitos, com pequenas ressalvas'
+                          : current >= criterion.peso_maximo * 0.6
+                          ? 'Atendeu parcialmente, com aspectos a desenvolver'
+                          : current >= criterion.peso_maximo * 0.4
+                          ? 'Atendeu de forma insuficiente, com problemas relevantes'
+                          : 'Apresentou domínio precário / grave falha'}
+                      </p>
+                    )}
+                    {current === 0 && (
+                      <p className="text-xs mt-1 italic" style={{ color: '#7C1805' }}>
+                        Não atendeu aos requisitos / fuga ao tema
+                      </p>
+                    )}
                   </div>
-                  {scoreErrors[criterion.id] && (
-                    <div className="mt-1 p-2 rounded" style={{ backgroundColor: '#FEE2E2', border: '1px solid #DC2626' }}>
-                      <p className="text-xs font-semibold" style={{ color: '#991B1B' }}>⚠ {scoreErrors[criterion.id]}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <Separator />
@@ -1244,47 +1312,16 @@ export const CorrectEssay = () => {
             <Separator />
 
             {/* FEEDBACK */}
-            <div className="space-y-4">
-              <h3 className="font-semibold" style={{ color: '#7C1805' }}>Feedback</h3>
-              
-              <div>
-                <Label htmlFor="general-feedback">Feedback Geral *</Label>
-                <Textarea
-                  id="general-feedback"
-                  value={feedback.general_feedback}
-                  onChange={(e) => setFeedback({ ...feedback, general_feedback: e.target.value })}
-                  rows={4}
-                  className="mt-1"
-                  placeholder="Comentários gerais sobre a redação..."
-                  data-testid="general-feedback-input"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="strengths">Pontos Fortes</Label>
-                <Textarea
-                  id="strengths"
-                  value={feedback.strengths}
-                  onChange={(e) => setFeedback({ ...feedback, strengths: e.target.value })}
-                  rows={3}
-                  className="mt-1"
-                  placeholder="O que o aluno fez bem..."
-                  data-testid="strengths-input"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="improvements">Pontos a Melhorar</Label>
-                <Textarea
-                  id="improvements"
-                  value={feedback.improvements}
-                  onChange={(e) => setFeedback({ ...feedback, improvements: e.target.value })}
-                  rows={3}
-                  className="mt-1"
-                  placeholder="O que pode ser melhorado..."
-                  data-testid="improvements-input"
-                />
-              </div>
+            <div>
+              <h3 className="font-semibold mb-2" style={{ color: '#7C1805' }}>Feedback Geral *</h3>
+              <Textarea
+                id="general-feedback"
+                value={feedback.general_feedback}
+                onChange={(e) => setFeedback({ ...feedback, general_feedback: e.target.value })}
+                rows={6}
+                placeholder="Escreva aqui o feedback completo para o aluno..."
+                data-testid="general-feedback-input"
+              />
             </div>
 
             {/* SUGESTÕES DA IA */}
