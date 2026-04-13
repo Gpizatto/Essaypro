@@ -7,7 +7,6 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../components/ui/select';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
 import { CRITERIA_MODELS } from '../utils/criteriaModels';
@@ -201,22 +200,31 @@ export const CreatePrompt = () => {
 
           <Card className="p-8 bg-white border">
             <div className="mb-6">
-              <Label htmlFor="criteria-model" className="text-base font-semibold mb-3 block">Selecione um Modelo de Critérios</Label>
-              <Select value={selectedModel} onValueChange={handleModelChange}>
-                <SelectTrigger className="w-full" data-testid="criteria-model-select">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(CRITERIA_MODELS).map(([key, model]) => (
-                    <SelectItem key={key} value={key}>
-                      <div>
-                        <p className="font-semibold">{model.name}</p>
-                        <p className="text-xs text-slate-500">{model.description}</p>
-                      </div>
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Label className="text-base font-semibold mb-3 block">Selecione um Modelo de Critérios</Label>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-3" data-testid="criteria-model-select">
+                {Object.entries(CRITERIA_MODELS).map(([key, model]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => handleModelChange(key)}
+                    style={{
+                      padding: '12px',
+                      borderRadius: '8px',
+                      border: selectedModel === key ? '2px solid #7C1805' : '1px solid #E8DDD0',
+                      backgroundColor: selectedModel === key ? '#7C1805' : '#FFF',
+                      color: selectedModel === key ? '#FDF3E8' : '#2C1A0E',
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      transition: 'all 0.15s',
+                    }}
+                  >
+                    <p className="text-sm font-semibold">{model.name}</p>
+                    <p className="text-xs mt-0.5" style={{ color: selectedModel === key ? 'rgba(253,243,232,0.75)' : '#6B5B4E' }}>
+                      {model.description}
+                    </p>
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="flex items-center justify-between mb-4">
