@@ -4,7 +4,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { toast } from 'sonner';
-import { Settings, Save, RotateCcw, Download, MessageSquare, User, Brain, Sparkles } from 'lucide-react';
+import { Settings, Save, RotateCcw, Download, MessageSquare, User, Brain, Sparkles, Clock, Shield } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -90,6 +90,9 @@ export const CourseSettings = () => {
       allow_rewrite: true,
       require_rewrite: false,
       allow_ai_analysis: true,
+      correction_deadline_days: 0,
+      confirm_before_publish: true,
+      confirm_before_delete: true,
     };
     setSettings(defaults);
     setDirty(true);
@@ -190,6 +193,51 @@ export const CourseSettings = () => {
               description="Corretor pode usar IA para sugerir erros gramaticais no texto digitado"
               checked={settings.allow_ai_analysis}
               onChange={v => update('allow_ai_analysis', v)}
+            />
+          </div>
+        </Card>
+
+        {/* PRAZOS E CONFIRMAÇÕES */}
+        <Card className="p-5 bg-white border shadow-sm">
+          <p className="text-xs font-bold mb-1" style={{ color: '#D66B27' }}>PRAZOS E SEGURANÇA</p>
+
+          <div className="py-4" style={{ borderBottom: '1px solid #F0EBE3' }}>
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-lg mt-0.5" style={{ backgroundColor: '#FDF3E8' }}>
+                <Clock size={16} style={{ color: '#D66B27' }} />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>Prazo máximo de correção</p>
+                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                  Redações ficam com alerta de atraso após esse número de dias. 0 = sem prazo.
+                </p>
+                <div className="flex items-center gap-2 mt-2">
+                  <input
+                    type="number" min="0" max="30"
+                    value={settings.correction_deadline_days || 0}
+                    onChange={e => update('correction_deadline_days', parseInt(e.target.value) || 0)}
+                    style={{ width: '70px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E' }}
+                  />
+                  <span className="text-xs" style={{ color: '#6B5B4E' }}>dias</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <SettingRow
+            icon={Shield}
+            title="Confirmar antes de publicar correção"
+            description="Exibe uma confirmação antes de publicar a correção para o aluno"
+            checked={settings.confirm_before_publish !== false}
+            onChange={v => update('confirm_before_publish', v)}
+          />
+          <div style={{ borderBottom: 'none' }}>
+            <SettingRow
+              icon={Shield}
+              title="Confirmar antes de apagar"
+              description="Exibe confirmação antes de excluir redações, comentários ou propostas"
+              checked={settings.confirm_before_delete !== false}
+              onChange={v => update('confirm_before_delete', v)}
             />
           </div>
         </Card>
