@@ -113,7 +113,6 @@ export const CorrectEssay = () => {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [showConfirmPublish, setShowConfirmPublish] = useState(false);
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
-  const [showConfirmPublish, setShowConfirmPublish] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -1631,33 +1630,7 @@ export const CorrectEssay = () => {
       )}
 
       {/* MODAL CONFIRMAR PUBLICAÇÃO */}
-      {showConfirmPublish && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
-        >
-          <div className="bg-white rounded-xl shadow-2xl p-6 w-full max-w-sm">
-            <h3 className="font-heading font-bold text-lg mb-2" style={{ color: '#7C1805' }}>
-              Publicar correção?
-            </h3>
-            <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>
-              A correção será enviada ao aluno e não poderá ser editada depois. Confirma?
-            </p>
-            <div className="flex gap-3 justify-end">
-              <Button variant="outline" onClick={() => setShowConfirmPublish(false)}>
-                Cancelar
-              </Button>
-              <Button
-                onClick={handleConfirmPublish}
-                disabled={submitting}
-                style={{ backgroundColor: '#36555A' }}
-              >
-                {submitting ? 'Publicando...' : '✓ Confirmar e Publicar'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
+
 
       {/* TOOLTIP HOVER DE COMENTÁRIO */}
       {hoveredCommentId && (
