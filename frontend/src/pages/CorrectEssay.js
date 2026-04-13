@@ -968,7 +968,7 @@ export const CorrectEssay = () => {
         {/* PAINEL ESQUERDO - Texto + Anotações */}
         <div className="flex-1" style={{ width: '60%', maxWidth: '60%' }}>
           {/* TOOLBAR */}
-          <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap">
+          <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap sticky top-0 z-40">
             {/* Ferramentas de texto */}
             <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
               {TOOLS.filter(t => t.group === 'text').map(tool => {
