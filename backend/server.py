@@ -99,6 +99,7 @@ class UserResponse(BaseModel):
     email: str
     role: str
     is_active: bool = True
+    course_ids: Optional[List[str]] = []
     created_at: datetime
 
 class LevelDescription(BaseModel):
@@ -597,8 +598,10 @@ async def get_all_users(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     
-    users = await db.users.find({}, {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1, "is_active": 1}).to_list(1000)
-    return [UserResponse(id=str(u["_id"]), name=u["name"], email=u["email"], role=u["role"], is_active=u.get("is_active", True), created_at=u["created_at"]) for u in users]
+    users = await db.users.find({}, {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1, "is_active": 1, "course_ids": 1}).to_list(1000)
+    return [UserResponse(id=str(u["_id"]), name=u["name"], email=u["email"], role=u["role"],
+            is_active=u.get("is_active", True), course_ids=u.get("course_ids", []),
+            created_at=u["created_at"]) for u in users]
 
 @api_router.patch("/admin/users/{user_id}/role")
 async def update_user_role(user_id: str, body: dict, current_user: dict = Depends(get_current_user)):
@@ -955,6 +958,14 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         except:
             pass
 
+    # Frequência de envio — essays nos últimos 7 e 30 dias
+    from datetime import timedelta
+    now_dt = datetime.now(timezone.utc)
+    week_ago = now_dt - timedelta(days=7)
+    month_ago = now_dt - timedelta(days=30)
+    essays_last_7  = await db.essays.count_documents({"submitted_at": {"$gte": week_ago}})
+    essays_last_30 = await db.essays.count_documents({"submitted_at": {"$gte": month_ago}})
+
     return {
         "total_users": total_users,
         "total_students": total_students,
@@ -966,6 +977,8 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         "average_score": sum(scores) / len(scores) if scores else 0,
         "top_prompts": top_prompts,
         "top_students": top_students,
+        "essays_last_7_days": essays_last_7,
+        "essays_last_30_days": essays_last_30,
     }
 
 @api_router.get("/cloudinary/signature")
@@ -1318,6 +1331,131 @@ async def get_prompt_stats(current_user: dict = Depends(get_current_user)):
         })
 
     return sorted(result, key=lambda x: -x["total_submissions"])
+
+# ============================================================
+# MULTIUNIDADE / MULTICURSO
+# ============================================================
+
+class CourseCreate(BaseModel):
+    name: str
+    description: Optional[str] = ""
+    modality: Optional[str] = "online"
+    is_active: bool = True
+
+class CourseResponse(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str
+    name: str
+    description: Optional[str] = ""
+    modality: Optional[str] = "online"
+    is_active: bool = True
+    created_at: datetime
+    teacher_count: Optional[int] = 0
+    student_count: Optional[int] = 0
+
+@api_router.get("/courses", response_model=List[CourseResponse])
+async def list_courses(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    courses = await db.courses.find({}, {"_id": 0}).to_list(1000)
+    result = []
+    for c in courses:
+        c["student_count"] = await db.users.count_documents({"role": "student", "course_ids": c["id"]})
+        c["teacher_count"] = await db.users.count_documents({"role": "teacher", "course_ids": c["id"]})
+        result.append(CourseResponse(**c))
+    return result
+
+@api_router.post("/courses", response_model=CourseResponse)
+async def create_course(data: CourseCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    course = {
+        "id": str(ObjectId()),
+        "name": data.name,
+        "description": data.description,
+        "modality": data.modality,
+        "is_active": data.is_active,
+        "created_at": datetime.now(timezone.utc),
+    }
+    await db.courses.insert_one(course)
+    course["student_count"] = 0
+    course["teacher_count"] = 0
+    return CourseResponse(**course)
+
+@api_router.put("/courses/{course_id}")
+async def update_course(course_id: str, data: CourseCreate, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    await db.courses.update_one(
+        {"id": course_id},
+        {"$set": {"name": data.name, "description": data.description,
+                  "modality": data.modality, "is_active": data.is_active}}
+    )
+    return {"ok": True}
+
+@api_router.patch("/courses/{course_id}/toggle")
+async def toggle_course(course_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    course = await db.courses.find_one({"id": course_id})
+    if not course:
+        raise HTTPException(status_code=404, detail="Not found")
+    new_status = not course.get("is_active", True)
+    await db.courses.update_one({"id": course_id}, {"$set": {"is_active": new_status}})
+    return {"is_active": new_status}
+
+@api_router.delete("/courses/{course_id}")
+async def delete_course(course_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    await db.courses.delete_one({"id": course_id})
+    # Remove course_id from all users
+    await db.users.update_many({}, {"$pull": {"course_ids": course_id}})
+    return {"ok": True}
+
+@api_router.get("/courses/{course_id}/members")
+async def get_course_members(course_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    members = await db.users.find(
+        {"course_ids": course_id},
+        {"_id": 1, "name": 1, "email": 1, "role": 1}
+    ).to_list(1000)
+    return [{"id": str(m["_id"]), "name": m["name"], "email": m["email"], "role": m["role"]} for m in members]
+
+@api_router.post("/courses/{course_id}/add-member")
+async def add_course_member(course_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    user_id = body.get("user_id")
+    course = await db.courses.find_one({"id": course_id})
+    if not course:
+        raise HTTPException(status_code=404, detail="Course not found")
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$addToSet": {"course_ids": course_id}}
+    )
+    return {"ok": True}
+
+@api_router.post("/courses/{course_id}/remove-member")
+async def remove_course_member(course_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    user_id = body.get("user_id")
+    await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$pull": {"course_ids": course_id}}
+    )
+    return {"ok": True}
+
+@api_router.get("/my/courses")
+async def get_my_courses(current_user: dict = Depends(get_current_user)):
+    """Retorna os cursos do usuário atual"""
+    course_ids = current_user.get("course_ids", [])
+    if not course_ids:
+        return []
+    courses = await db.courses.find({"id": {"$in": course_ids}, "is_active": True}, {"_id": 0}).to_list(100)
+    return courses
 
 # ============================================================
 # WHITE LABEL / PERSONALIZAÇÃO
