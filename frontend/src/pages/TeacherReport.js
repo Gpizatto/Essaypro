@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
-import { CheckCircle2, Clock, Calendar, TrendingUp, BarChart3, Star } from 'lucide-react';
+import { CheckCircle2, Clock, Calendar, TrendingUp, BarChart3, Star, Download } from 'lucide-react';
+import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -69,6 +70,50 @@ export const TeacherReport = () => {
     }
   };
 
+  const handleExportPDF = () => {
+    exportToPDF('Meu Relatório de Correções — RcN', `
+      <h1>Relatório Pessoal de Correções</h1>
+      <p class="subtitle">Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value">${stats?.total_corrections || 0}</div><div class="stat-label">Total Corrigidas</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.today || 0}</div><div class="stat-label">Hoje</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.this_week || 0}</div><div class="stat-label">Esta Semana</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.this_month || 0}</div><div class="stat-label">Este Mês</div></div>
+        <div class="stat-box"><div class="stat-value">${formatAvgTime(stats?.avg_hours)}</div><div class="stat-label">Tempo Médio</div></div>
+      </div>
+      ${stats?.monthly_data?.length ? `
+        <h2>Produção Mensal</h2>
+        <table>
+          <tr><th>Mês</th><th>Correções</th></tr>
+          ${stats.monthly_data.map(d => `<tr><td>${d.month}</td><td>${d.count}</td></tr>`).join('')}
+        </table>` : ''}
+      ${stats?.weekly_data?.length ? `
+        <h2>Produção Semanal (últimas 4 semanas)</h2>
+        <table>
+          <tr><th>Semana</th><th>Correções</th></tr>
+          ${stats.weekly_data.map(d => `<tr><td>${d.week}</td><td>${d.count}</td></tr>`).join('')}
+        </table>` : ''}
+    `);
+  };
+
+  const handleExportExcel = () => {
+    const headers = ['Período', 'Correções'];
+    const rows = [
+      ['Total geral', stats?.total_corrections || 0],
+      ['Hoje', stats?.today || 0],
+      ['Esta semana', stats?.this_week || 0],
+      ['Este mês', stats?.this_month || 0],
+      ['Tempo médio por correção', formatAvgTime(stats?.avg_hours)],
+      ['', ''],
+      ['--- MENSAL ---', ''],
+      ...(stats?.monthly_data || []).map(d => [d.month, d.count]),
+      ['', ''],
+      ['--- SEMANAL ---', ''],
+      ...(stats?.weekly_data || []).map(d => [d.week, d.count]),
+    ];
+    exportToExcel('meu-relatorio-correcoes', headers, rows);
+  };
+
   const formatAvgTime = (hours) => {
     if (!hours) return '—';
     if (hours < 1) return `${Math.round(hours * 60)}min`;
@@ -100,6 +145,18 @@ export const TeacherReport = () => {
           <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
             Sua produtividade e histórico de correções
           </p>
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleExportPDF}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
+              <Download size={13} /> PDF
+            </button>
+            <button onClick={handleExportExcel}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#36555A', color: '#36555A', backgroundColor: 'white' }}>
+              <Download size={13} /> Excel
+            </button>
+          </div>
         </div>
 
         {/* Cards principais */}
