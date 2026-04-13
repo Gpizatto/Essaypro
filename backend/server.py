@@ -1119,6 +1119,22 @@ async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict =
         logger.error(f"Gemini error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro na analise: {str(e)}")
 
+# ============================================================
+# CONFIGURAÇÕES PEDAGÓGICAS
+# ============================================================
+
+DEFAULT_COURSE_SETTINGS = {
+    "show_teacher_name": True,
+    "allow_post_correction_doubt": True,
+    "allow_download": True,
+    "allow_rewrite": True,
+    "require_rewrite": False,
+    "allow_ai_analysis": True,
+    "correction_deadline_days": 0,   # 0 = sem prazo
+    "confirm_before_publish": True,
+    "confirm_before_delete": True,
+}
+
 @api_router.get("/settings/course")
 async def get_course_settings(current_user: dict = Depends(get_current_user)):
     config = await db.settings.find_one({"key": "course_settings"})
@@ -1133,7 +1149,15 @@ async def update_course_settings(body: dict, current_user: dict = Depends(get_cu
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     allowed_keys = set(DEFAULT_COURSE_SETTINGS.keys())
-    clean = {k: bool(v) for k, v in body.items() if k in allowed_keys}
+    int_fields = {"correction_deadline_days"}
+    clean = {}
+    for k, v in body.items():
+        if k not in allowed_keys:
+            continue
+        if k in int_fields:
+            clean[k] = int(v) if v is not None else 0
+        else:
+            clean[k] = bool(v)
     await db.settings.update_one(
         {"key": "course_settings"},
         {"$set": {"key": "course_settings", **clean}},
