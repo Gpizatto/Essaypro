@@ -24,6 +24,8 @@ export const ManagePrompts = () => {
   const [editForm, setEditForm] = useState({});
   const [saving, setSaving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState(null);
+  const [showCopyCriteria, setShowCopyCriteria] = useState(null); // promptId de destino
+  const [copySource, setCopySource] = useState('');
 
   useEffect(() => { fetchPrompts(); }, []);
 
@@ -81,6 +83,24 @@ export const ManagePrompts = () => {
     } catch (err) {
       toast.error('Erro ao duplicar');
     }
+  };
+
+  const copyCriteria = async () => {
+    if (!copySource || !showCopyCriteria) return;
+    const source = prompts.find(p => p.id === copySource);
+    if (!source?.criteria?.length) {
+      toast.error('Proposta de origem sem critérios'); return;
+    }
+    try {
+      await axios.put(`${API_URL}/api/prompts/${showCopyCriteria}`, {
+        ...prompts.find(p => p.id === showCopyCriteria),
+        criteria: source.criteria,
+      }, { withCredentials: true });
+      toast.success('Grade copiada com sucesso!');
+      setShowCopyCriteria(null);
+      setCopySource('');
+      fetchPrompts();
+    } catch (e) { toast.error('Erro ao copiar grade'); }
   };
 
   const filtered = prompts.filter(p => {
@@ -248,15 +268,47 @@ export const ManagePrompts = () => {
                       <Textarea style={inputStyle} rows={3} value={editForm.instructions}
                         onChange={e => setEditForm({ ...editForm, instructions: e.target.value })} />
                     </div>
-                    <div className="flex gap-2">
+                    <div className="flex gap-2 flex-wrap">
                       <Button size="sm" disabled={saving} onClick={() => saveEdit(prompt.id)}>
                         <Check size={14} className="mr-1" />
                         {saving ? 'Salvando...' : 'Salvar'}
+                      </Button>
+                      <Button size="sm" variant="outline"
+                        onClick={() => { setShowCopyCriteria(prompt.id); setCopySource(''); }}
+                        title="Copiar grade de outra proposta">
+                        📋 Copiar grade
                       </Button>
                       <Button size="sm" variant="outline" onClick={() => setEditingPrompt(null)}>
                         Cancelar
                       </Button>
                     </div>
+
+                    {/* Modal copiar grade */}
+                    {showCopyCriteria === prompt.id && (
+                      <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: '#FDF3E8', border: '1px solid #DAB257' }}>
+                        <p className="text-xs font-semibold mb-2" style={{ color: '#7C1805' }}>
+                          Copiar critérios de qual proposta?
+                        </p>
+                        <select
+                          value={copySource}
+                          onChange={e => setCopySource(e.target.value)}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E', marginBottom: '8px' }}
+                        >
+                          <option value="">Selecione a proposta de origem...</option>
+                          {prompts.filter(p => p.id !== prompt.id && p.criteria?.length).map(p => (
+                            <option key={p.id} value={p.id}>{p.title} ({p.criteria.length} critérios)</option>
+                          ))}
+                        </select>
+                        <div className="flex gap-2">
+                          <Button size="sm" disabled={!copySource} onClick={copyCriteria}>
+                            Copiar grade
+                          </Button>
+                          <Button size="sm" variant="outline" onClick={() => setShowCopyCriteria(null)}>
+                            Cancelar
+                          </Button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
               </Card>
