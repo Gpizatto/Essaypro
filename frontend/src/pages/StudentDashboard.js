@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
-import { FileText, Clock, CheckCircle, Award, Zap, RefreshCw } from 'lucide-react';
+import { FileText, Clock, CheckCircle, Award, Zap, RefreshCw, AlertCircle } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -22,14 +22,28 @@ export const StudentDashboard = () => {
     fetchAll();
   }, []);
 
+  const [pendingEssays, setPendingEssays] = useState([]);
+
   const fetchAll = async () => {
     try {
-      const [statsRes, creditsRes] = await Promise.all([
+      const [statsRes, creditsRes, essaysRes, settingsRes] = await Promise.all([
         axios.get(`${API_URL}/api/stats/student`, { withCredentials: true }),
         axios.get(`${API_URL}/api/credits/me`, { withCredentials: true }),
+        axios.get(`${API_URL}/api/essays/my`, { withCredentials: true }),
+        axios.get(`${API_URL}/api/settings/course`, { withCredentials: true }).catch(() => ({ data: {} })),
       ]);
       setStats(statsRes.data);
       setCredits(creditsRes.data);
+      // Usar prazo configurado pelo admin (padrão 5 dias)
+      const deadlineDays = settingsRes.data?.correction_deadline_days > 0
+        ? settingsRes.data.correction_deadline_days
+        : 5;
+      const pending = (essaysRes.data || []).filter(e => {
+        if (e.status !== 'pending') return false;
+        const days = (Date.now() - new Date(e.submitted_at).getTime()) / (1000 * 60 * 60 * 24);
+        return days >= deadlineDays;
+      });
+      setPendingEssays(pending);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {
@@ -70,6 +84,24 @@ export const StudentDashboard = () => {
           </h1>
           <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>Acompanhe seu progresso e continue praticando</p>
         </div>
+
+        {/* Alerta de redações aguardando há muito tempo */}
+        {pendingEssays.length > 0 && (
+          <div className="flex items-start gap-3 p-4 rounded-xl"
+            style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5' }}>
+            <AlertCircle size={18} style={{ color: '#7C1805', flexShrink: 0, marginTop: '1px' }} />
+            <div>
+              <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+                {pendingEssays.length === 1
+                  ? 'Você tem 1 redação aguardando correção há mais de 5 dias'
+                  : `Você tem ${pendingEssays.length} redações aguardando correção há mais de 5 dias`}
+              </p>
+              <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                {pendingEssays.map(e => e.prompt_title || 'Redação').join(' · ')}
+              </p>
+            </div>
+          </div>
+        )}
 
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {/* Redações enviadas */}
