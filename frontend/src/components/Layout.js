@@ -3,7 +3,6 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings } from 'lucide-react';
-import { NotificationBell } from './NotificationBell';
 import { toast } from 'sonner';
 
 export const Layout = ({ children }) => {
