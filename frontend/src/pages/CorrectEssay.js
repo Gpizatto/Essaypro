@@ -265,6 +265,25 @@ export const CorrectEssay = () => {
           if (d.scores) setScores(d.scores);
           if (d.feedback) setFeedback(d.feedback);
           if (d.inlineComments) setInlineComments(d.inlineComments);
+
+          // Restaurar anotações de texto
+          if (d.textAnnotations && textRef.current) {
+            textRef.current.innerHTML = d.textAnnotations;
+            textInjectedRef.current = true; // impede sobrescrever depois
+          }
+
+          // Restaurar canvas
+          if (d.canvasDataUrl) {
+            const img = new Image();
+            img.onload = () => {
+              const ctx = ctxRef.current || (nativeCanvasRef.current?.getContext('2d'));
+              if (ctx && nativeCanvasRef.current) {
+                ctx.drawImage(img, 0, 0);
+              }
+            };
+            img.src = d.canvasDataUrl;
+          }
+
           setDraftLoaded(true);
           toast.success('Rascunho carregado — continue de onde parou!', { duration: 3000 });
         }
@@ -528,11 +547,24 @@ export const CorrectEssay = () => {
   const saveDraft = async () => {
     setSavingDraft(true);
     try {
+      // Salvar canvas como dataUrl
+      let canvasDraft = null;
+      if (nativeCanvasRef.current) {
+        const c = nativeCanvasRef.current;
+        if (c.width > 0 && c.height > 0) {
+          canvasDraft = c.toDataURL('image/png');
+        }
+      }
+      // Salvar anotações de texto (innerHTML)
+      const textAnnotations = textRef.current ? textRef.current.innerHTML : null;
+
       await axios.post(`${API_URL}/api/corrections/draft`, {
         essay_id: essayId,
         scores,
         feedback,
         inlineComments,
+        canvasDataUrl: canvasDraft,
+        textAnnotations,
       }, { withCredentials: true });
       setDraftSaved(true);
       toast.success('Rascunho salvo!');
