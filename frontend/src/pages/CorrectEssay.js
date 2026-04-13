@@ -936,7 +936,7 @@ export const CorrectEssay = () => {
   return (
     <div style={{ backgroundColor: '#FDF3E8', minHeight: '100vh' }}>
       {/* HEADER FIXO */}
-      <div className="bg-white border-b px-6 py-4 flex items-center justify-between" style={{ position: 'sticky', top: 0, zIndex: 50, boxShadow: '0 2px 6px rgba(0,0,0,0.08)' }}>
+      <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div>
           <Button
             onClick={() => navigate('/correction-queue')}
@@ -988,7 +988,7 @@ export const CorrectEssay = () => {
         <div style={{ flex: 1, minWidth: 0 }}>
           {/* TOOLBAR */}
           <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap"
-            style={{ position: 'sticky', top: '72px', zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
+            style={{ position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
             {/* Ferramentas de texto */}
             <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
               {TOOLS.filter(t => t.group === 'text').map(tool => {
