@@ -526,6 +526,20 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
     await db.corrections.insert_one(correction_doc)
     await db.essays.update_one({"id": correction_data.essay_id}, {"$set": {"status": "corrected"}})
 
+    # Salvar no histórico de versões
+    history_doc = {**correction_doc, "saved_at": datetime.now(timezone.utc), "version": 1}
+    await db.correction_history.insert_one(history_doc)
+
+    # Log de atividade
+    await create_activity_log(
+        user_id=current_user["_id"],
+        user_name=current_user.get("name", "?"),
+        action="published_correction",
+        entity_type="correction",
+        entity_id=correction_data.essay_id,
+        detail=f"Nota: {correction_data.total_score} pts"
+    )
+
     # Notificar aluno que a correção ficou pronta
     essay_doc = await db.essays.find_one({"id": correction_data.essay_id})
     if essay_doc:
@@ -598,6 +612,14 @@ async def update_user_role(user_id: str, body: dict, current_user: dict = Depend
     result = await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"role": new_role}})
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    await create_activity_log(
+        user_id=current_user["_id"],
+        user_name=current_user.get("name", "?"),
+        action="changed_user_role",
+        entity_type="user",
+        entity_id=user_id,
+        detail=f"Novo papel: {new_role}"
+    )
     return {"role": new_role}
 
 @api_router.patch("/admin/users/{user_id}/toggle-active")
@@ -1164,6 +1186,49 @@ async def update_course_settings(body: dict, current_user: dict = Depends(get_cu
         upsert=True
     )
     return {"message": "Configurações salvas", **clean}
+
+# ============================================================
+# LOGS DE ATIVIDADE E HISTÓRICO DE VERSÕES
+# ============================================================
+
+async def create_activity_log(
+    user_id: str, user_name: str, action: str,
+    entity_type: str, entity_id: str = None, detail: str = None
+):
+    """Registra uma ação no log de atividade"""
+    await db.activity_logs.insert_one({
+        "id": str(ObjectId()),
+        "user_id": user_id,
+        "user_name": user_name,
+        "action": action,         # ex: published_correction, changed_score, deleted_essay
+        "entity_type": entity_type,  # correction, essay, prompt, user
+        "entity_id": entity_id,
+        "detail": detail,
+        "created_at": datetime.now(timezone.utc)
+    })
+
+@api_router.get("/admin/activity-logs")
+async def get_activity_logs(
+    limit: int = 50,
+    action: str = None,
+    current_user: dict = Depends(get_current_user)
+):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    query = {}
+    if action:
+        query["action"] = action
+    logs = await db.activity_logs.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
+    return logs
+
+@api_router.get("/corrections/{essay_id}/history")
+async def get_correction_history(essay_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    history = await db.correction_history.find(
+        {"essay_id": essay_id}, {"_id": 0}
+    ).sort("saved_at", -1).to_list(20)
+    return history
 
 # ============================================================
 # RELATÓRIOS AVANÇADOS / RANKING
