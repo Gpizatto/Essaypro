@@ -34,7 +34,7 @@ cloudinary.config(
     secure=True
 )
 
-import anthropic
+# AI via Groq (gratuito) — usa httpx direto, sem SDK
 import uuid
 import json as json_module
 
@@ -1055,56 +1055,68 @@ class AIAnalysisRequest(BaseModel):
 async def analyze_essay_with_ai(request: AIAnalysisRequest, current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can analyze essays")
-    
-    llm_key = os.getenv("ANTHROPIC_API_KEY")
-    if not llm_key:
-        raise HTTPException(status_code=503, detail="AI service not configured")
-    
+
+    groq_key = os.getenv("GROQ_API_KEY")
+    if not groq_key:
+        raise HTTPException(status_code=503, detail="Chave GROQ_API_KEY não configurada no servidor.")
+
+    system_prompt = (
+        "Voce e um professor especialista em redacao do ENEM e lingua portuguesa. "
+        "Analise a redacao abaixo e retorne APENAS um JSON valido, sem texto adicional, sem markdown, sem explicacoes fora do JSON. "
+        "Retorne exatamente neste formato: "
+        '{"erros": [{"id": "e1", "trecho": "trecho exato do texto com erro", '
+        '"tipo": "gramatical", '
+        '"descricao": "explicacao clara do erro", "sugestao": "como corrigir"}], '
+        '"resumo": "breve analise geral da redacao em 2-3 frases"} '
+        "O campo tipo deve ser um de: gramatical, coesao, argumentacao, tematico, estilo. "
+        "Retorne entre 3 e 12 erros. Seja preciso e util. Use portugues brasileiro."
+    )
+
+    payload = {
+        "model": "llama-3.3-70b-versatile",
+        "messages": [
+            {"role": "system", "content": system_prompt},
+            {"role": "user", "content": f"Redacao para analise:\n\n{request.content}"}
+        ],
+        "max_tokens": 2048,
+        "temperature": 0.3,
+    }
+
     try:
-        system_prompt = (
-            "Voce e um professor especialista em redacao do ENEM e lingua portuguesa. "
-            "Analise a redacao abaixo e retorne APENAS um JSON valido, sem texto adicional, sem markdown, sem explicacoes fora do JSON. "
-            "Retorne no formato: "
-            '{"erros": [{"id": "uuid_gerado", "trecho": "trecho exato do texto com erro", '
-            '"tipo": "gramatical | coesao | argumentacao | tematico | estilo", '
-            '"descricao": "explicacao clara do erro", "sugestao": "como corrigir"}], '
-            '"resumo": "breve analise geral da redacao em 2-3 frases"} '
-            "Retorne entre 3 e 15 erros. Seja preciso e util. Use portugues brasileiro."
-        )
-
-        ai_client = anthropic.AsyncAnthropic(api_key=llm_key)
-        message = await ai_client.messages.create(
-            model="claude-sonnet-4-20250514",
-            max_tokens=2048,
-            system=system_prompt,
-            messages=[
-                {"role": "user", "content": f"Redacao para analise:\n\n{request.content}"}
-            ]
-        )
-        response_text = message.content[0].text
+        import httpx
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(
+                "https://api.groq.com/openai/v1/chat/completions",
+                json=payload,
+                headers={
+                    "Authorization": f"Bearer {groq_key}",
+                    "Content-Type": "application/json",
+                }
+            )
+            resp.raise_for_status()
+            response_text = resp.json()["choices"][0]["message"]["content"]
 
         response_text = response_text.strip()
-        if response_text.startswith("```json"):
-            response_text = response_text[7:]
-        if response_text.startswith("```"):
-            response_text = response_text[3:]
-        if response_text.endswith("```"):
-            response_text = response_text[:-3]
+        # Remover markdown code blocks se presentes
+        if "```" in response_text:
+            response_text = response_text.split("```")[1]
+            if response_text.startswith("json"):
+                response_text = response_text[4:]
         response_text = response_text.strip()
-        
+
         analysis = json_module.loads(response_text)
-        
-        for erro in analysis.get("erros", []):
-            if "id" not in erro or not erro["id"]:
+
+        for i, erro in enumerate(analysis.get("erros", [])):
+            if not erro.get("id"):
                 erro["id"] = str(uuid.uuid4())
-        
+
         return analysis
-        
-    except json_module.JSONDecodeError:
-        logger.error(f"Failed to parse AI response: {response_text}")
-        raise HTTPException(status_code=500, detail="Failed to parse AI response")
+
+    except json_module.JSONDecodeError as e:
+        logger.error(f"Failed to parse Groq response: {response_text}")
+        raise HTTPException(status_code=500, detail="A IA retornou um formato inesperado. Tente novamente.")
     except Exception as e:
-        logger.error(f"AI analysis error: {str(e)}")
+        logger.error(f"Groq AI error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"AI analysis failed: {str(e)}")
 
 # ============================================================
