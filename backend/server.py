@@ -1207,18 +1207,24 @@ async def get_my_credits(current_user: dict = Depends(get_current_user)):
         "renews_at": renews_at
     }
 
-app.include_router(api_router)
+# CORS deve ser adicionado ANTES do router para cobrir respostas de erro (401, 403 etc.)
+ALLOWED_ORIGINS = [
+    os.environ.get("FRONTEND_URL", "http://localhost:3000"),
+    "https://essaypro-frontend.onrender.com",
+    "http://localhost:3000",
+    "http://localhost:3001",
+]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        os.environ.get("FRONTEND_URL", "http://localhost:3000"),
-        "https://essaypro-frontend.onrender.com",
-    ],
+    allow_origins=ALLOWED_ORIGINS,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
+
+app.include_router(api_router)
 
 @app.on_event("startup")
 async def startup_event():
