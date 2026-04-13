@@ -103,6 +103,18 @@ export const StudentDashboard = () => {
           </div>
         )}
 
+        {/* Minhas Turmas */}
+        {myCourses.length > 0 && (
+          <div className="flex flex-wrap gap-2">
+            {myCourses.map(c => (
+              <span key={c.id} className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-semibold"
+                style={{ backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27' }}>
+                🎓 {c.name}
+              </span>
+            ))}
+          </div>
+        )}
+
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4">
           {/* Redações enviadas */}
           <Card className="p-5 bg-white border shadow-sm" data-testid="stat-total-essays">
