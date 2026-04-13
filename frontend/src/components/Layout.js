@@ -2,13 +2,15 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
+import { useBranding } from '../contexts/BrandingContext';
 import { Button } from './ui/button';
-import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Moon, Sun } from 'lucide-react';
+import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Moon, Sun, Palette } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
+  const { branding, roleLabel } = useBranding();
   const navigate = useNavigate();
   const location = useLocation();
   const [notifications, setNotifications] = useState([]);
@@ -101,6 +103,7 @@ export const Layout = ({ children }) => {
         { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
         { path: '/admin/users', icon: Users, label: 'Usuários' },
         { path: '/settings', icon: Settings, label: 'Configurações' },
+        { path: '/admin/branding', icon: Palette, label: 'Personalização' },
       ];
     }
     return [];
