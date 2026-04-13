@@ -3,12 +3,71 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { Button } from './ui/button';
 import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings } from 'lucide-react';
+import { NotificationBell } from './NotificationBell';
 import { toast } from 'sonner';
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [notifications, setNotifications] = useState([]);
+  const [unread, setUnread] = useState(0);
+  const [showNotifs, setShowNotifs] = useState(false);
+  const notifRef = useRef(null);
+
+  useEffect(() => {
+    if (!user) return;
+    fetchNotifications();
+    const interval = setInterval(fetchNotifications, 60000); // poll a cada 60s
+    return () => clearInterval(interval);
+  }, [user]);
+
+  useEffect(() => {
+    const handler = (e) => {
+      if (notifRef.current && !notifRef.current.contains(e.target)) {
+        setShowNotifs(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const fetchNotifications = async () => {
+    try {
+      const { data } = await axios.get(`${API_URL}/api/notifications`, { withCredentials: true });
+      setNotifications(data.notifications || []);
+      setUnread(data.unread || 0);
+    } catch (e) { /* silencioso */ }
+  };
+
+  const markRead = async (id) => {
+    try {
+      await axios.patch(`${API_URL}/api/notifications/${id}/read`, {}, { withCredentials: true });
+      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+      setUnread(prev => Math.max(0, prev - 1));
+    } catch (e) {}
+  };
+
+  const markAllRead = async () => {
+    try {
+      await axios.patch(`${API_URL}/api/notifications/read-all`, {}, { withCredentials: true });
+      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      setUnread(0);
+    } catch (e) {}
+  };
+
+  const handleNotifClick = (notif) => {
+    if (!notif.read) markRead(notif.id);
+    if (notif.link) navigate(notif.link);
+    setShowNotifs(false);
+  };
+
+  const NOTIF_COLORS = {
+    success: '#36555A',
+    warning: '#D97706',
+    essay:   '#7C1805',
+    info:    '#6B5B4E',
+  };
 
   const handleLogout = async () => {
     try {
@@ -110,6 +169,74 @@ export const Layout = ({ children }) => {
               {roleLabel}
             </span>
           </div>
+          {/* Notificações */}
+          <div ref={notifRef} style={{ position: 'relative', marginBottom: '8px' }}>
+            <button
+              onClick={() => setShowNotifs(v => !v)}
+              className="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-md"
+              style={{ color: 'rgba(253,243,232,0.7)', backgroundColor: showNotifs ? 'rgba(255,255,255,0.1)' : 'transparent' }}
+            >
+              <div style={{ position: 'relative' }}>
+                <Bell size={16} />
+                {unread > 0 && (
+                  <span style={{
+                    position: 'absolute', top: '-6px', right: '-6px',
+                    backgroundColor: '#D66B27', color: '#FFF',
+                    borderRadius: '50%', width: '16px', height: '16px',
+                    fontSize: '10px', fontWeight: 700,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  }}>
+                    {unread > 9 ? '9+' : unread}
+                  </span>
+                )}
+              </div>
+              <span>Notificações</span>
+            </button>
+
+            {showNotifs && (
+              <div style={{
+                position: 'absolute', bottom: '40px', left: 0, right: 0,
+                backgroundColor: '#FFF', borderRadius: '10px', zIndex: 100,
+                boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
+                maxHeight: '320px', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+              }}>
+                <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid #F0EBE3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#7C1805' }}>Notificações</span>
+                  {unread > 0 && (
+                    <button onClick={markAllRead} style={{ fontSize: '11px', color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer' }}>
+                      Marcar tudo como lido
+                    </button>
+                  )}
+                </div>
+                <div style={{ overflowY: 'auto', flex: 1 }}>
+                  {notifications.length === 0 ? (
+                    <div style={{ padding: '24px', textAlign: 'center', color: '#6B5B4E', fontSize: '13px' }}>
+                      Nenhuma notificação
+                    </div>
+                  ) : notifications.map(notif => (
+                    <div
+                      key={notif.id}
+                      onClick={() => handleNotifClick(notif)}
+                      style={{
+                        padding: '10px 14px',
+                        borderBottom: '1px solid #F9F6F3',
+                        cursor: notif.link ? 'pointer' : 'default',
+                        backgroundColor: notif.read ? '#FFF' : '#FFFBF5',
+                        borderLeft: notif.read ? 'none' : `3px solid ${NOTIF_COLORS[notif.type] || '#D66B27'}`,
+                      }}
+                    >
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#2C1A0E', marginBottom: '2px' }}>{notif.title}</p>
+                      <p style={{ fontSize: '11px', color: '#6B5B4E', lineHeight: '1.4' }}>{notif.message}</p>
+                      <p style={{ fontSize: '10px', color: '#6B5B4E', marginTop: '4px' }}>
+                        {new Date(notif.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
           <Button
             onClick={handleLogout}
             variant="ghost"
