@@ -104,6 +104,7 @@ export const Layout = ({ children }) => {
         { path: '/manage-prompts', icon: BookOpen, label: 'Propostas' },
         { path: '/admin/users', icon: Users, label: 'Usuários' },
         { path: '/admin/reports', icon: BarChart3, label: 'Relatórios' },
+        { path: '/admin/logs', icon: FileText, label: 'Logs' },
         { path: '/settings', icon: Settings, label: 'Configurações' },
         { path: '/admin/branding', icon: Palette, label: 'Personalização' },
       ];
