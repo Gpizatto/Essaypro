@@ -83,6 +83,7 @@ export const CorrectEssay = () => {
   const [selectedTextRange, setSelectedTextRange] = useState(null);
   const [hoveredCommentId, setHoveredCommentId] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
+  const [activeTooltip, setActiveTooltip] = useState(null); // { label, x, y }
 
   const [scores, setScores] = useState({});
   const [scoreErrors, setScoreErrors] = useState({});
@@ -1054,16 +1055,21 @@ export const CorrectEssay = () => {
               {TOOLS.filter(t => t.group === 'text').map(tool => {
                 const Icon = tool.icon;
                 return (
-                  <Button
-                    key={tool.id}
-                    onClick={() => setSelectedTool(tool.id)}
-                    variant={selectedTool === tool.id ? 'default' : 'ghost'}
-                    size="sm"
-                    title={tool.label}
-                    data-testid={`tool-${tool.id}`}
-                  >
-                    <Icon size={16} />
-                  </Button>
+                  <div key={tool.id} className="relative" style={{ position: 'relative' }}>
+                    <Button
+                      onClick={() => setSelectedTool(tool.id)}
+                      variant={selectedTool === tool.id ? 'default' : 'ghost'}
+                      size="sm"
+                      data-testid={`tool-${tool.id}`}
+                      onMouseEnter={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ label: tool.label, x: r.left + r.width / 2, y: r.bottom + 6 });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    >
+                      <Icon size={16} />
+                    </Button>
+                  </div>
                 );
               })}
             </div>
@@ -1073,16 +1079,21 @@ export const CorrectEssay = () => {
               {TOOLS.filter(t => t.group === 'draw').map(tool => {
                 const Icon = tool.icon;
                 return (
-                  <Button
-                    key={tool.id}
-                    onClick={() => setSelectedTool(tool.id)}
-                    variant={selectedTool === tool.id ? 'default' : 'ghost'}
-                    size="sm"
-                    title={tool.label}
-                    data-testid={`tool-${tool.id}`}
-                  >
-                    <Icon size={16} />
-                  </Button>
+                  <div key={tool.id} style={{ position: 'relative' }}>
+                    <Button
+                      onClick={() => setSelectedTool(tool.id)}
+                      variant={selectedTool === tool.id ? 'default' : 'ghost'}
+                      size="sm"
+                      data-testid={`tool-${tool.id}`}
+                      onMouseEnter={(e) => {
+                        const r = e.currentTarget.getBoundingClientRect();
+                        setActiveTooltip({ label: tool.label, x: r.left + r.width / 2, y: r.bottom + 6 });
+                      }}
+                      onMouseLeave={() => setActiveTooltip(null)}
+                    >
+                      <Icon size={16} />
+                    </Button>
+                  </div>
                 );
               })}
             </div>
@@ -1269,7 +1280,35 @@ export const CorrectEssay = () => {
           </div>
         </div>
 
-        {/* PAINEL DIREITO - Avaliação */}
+        {/* TOOLTIP GLOBAL */}
+      {activeTooltip && (
+        <div style={{
+          position: 'fixed',
+          left: activeTooltip.x,
+          top: activeTooltip.y,
+          transform: 'translateX(-50%)',
+          backgroundColor: '#2C1A0E',
+          color: '#FDF3E8',
+          fontSize: '11px',
+          fontWeight: '600',
+          padding: '4px 8px',
+          borderRadius: '5px',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          whiteSpace: 'nowrap',
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        }}>
+          {activeTooltip.label}
+          <div style={{
+            position: 'absolute', top: '-4px', left: '50%', transform: 'translateX(-50%)',
+            width: 0, height: 0,
+            borderLeft: '4px solid transparent', borderRight: '4px solid transparent',
+            borderBottom: '4px solid #2C1A0E',
+          }} />
+        </div>
+      )}
+
+      {/* PAINEL DIREITO - Avaliação */}
         <div className="bg-white border-l" style={{ width: '38%', minWidth: '360px', maxWidth: '480px', position: 'sticky', top: '72px', height: 'calc(100vh - 72px)', overflowY: 'auto' }}>
           <div className="p-6 space-y-6">
             {/* PONTUAÇÃO */}
