@@ -15,12 +15,12 @@ import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSq
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const COLORS = [
-  { name: 'Amarelo', value: '#FFEB3B' },
-  { name: 'Verde', value: '#A5D6A7' },
-  { name: 'Vermelho', value: '#EF9A9A' },
-  { name: 'Azul', value: '#90CAF9' },
-  { name: 'Roxo', value: '#CE93D8' },
-  { name: 'Preto', value: '#000000' }
+  { name: 'Vermelho', value: '#E53935' },
+  { name: 'Azul', value: '#1565C0' },
+  { name: 'Verde', value: '#2E7D32' },
+  { name: 'Preto', value: '#000000' },
+  { name: 'Roxo', value: '#6A1B9A' },
+  { name: 'Laranja', value: '#E65100' }
 ];
 
 const TOOLS = [
@@ -62,13 +62,13 @@ export const CorrectEssay = () => {
   const shapeStartRef = useRef({ x: 0, y: 0 });
   const snapshotRef = useRef(null);       // ImageData para preview de formas
   const selectedToolRef = useRef('select');
-  const selectedColorRef = useRef('#FFEB3B');
+  const selectedColorRef = useRef('#E53935');
   const penWidthRef = useRef(0.5);
   const historyRef = useRef([]);          // array de ImageData
   const [zoom, setZoom] = useState(1);
 
   const [selectedTool, setSelectedTool] = useState('select');
-  const [selectedColor, setSelectedColor] = useState('#FFEB3B');
+  const [selectedColor, setSelectedColor] = useState('#E53935');
 
   // Manter refs sincronizados para usar em event listeners sem stale closure
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
@@ -465,6 +465,7 @@ export const CorrectEssay = () => {
     shapeStartRef.current = pos;
     if (tool === 'pen' || tool === 'eraser') {
       const ctx = ctxRef.current;
+      ctx.globalAlpha = 1;
       ctx.strokeStyle = selectedColorRef.current;
       ctx.lineWidth = penWidthRef.current;
       ctx.lineCap = 'round';
@@ -489,6 +490,7 @@ export const CorrectEssay = () => {
     const pos = getPos(e);
 
     if (tool === 'pen') {
+      ctx.globalAlpha = 1;
       ctx.strokeStyle = color;
       ctx.lineWidth = penWidthRef.current;
       ctx.lineCap = 'round';
