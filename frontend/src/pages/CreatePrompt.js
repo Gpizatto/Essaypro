@@ -18,20 +18,81 @@ export const CreatePrompt = () => {
   const [loading, setLoading] = useState(false);
   const fileInputRef = useRef(null);
 
-  const handleImportTxt = (e) => {
+  const handleImportFile = (e) => {
     const file = e.target.files[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => {
+    const ext = file.name.split('.').pop().toLowerCase();
+
+    const appendText = (text) => {
       setFormData(prev => ({
         ...prev,
         supporting_texts: prev.supporting_texts
-          ? prev.supporting_texts + '\n\n' + ev.target.result
-          : ev.target.result
+          ? prev.supporting_texts + '\n\n' + text
+          : text
       }));
       toast.success('Arquivo importado!');
     };
-    reader.readAsText(file, 'UTF-8');
+
+    if (ext === 'txt') {
+      // TXT: leitura direta
+      const reader = new FileReader();
+      reader.onload = (ev) => appendText(ev.target.result);
+      reader.readAsText(file, 'UTF-8');
+
+    } else if (ext === 'pdf') {
+      // PDF: extrai texto via pdfjsLib (CDN)
+      const script = document.getElementById('pdfjs-script');
+      const loadAndExtract = () => {
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const pdfjs = window['pdfjs-dist/build/pdf'];
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const pdf = await pdfjs.getDocument({ data: new Uint8Array(ev.target.result) }).promise;
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const tc = await page.getTextContent();
+              fullText += tc.items.map(item => item.str).join(' ') + '\n';
+            }
+            appendText(fullText.trim() || '(PDF sem texto extraível)');
+          } catch (err) {
+            toast.error('Não foi possível extrair texto do PDF');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      };
+      if (!window['pdfjs-dist/build/pdf']) {
+        const s = document.createElement('script');
+        s.id = 'pdfjs-script';
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload = loadAndExtract;
+        document.head.appendChild(s);
+      } else {
+        loadAndExtract();
+      }
+
+    } else if (['jpg','jpeg','png'].includes(ext)) {
+      // Imagem: usar OCR do Tesseract via CDN
+      const loadAndOCR = () => {
+        const url = URL.createObjectURL(file);
+        toast('Lendo imagem, aguarde...');
+        window.Tesseract.recognize(url, 'por', {})
+          .then(({ data: { text } }) => {
+            URL.revokeObjectURL(url);
+            appendText(text.trim() || '(Imagem sem texto reconhecido)');
+          })
+          .catch(() => toast.error('Não foi possível ler o texto da imagem'));
+      };
+      if (!window.Tesseract) {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';
+        s.onload = loadAndOCR;
+        document.head.appendChild(s);
+      } else {
+        loadAndOCR();
+      }
+    }
     e.target.value = '';
   };
   const [selectedModel, setSelectedModel] = useState('enem');
@@ -195,14 +256,14 @@ export const CreatePrompt = () => {
                     className="flex items-center gap-1 text-xs px-2 py-1 rounded border"
                     style={{ color: '#7C1805', borderColor: '#D66B27', backgroundColor: 'transparent' }}
                   >
-                    <Upload size={12} /> Importar .txt
+                    <Upload size={12} /> Importar arquivo
                   </button>
                   <input
                     ref={fileInputRef}
                     type="file"
-                    accept=".txt"
+                    accept=".txt,.pdf,.jpg,.jpeg,.png"
                     style={{ display: 'none' }}
-                    onChange={handleImportTxt}
+                    onChange={handleImportFile}
                   />
                 </div>
                 <Textarea
