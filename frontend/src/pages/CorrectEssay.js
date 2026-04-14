@@ -76,6 +76,8 @@ export const CorrectEssay = () => {
   const [penWidth, setPenWidth] = useState(0.5);
   const penOpacity = 1; // sempre sólido
   const [eraserSize, setEraserSize] = useState('medium');
+  const [eraserWidth, setEraserWidth] = useState(20);
+  const eraserWidthRef = React.useRef(20);
 
   const [inlineComments, setInlineComments] = useState([]);
   const [showCommentPopup, setShowCommentPopup] = useState(false);
@@ -83,7 +85,8 @@ export const CorrectEssay = () => {
   const [selectedTextRange, setSelectedTextRange] = useState(null);
   const [hoveredCommentId, setHoveredCommentId] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
-  const [activeTooltip, setActiveTooltip] = useState(null); // { label, x, y }
+  const [activeTooltip, setActiveTooltip] = useState(null);
+  const [eraserCursor, setEraserCursor] = useState(null); // {x, y} for visual cursor // { label, x, y }
 
   const [scores, setScores] = useState({});
   const [scoreErrors, setScoreErrors] = useState({});
@@ -163,6 +166,7 @@ export const CorrectEssay = () => {
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
   useEffect(() => { penWidthRef.current = penWidth; }, [penWidth]);
+  useEffect(() => { eraserWidthRef.current = eraserWidth; }, [eraserWidth]);
 
   // 5.2 — Atalhos de teclado
   useEffect(() => {
@@ -482,6 +486,12 @@ export const CorrectEssay = () => {
   };
 
   const handleCanvasMouseMove = (e) => {
+    // Update eraser visual cursor
+    if (selectedToolRef.current === 'eraser') {
+      const pos = getPos(e);
+      const rect = nativeCanvasRef.current?.getBoundingClientRect();
+      if (rect) setEraserCursor({ x: e.clientX, y: e.clientY });
+    }
     if (!isDrawingRef.current) return;
     if (!ensureCtx()) return;
     e.preventDefault();
@@ -505,7 +515,8 @@ export const CorrectEssay = () => {
       ctx.stroke();
       lastPosRef.current = pos;
     } else if (tool === 'eraser') {
-      ctx.clearRect(pos.x - 15, pos.y - 15, 30, 30);
+      const ew = eraserWidthRef.current;
+      ctx.clearRect(pos.x - ew / 2, pos.y - ew / 2, ew, ew);
     } else {
       // Preview de forma: restaurar snapshot e redesenhar
       ctx.putImageData(snapshotRef.current, 0, 0);
@@ -1160,21 +1171,17 @@ export const CorrectEssay = () => {
             {selectedTool === 'eraser' && (
               <>
                 <Separator orientation="vertical" className="h-6" />
-                <div className="flex gap-1">
-                  <Button
-                    variant={eraserSize === 'small' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setEraserSize('small')}
-                  >
-                    Pequena
-                  </Button>
-                  <Button
-                    variant={eraserSize === 'large' ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setEraserSize('large')}
-                  >
-                    Grande
-                  </Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: '#6B5B4E' }}>Tam:</span>
+                  <input
+                    type="range"
+                    min="5" max="80" step="1"
+                    value={eraserWidth}
+                    onChange={e => setEraserWidth(parseInt(e.target.value))}
+                    style={{ width: '80px', accentColor: '#7C1805' }}
+                    title={`Tamanho: ${eraserWidth}px`}
+                  />
+                  <span className="text-xs font-mono" style={{ color: '#7C1805', minWidth: '32px' }}>{eraserWidth}px</span>
                 </div>
               </>
             )}
@@ -1264,7 +1271,7 @@ export const CorrectEssay = () => {
                   height: '100%',
                   pointerEvents: ['pen','eraser','line','arrow','oval','rect'].includes(selectedTool) ? 'all' : 'none',
                   zIndex: 15,
-                  cursor: selectedTool === 'eraser' ? 'cell' : 'crosshair',
+                  cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
                   touchAction: 'none',
                   display: 'block',
                 }}
@@ -1280,7 +1287,24 @@ export const CorrectEssay = () => {
           </div>
         </div>
 
-        {/* TOOLTIP GLOBAL */}
+        {/* BORRACHA — cursor visual */}
+      {selectedTool === 'eraser' && eraserCursor && (
+        <div style={{
+          position: 'fixed',
+          left: eraserCursor.x - eraserWidth / 2,
+          top: eraserCursor.y - eraserWidth / 2,
+          width: eraserWidth,
+          height: eraserWidth,
+          border: '2px solid #7C1805',
+          borderRadius: '3px',
+          pointerEvents: 'none',
+          zIndex: 9999,
+          backgroundColor: 'rgba(124,24,5,0.08)',
+          boxShadow: '0 0 0 1px rgba(255,255,255,0.8)',
+        }} />
+      )}
+
+      {/* TOOLTIP GLOBAL */}
       {activeTooltip && (
         <div style={{
           position: 'fixed',
