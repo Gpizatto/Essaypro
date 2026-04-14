@@ -74,7 +74,7 @@ export const CorrectEssay = () => {
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
   const [penWidth, setPenWidth] = useState(0.5);
-  const [penOpacity, setPenOpacity] = useState(1);
+  const penOpacity = 1; // sempre sólido
   const [eraserSize, setEraserSize] = useState('medium');
 
   const [inlineComments, setInlineComments] = useState([]);
@@ -1129,55 +1129,17 @@ export const CorrectEssay = () => {
             {selectedTool === 'pen' && (
               <>
                 <Separator orientation="vertical" className="h-6" />
-                <div className="flex gap-1">
-                  {[
-                    { w: 0.5, label: '·', title: 'Extra fina (0.5px)' },
-                    { w: 1,   label: '–', title: 'Fina (1px)' },
-                    { w: 3,   label: '—', title: 'Média (3px)' },
-                    { w: 6,   label: '█', title: 'Grossa (6px)' },
-                  ].map(({ w, label, title }) => (
-                    <Button
-                      key={w}
-                      variant={penWidth === w ? 'default' : 'outline'}
-                      size="sm"
-                      onClick={() => setPenWidth(w)}
-                      title={title}
-                    >
-                      <span style={{ fontSize: w <= 3 ? '10px' : w <= 6 ? '14px' : '18px' }}>{label}</span>
-                    </Button>
-                  ))}
-                  <Button
-                    variant={penWidth === 99 ? 'default' : 'outline'}
-                    size="sm"
-                    style={{ display: 'none' }}
-                    onClick={() => setPenWidth(99)}
-                  >
-                    Grossa
-                  </Button>
-                </div>
-                <Separator orientation="vertical" className="h-6" />
-                <div className="flex gap-1">
-                  <Button
-                    variant={penOpacity === 1 ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPenOpacity(1)}
-                  >
-                    Sólido
-                  </Button>
-                  <Button
-                    variant={penOpacity === 0.6 ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPenOpacity(0.6)}
-                  >
-                    Médio
-                  </Button>
-                  <Button
-                    variant={penOpacity === 0.3 ? 'default' : 'outline'}
-                    size="sm"
-                    onClick={() => setPenOpacity(0.3)}
-                  >
-                    Suave
-                  </Button>
+                <div className="flex items-center gap-2">
+                  <span className="text-xs" style={{ color: '#6B5B4E' }}>Esp:</span>
+                  <input
+                    type="range"
+                    min="0.5" max="20" step="0.5"
+                    value={penWidth}
+                    onChange={e => setPenWidth(parseFloat(e.target.value))}
+                    style={{ width: '80px', accentColor: '#7C1805' }}
+                    title={`Espessura: ${penWidth}px`}
+                  />
+                  <span className="text-xs font-mono" style={{ color: '#7C1805', minWidth: '32px' }}>{penWidth}px</span>
                 </div>
               </>
             )}
@@ -1250,6 +1212,8 @@ export const CorrectEssay = () => {
               <div
                 ref={textRef}
                 onMouseUp={handleTextSelection}
+                onDoubleClick={() => setSelectedTool('comment')}
+                onContextMenu={(e) => { e.preventDefault(); setSelectedTool('pen'); }}
                 onMouseMove={(e) => {
                   const target = e.target.closest('[data-comment-id]');
                   if (target) {
@@ -1311,7 +1275,12 @@ export const CorrectEssay = () => {
               <h3 className="font-semibold mb-3" style={{ color: '#7C1805' }}>Pontuação por Critério</h3>
               {prompt.criteria.map((criterion) => {
                 const levels = [];
-                for (let v = 0; v <= criterion.peso_maximo; v += 40) levels.push(v);
+                if (criterion.level_descriptions && criterion.level_descriptions.length > 0) {
+                  criterion.level_descriptions.forEach(l => levels.push(l.pontuacao));
+                } else {
+                  const step = criterion.peso_maximo <= 10 ? 1 : criterion.peso_maximo <= 50 ? 5 : 40;
+                  for (let v = 0; v <= criterion.peso_maximo; v += step) levels.push(Math.round(v * 100) / 100);
+                }
                 const current = scores[criterion.id] || 0;
                 const pct = criterion.peso_maximo > 0 ? current / criterion.peso_maximo : 0;
                 const levelColor = pct === 1 ? '#36555A' : pct >= 0.8 ? '#36555A' : pct >= 0.6 ? '#D66B27' : pct >= 0.4 ? '#DAB257' : pct > 0 ? '#7C1805' : '#6B5B4E';
@@ -1552,7 +1521,16 @@ export const CorrectEssay = () => {
               "{selectedTextRange?.text}"
             </p>
 
-            {/* Quick Comments — Banco de Comentários */}
+            {/* Campo de comentário */}
+            <Textarea
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              rows={3}
+              placeholder="Digite seu comentário ou escolha do banco abaixo..."
+              className="mb-4"
+            />
+
+            {/* Banco de Comentários */}
             <div className="mb-4">
               <Label className="text-xs mb-2 block font-semibold" style={{ color: '#7C1805' }}>
                 Banco de Comentários
@@ -1672,13 +1650,7 @@ export const CorrectEssay = () => {
               )}
             </div>
 
-            <Textarea
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              rows={4}
-              placeholder="Digite seu comentário..."
-              className="mb-4"
-            />
+
 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setShowCommentPopup(false)}>Cancelar</Button>
