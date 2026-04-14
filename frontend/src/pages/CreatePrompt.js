@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Upload } from 'lucide-react';
 import { CRITERIA_MODELS } from '../utils/criteriaModels';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -16,6 +16,24 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 export const CreatePrompt = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const fileInputRef = useRef(null);
+
+  const handleImportTxt = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setFormData(prev => ({
+        ...prev,
+        supporting_texts: prev.supporting_texts
+          ? prev.supporting_texts + '\n\n' + ev.target.result
+          : ev.target.result
+      }));
+      toast.success('Arquivo importado!');
+    };
+    reader.readAsText(file, 'UTF-8');
+    e.target.value = '';
+  };
   const [selectedModel, setSelectedModel] = useState('enem');
   const [formData, setFormData] = useState({
     title: '',
@@ -104,8 +122,8 @@ export const CreatePrompt = () => {
         toast.error('Preencha nome e descrição de todos os critérios');
         return;
       }
-      if (criterion.peso_maximo < 40 || criterion.peso_maximo > 400 || criterion.peso_maximo % 40 !== 0) {
-        toast.error('Peso máximo deve ser múltiplo de 40 entre 40 e 400');
+      if (!criterion.peso_maximo || criterion.peso_maximo <= 0) {
+        toast.error(`Critério "${criterion.nome}": pontuação deve ser maior que 0`);
         return;
       }
     }
@@ -131,9 +149,9 @@ export const CreatePrompt = () => {
       <div className="space-y-6 max-w-4xl">
         <div>
           <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="create-prompt-title">
-            Criar Novo Tema
+            Criar Nova Proposta
           </h1>
-          <p className="text-lg mt-2 text-slate-600">Adicione um novo tema de redação para os alunos</p>
+          <p className="text-lg mt-2 text-slate-600">Adicione uma nova proposta de redação para os alunos</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6" data-testid="create-prompt-form">
@@ -169,7 +187,24 @@ export const CreatePrompt = () => {
               </div>
 
               <div>
-                <Label htmlFor="supporting-texts">Textos de Apoio</Label>
+                <div className="flex items-center justify-between mb-1">
+                  <Label htmlFor="supporting-texts">Textos de Apoio</Label>
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="flex items-center gap-1 text-xs px-2 py-1 rounded border"
+                    style={{ color: '#7C1805', borderColor: '#D66B27', backgroundColor: 'transparent' }}
+                  >
+                    <Upload size={12} /> Importar .txt
+                  </button>
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".txt"
+                    style={{ display: 'none' }}
+                    onChange={handleImportTxt}
+                  />
+                </div>
                 <Textarea
                   id="supporting-texts"
                   value={formData.supporting_texts}
@@ -294,11 +329,10 @@ export const CreatePrompt = () => {
                         id={`criterion-peso-${index}`}
                         type="number"
                         value={criterion.peso_maximo}
-                        onChange={(e) => handleCriterionChange(index, 'peso_maximo', parseInt(e.target.value))}
+                        onChange={(e) => handleCriterionChange(index, 'peso_maximo', parseFloat(e.target.value) || 0)}
                         required
-                        min={40}
-                        max={400}
-                        step={40}
+                        min={0.5}
+                        step={0.5}
                         className="mt-1"
                         data-testid={`criterion-peso-${index}`}
                       />
@@ -364,7 +398,7 @@ export const CreatePrompt = () => {
               style={{ backgroundColor: '#7C1805' }}
               data-testid="submit-prompt-button"
             >
-              {loading ? 'Criando...' : 'Criar Tema'}
+              {loading ? 'Criando...' : 'Criar Proposta'}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate('/dashboard')} data-testid="cancel-button">
               Cancelar
