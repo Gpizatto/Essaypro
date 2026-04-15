@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Users, FileText, CheckCircle, Award, Zap, Save, Clock, RotateCcw, BookOpen, TrendingUp, Download } from 'lucide-react';
@@ -26,6 +27,7 @@ const StatCard = ({ label, value, icon: Icon, color, sub }) => (
 export const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pendingUsers, setPendingUsers] = useState([]);
   const [creditConfig, setCreditConfig] = useState({ mode: 'unlimited', limit: 4 });
   const [savingCredits, setSavingCredits] = useState(false);
 
@@ -84,6 +86,23 @@ export const AdminDashboard = () => {
       </Layout>
     );
   }
+
+  const approveUser = async (userId) => {
+    try {
+      await axios.post(`${API_URL}/api/admin/approve-user/${userId}`, {}, { withCredentials: true });
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      toast.success('Usuário aprovado!');
+    } catch (e) { toast.error('Erro ao aprovar'); }
+  };
+
+  const rejectUser = async (userId) => {
+    if (!window.confirm('Rejeitar e excluir este cadastro?')) return;
+    try {
+      await axios.post(`${API_URL}/api/admin/reject-user/${userId}`, {}, { withCredentials: true });
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      toast.success('Cadastro rejeitado');
+    } catch (e) { toast.error('Erro ao rejeitar'); }
+  };
 
   const handleExportPDF = () => {
     exportToPDF('Relatório do Curso — RcN', `
@@ -166,6 +185,41 @@ export const AdminDashboard = () => {
           <StatCard label="MÉDIA GERAL" value={Math.round(stats?.average_score || 0)} icon={Award} color="#A03217" />
         </div>
 
+        {/* APROVAÇÃO DE USUÁRIOS PENDENTES */}
+        {pendingUsers.length > 0 && (
+          <Card className="p-5 bg-white border shadow-sm" style={{ borderColor: '#DAB257' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D66B27' }} />
+              <h2 className="font-semibold text-sm" style={{ color: '#7C1805' }}>
+                Aguardando aprovação ({pendingUsers.length})
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {pendingUsers.map(u => (
+                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
+                    <p className="text-xs" style={{ color: '#6B5B4E' }}>{u.email}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => approveUser(u.id)}
+                      className="px-3 py-1 rounded text-xs font-semibold text-white"
+                      style={{ backgroundColor: '#36555A' }}>
+                      ✓ Aprovar
+                    </button>
+                    <button onClick={() => rejectUser(u.id)}
+                      className="px-3 py-1 rounded text-xs font-semibold"
+                      style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
+                      ✕ Rejeitar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
         {/* FREQUÊNCIA DE ENVIO */}
         <div className="grid grid-cols-2 gap-4">
           <Card className="p-4 bg-white border shadow-sm">
@@ -199,6 +253,41 @@ export const AdminDashboard = () => {
             </div>
           </Card>
         </div>
+
+        {/* APROVAÇÃO DE USUÁRIOS PENDENTES */}
+        {pendingUsers.length > 0 && (
+          <Card className="p-5 bg-white border shadow-sm" style={{ borderColor: '#DAB257' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D66B27' }} />
+              <h2 className="font-semibold text-sm" style={{ color: '#7C1805' }}>
+                Aguardando aprovação ({pendingUsers.length})
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {pendingUsers.map(u => (
+                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
+                    <p className="text-xs" style={{ color: '#6B5B4E' }}>{u.email}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => approveUser(u.id)}
+                      className="px-3 py-1 rounded text-xs font-semibold text-white"
+                      style={{ backgroundColor: '#36555A' }}>
+                      ✓ Aprovar
+                    </button>
+                    <button onClick={() => rejectUser(u.id)}
+                      className="px-3 py-1 rounded text-xs font-semibold"
+                      style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
+                      ✕ Rejeitar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         {/* FREQUÊNCIA DE ENVIO */}
         {(stats?.essays_last_7_days !== undefined || stats?.essays_last_30_days !== undefined) && (
