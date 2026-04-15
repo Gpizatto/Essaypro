@@ -47,10 +47,9 @@ export const AuthProvider = ({ children }) => {
   const register = async (name, email, password, role = 'student') => {
     const { data } = await axios.post(
       `${API_URL}/api/auth/register`,
-      { name, email, password, role },
-      { withCredentials: true }
+      { name, email, password, role }
     );
-    setUser(data);
+    // Não faz login automático — aguarda aprovação do admin
     return data;
   };
 
