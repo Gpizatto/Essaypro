@@ -23,17 +23,20 @@ export const StudentDashboard = () => {
   }, []);
 
   const [pendingEssays, setPendingEssays] = useState([]);
+  const [myCourses, setMyCourses] = useState([]);
 
   const fetchAll = async () => {
     try {
-      const [statsRes, creditsRes, essaysRes, settingsRes] = await Promise.all([
+      const [statsRes, creditsRes, essaysRes, settingsRes, coursesRes] = await Promise.all([
         axios.get(`${API_URL}/api/stats/student`, { withCredentials: true }),
         axios.get(`${API_URL}/api/credits/me`, { withCredentials: true }),
         axios.get(`${API_URL}/api/essays/my`, { withCredentials: true }),
         axios.get(`${API_URL}/api/settings/course`, { withCredentials: true }).catch(() => ({ data: {} })),
+        axios.get(`${API_URL}/api/my/courses`, { withCredentials: true }).catch(() => ({ data: [] })),
       ]);
       setStats(statsRes.data);
       setCredits(creditsRes.data);
+      setMyCourses(Array.isArray(coursesRes.data) ? coursesRes.data : []);
       // Usar prazo configurado pelo admin (padrão 5 dias)
       const deadlineDays = settingsRes.data?.correction_deadline_days > 0
         ? settingsRes.data.correction_deadline_days
