@@ -135,12 +135,6 @@ export const Login = () => {
             </Link>
           </p>
 
-          <div className="mt-8 p-4 rounded-lg" style={{ backgroundColor: 'rgba(124,24,5,0.06)', border: '1px solid rgba(124,24,5,0.1)' }}>
-            <p className="text-xs font-semibold mb-2" style={{ color: '#7C1805' }}>Contas de Teste:</p>
-            <p className="text-xs" style={{ color: '#6B5B4E' }}>Aluno: student@test.com / test123</p>
-            <p className="text-xs" style={{ color: '#6B5B4E' }}>Professor: prof@test.com / test123</p>
-            <p className="text-xs" style={{ color: '#6B5B4E' }}>Admin: admin@essaypro.com / admin123</p>
-          </div>
         </div>
       </div>
     </div>
