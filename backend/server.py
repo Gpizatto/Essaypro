@@ -202,41 +202,38 @@ class CorrectionResponse(BaseModel):
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
-@api_router.post("/auth/register", response_model=UserResponse)
-async def register(user_data: UserRegister, response: Response):
+@api_router.post("/auth/register")
+async def register(user_data: UserRegister):
     email = user_data.email.lower()
     existing = await db.users.find_one({"email": email})
     if existing:
-        raise HTTPException(status_code=400, detail="Email already registered")
+        raise HTTPException(status_code=400, detail="Email já cadastrado")
     
     hashed_pw = hash_password(user_data.password)
     user_doc = {
         "name": user_data.name,
         "email": email,
         "password_hash": hashed_pw,
-        "role": user_data.role,
+        "role": "student",  # sempre começa como aluno
+        "is_active": False,  # bloqueado até aprovação
+        "is_approved": False,
         "created_at": datetime.now(timezone.utc)
     }
-    result = await db.users.insert_one(user_doc)
-    user_id = str(result.inserted_id)
-    
-    access_token = create_access_token(user_id, email)
-    refresh_token = create_refresh_token(user_id)
-    
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
-    response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
-    
-    return UserResponse(id=user_id, name=user_doc["name"], email=user_doc["email"], role=user_doc["role"], created_at=user_doc["created_at"])
+    await db.users.insert_one(user_doc)
+    return {"message": "Cadastro realizado! Aguarde a aprovação do administrador para acessar a plataforma."}
 
 @api_router.post("/auth/login", response_model=UserResponse)
 async def login(login_data: UserLogin, response: Response):
     email = login_data.email.lower()
     user = await db.users.find_one({"email": email})
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Email ou senha inválidos")
     
     if not verify_password(login_data.password, user["password_hash"]):
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="Email ou senha inválidos")
+    
+    if not user.get("is_approved", True) or not user.get("is_active", True):
+        raise HTTPException(status_code=403, detail="Sua conta ainda não foi aprovada pelo administrador. Aguarde.")
     
     user_id = str(user["_id"])
     access_token = create_access_token(user_id, email)
@@ -606,6 +603,44 @@ async def get_student_stats(current_user: dict = Depends(get_current_user)):
         "average_score": sum(scores) / len(scores) if scores else 0,
         "best_score": max(scores) if scores else 0
     }
+
+@api_router.get("/admin/pending-users")
+async def get_pending_users(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    users = await db.users.find(
+        {"is_approved": False},
+        {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1}
+    ).sort("created_at", -1).to_list(100)
+    return [{"id": str(u["_id"]), "name": u["name"], "email": u["email"],
+             "role": u.get("role", "student"), "created_at": u["created_at"]} for u in users]
+
+@api_router.post("/admin/approve-user/{user_id}")
+async def approve_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    result = await db.users.update_one(
+        {"_id": ObjectId(user_id)},
+        {"$set": {"is_approved": True, "is_active": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="User not found")
+    await create_activity_log(
+        user_id=current_user["_id"],
+        user_name=current_user.get("name", "?"),
+        action="approved_user",
+        entity_type="user",
+        entity_id=user_id,
+        detail="Usuário aprovado"
+    )
+    return {"ok": True}
+
+@api_router.post("/admin/reject-user/{user_id}")
+async def reject_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    await db.users.delete_one({"_id": ObjectId(user_id)})
+    return {"ok": True}
 
 @api_router.get("/admin/users", response_model=List[UserResponse])
 async def get_all_users(current_user: dict = Depends(get_current_user)):
