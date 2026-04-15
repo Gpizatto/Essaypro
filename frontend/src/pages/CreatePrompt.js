@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
@@ -16,6 +16,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 export const CreatePrompt = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
+  const [availableCourses, setAvailableCourses] = useState([]);
   const fileInputRef = useRef(null);
 
   const handleImportFile = (e) => {
@@ -96,9 +97,16 @@ export const CreatePrompt = () => {
     e.target.value = '';
   };
   const [selectedModel, setSelectedModel] = useState('enem');
+
+  useEffect(() => {
+    axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/courses`, { withCredentials: true })
+      .then(r => setAvailableCourses(r.data || []))
+      .catch(() => {});
+  }, []);
   const [formData, setFormData] = useState({
     title: '',
     theme: '',
+    course_ids: [],
     supporting_texts: '',
     instructions: '',
   });
@@ -246,6 +254,39 @@ export const CreatePrompt = () => {
                   data-testid="theme-input"
                 />
               </div>
+
+              {/* Restringir por turma */}
+              {availableCourses.length > 0 && (
+                <div>
+                  <Label className="text-sm font-semibold">Restringir a turmas (opcional)</Label>
+                  <p className="text-xs mt-0.5 mb-2" style={{ color: '#6B5B4E' }}>
+                    Deixe em branco para todos os alunos verem. Selecione turmas para restringir.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {availableCourses.filter(c => c.is_active).map(c => (
+                      <label key={c.id} className="flex items-center gap-1.5 cursor-pointer text-xs px-3 py-1.5 rounded-full border transition-all"
+                        style={{
+                          backgroundColor: (formData.course_ids || []).includes(c.id) ? '#7C1805' : 'transparent',
+                          color: (formData.course_ids || []).includes(c.id) ? '#FDF3E8' : '#6B5B4E',
+                          borderColor: (formData.course_ids || []).includes(c.id) ? '#7C1805' : '#E8DDD0',
+                        }}>
+                        <input type="checkbox" style={{ display: 'none' }}
+                          checked={(formData.course_ids || []).includes(c.id)}
+                          onChange={e => {
+                            const ids = formData.course_ids || [];
+                            setFormData({ ...formData,
+                              course_ids: e.target.checked
+                                ? [...ids, c.id]
+                                : ids.filter(id => id !== c.id)
+                            });
+                          }}
+                        />
+                        {c.name}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <div className="flex items-center justify-between mb-1">
