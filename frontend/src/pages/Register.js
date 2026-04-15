@@ -35,8 +35,8 @@ export const Register = () => {
 
     try {
       await register(name, email, password, role);
-      toast.success('Cadastro realizado com sucesso!');
-      navigate('/dashboard');
+      toast.success('Cadastro realizado! Aguarde a aprovação do administrador.');
+      navigate('/login');
     } catch (error) {
       const errorMsg = formatApiErrorDetail(error.response?.data?.detail) || error.message;
       toast.error(errorMsg);
