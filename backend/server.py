@@ -120,6 +120,7 @@ class PromptCreate(BaseModel):
     supporting_texts: str
     instructions: str
     criteria: Optional[List[Criterion]] = None
+    course_ids: Optional[List[str]] = []  # [] = visível para todos
 
 class PromptResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -132,6 +133,7 @@ class PromptResponse(BaseModel):
     created_by: str
     created_at: datetime
     is_active: bool
+    course_ids: Optional[List[str]] = []
 
 class EssaySubmit(BaseModel):
     prompt_id: str
@@ -262,7 +264,17 @@ async def logout(response: Response):
 
 @api_router.get("/prompts", response_model=List[PromptResponse])
 async def get_prompts(current_user: dict = Depends(get_current_user)):
-    prompts = await db.prompts.find({"is_active": True}, {"_id": 0}).to_list(1000)
+    user_course_ids = current_user.get("course_ids", [])
+    # Mostrar propostas: sem restrição de turma OU que pertencem às turmas do usuário
+    if user_course_ids:
+        prompt_query = {"is_active": True, "$or": [
+            {"course_ids": {"$exists": False}},
+            {"course_ids": []},
+            {"course_ids": {"$in": user_course_ids}},
+        ]}
+    else:
+        prompt_query = {"is_active": True}
+    prompts = await db.prompts.find(prompt_query, {"_id": 0}).to_list(1000)
     
     default_criteria = [
         {"id": "c1", "nome": "Competência 1 — Domínio da Norma Culta", "descricao": "Demonstrar domínio da modalidade escrita formal da língua portuguesa", "peso_maximo": 200},
@@ -302,7 +314,8 @@ async def create_prompt(prompt_data: PromptCreate, current_user: dict = Depends(
         "criteria": [c.model_dump() for c in criteria],
         "created_by": current_user["_id"],
         "created_at": datetime.now(timezone.utc),
-        "is_active": True
+        "is_active": True,
+        "course_ids": prompt_data.course_ids or [],
     }
     await db.prompts.insert_one(prompt_doc)
     return PromptResponse(**prompt_doc)
@@ -457,9 +470,22 @@ async def get_my_essays(current_user: dict = Depends(get_current_user)):
 async def get_correction_queue(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
-    
-    essays = await db.essays.find({"status": "pending"}, {"_id": 0}).to_list(1000)
-    
+
+    # Se professor pertence a turmas, filtra só alunos dessas turmas
+    essay_query = {"status": "pending"}
+    teacher_course_ids = current_user.get("course_ids", [])
+    if current_user["role"] == "teacher" and teacher_course_ids:
+        # Buscar IDs dos alunos nas mesmas turmas do professor
+        students_in_courses = await db.users.find(
+            {"role": "student", "course_ids": {"$in": teacher_course_ids}},
+            {"_id": 1}
+        ).to_list(10000)
+        student_ids = [str(s["_id"]) for s in students_in_courses]
+        if student_ids:
+            essay_query["student_id"] = {"$in": student_ids}
+
+    essays = await db.essays.find(essay_query, {"_id": 0}).to_list(1000)
+
     for essay in essays:
         student = await db.users.find_one({"_id": ObjectId(essay["student_id"])}, {"_id": 0})
         prompt = await db.prompts.find_one({"id": essay["prompt_id"]}, {"_id": 0})
@@ -467,7 +493,7 @@ async def get_correction_queue(current_user: dict = Depends(get_current_user)):
             essay["student_name"] = student["name"]
         if prompt:
             essay["prompt_title"] = prompt["title"]
-    
+
     return [EssayResponse(**e) for e in essays]
 
 @api_router.patch("/essays/{essay_id}/status")
@@ -870,7 +896,13 @@ async def get_teacher_students(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    students = await db.users.find({"role": "student"}, {"_id": 1, "name": 1, "email": 1, "created_at": 1}).to_list(1000)
+    # Filtrar alunos pelas turmas do professor
+    teacher_course_ids = current_user.get("course_ids", [])
+    if current_user["role"] == "teacher" and teacher_course_ids:
+        student_query = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
+    else:
+        student_query = {"role": "student"}
+    students = await db.users.find(student_query, {"_id": 1, "name": 1, "email": 1, "created_at": 1}).to_list(1000)
     result = []
 
     for student in students:
@@ -1312,7 +1344,13 @@ async def get_ranking(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    students = await db.users.find({"role": "student"}, {"_id": 1, "name": 1, "created_at": 1}).to_list(1000)
+    # Filtrar por turmas do professor
+    teacher_course_ids = current_user.get("course_ids", [])
+    if current_user["role"] == "teacher" and teacher_course_ids:
+        student_filter = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
+    else:
+        student_filter = {"role": "student"}
+    students = await db.users.find(student_filter, {"_id": 1, "name": 1, "created_at": 1}).to_list(1000)
     result = []
 
     for student in students:
