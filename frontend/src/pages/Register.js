@@ -23,6 +23,7 @@ const formatApiErrorDetail = (detail) => {
 export const Register = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('student');
   const [loading, setLoading] = useState(false);
@@ -34,7 +35,7 @@ export const Register = () => {
     setLoading(true);
 
     try {
-      await register(name, email, password, role);
+      await register(name, email, password, role, phone);
       toast.success('Cadastro realizado! Aguarde a aprovação do administrador.');
       navigate('/login');
     } catch (error) {
@@ -88,6 +89,21 @@ export const Register = () => {
               data-testid="email-input"
               className="mt-1"
             />
+          </div>
+
+          <div>
+            <Label htmlFor="phone">WhatsApp (opcional)</Label>
+            <Input
+              id="phone"
+              type="tel"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              placeholder="(11) 99999-9999"
+              className="mt-1"
+            />
+            <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
+              Para receber notificação quando sua correção ficar pronta
+            </p>
           </div>
 
           <div>
