@@ -27,8 +27,14 @@ export const ManagePrompts = () => {
   const [confirmDelete, setConfirmDelete] = useState(null);
   const [showCopyCriteria, setShowCopyCriteria] = useState(null); // promptId de destino
   const [copySource, setCopySource] = useState('');
+  const [availableCourses, setAvailableCourses] = useState([]);
 
-  useEffect(() => { fetchPrompts(); }, []);
+  useEffect(() => {
+    fetchPrompts();
+    axios.get(`${API_URL}/api/courses`, { withCredentials: true })
+      .then(r => setAvailableCourses(r.data || []))
+      .catch(() => {});
+  }, []);
 
   const fetchPrompts = async () => {
     try {
@@ -48,6 +54,7 @@ export const ManagePrompts = () => {
       theme: prompt.theme,
       supporting_texts: prompt.supporting_texts,
       instructions: prompt.instructions,
+      course_ids: prompt.course_ids || [],
     });
   };
 
@@ -213,6 +220,21 @@ export const ManagePrompts = () => {
                           }}>
                             {prompt.is_active ? 'Ativa' : 'Arquivada'}
                           </Badge>
+                          {(prompt.course_ids || []).length > 0 && (prompt.course_ids || []).map(cid => {
+                            const course = availableCourses.find(c => c.id === cid);
+                            return course ? (
+                              <span key={cid} className="text-xs px-2 py-0.5 rounded-full"
+                                style={{ backgroundColor: '#EDF4F5', color: '#36555A', border: '1px solid #36555A' }}>
+                                🎓 {course.name}
+                              </span>
+                            ) : null;
+                          })}
+                          {(prompt.course_ids || []).length === 0 && (
+                            <span className="text-xs px-2 py-0.5 rounded-full"
+                              style={{ backgroundColor: '#FDF3E8', color: '#D66B27', border: '1px solid #D66B27' }}>
+                              Todos os alunos
+                            </span>
+                          )}
                         </div>
                         <p className="text-sm truncate" style={{ color: '#6B5B4E' }}>{prompt.theme}</p>
                         <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
@@ -308,6 +330,36 @@ export const ManagePrompts = () => {
                       <Textarea style={inputStyle} rows={3} value={editForm.instructions}
                         onChange={e => setEditForm({ ...editForm, instructions: e.target.value })} />
                     </div>
+                    {/* Turmas */}
+                    {availableCourses.length > 0 && (
+                      <div>
+                        <label style={labelStyle}>Restringir a turmas (vazio = todos)</label>
+                        <div className="flex flex-wrap gap-2 mt-1">
+                          {availableCourses.filter(c => c.is_active).map(c => (
+                            <label key={c.id} className="flex items-center gap-1.5 cursor-pointer text-xs px-2 py-1 rounded-full border"
+                              style={{
+                                backgroundColor: (editForm.course_ids || []).includes(c.id) ? '#7C1805' : 'transparent',
+                                color: (editForm.course_ids || []).includes(c.id) ? '#FDF3E8' : '#6B5B4E',
+                                borderColor: (editForm.course_ids || []).includes(c.id) ? '#7C1805' : '#E8DDD0',
+                              }}>
+                              <input type="checkbox" style={{ display: 'none' }}
+                                checked={(editForm.course_ids || []).includes(c.id)}
+                                onChange={e => {
+                                  const ids = editForm.course_ids || [];
+                                  setEditForm({ ...editForm,
+                                    course_ids: e.target.checked
+                                      ? [...ids, c.id]
+                                      : ids.filter(id => id !== c.id)
+                                  });
+                                }}
+                              />
+                              {c.name}
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="flex gap-2 flex-wrap">
                       <Button size="sm" disabled={saving} onClick={() => saveEdit(prompt.id)}>
                         <Check size={14} className="mr-1" />
