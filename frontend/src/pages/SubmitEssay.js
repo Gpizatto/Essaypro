@@ -241,30 +241,51 @@ export const SubmitEssay = () => {
           {(prompt.supporting_files || []).length > 0 && (
             <div className="space-y-4 mt-2">
               {prompt.supporting_files.map((file, i) => (
-                <div key={i}>
-                  <p className="text-xs font-semibold mb-1" style={{ color: '#7C1805' }}>
-                    📎 {file.name}
-                  </p>
-                  {file.type === 'pdf' ? (
-                    <div>
-                      <iframe
-                        src={file.url}
-                        title={file.name}
-                        width="100%"
-                        height="600px"
-                        style={{ border: '1px solid #E8DDD0', borderRadius: '8px' }}
-                      />
-                      <a href={file.url} target="_blank" rel="noreferrer"
-                        className="text-xs mt-1 inline-block"
-                        style={{ color: '#36555A' }}>
-                        ↗ Abrir PDF em nova aba
+                <div key={i} className="rounded-xl overflow-hidden" style={{ border: '1px solid #E8DDD0' }}>
+                  {/* Header com nome e botões */}
+                  <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: '#FDF3E8' }}>
+                    <span className="text-sm font-semibold flex items-center gap-2" style={{ color: '#7C1805' }}>
+                      {file.type === 'pdf' ? '📄' : '🖼️'} {file.name}
+                    </span>
+                    <div className="flex gap-2">
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs px-3 py-1 rounded font-semibold"
+                        style={{ backgroundColor: '#7C1805', color: 'white' }}
+                      >
+                        ↗ Abrir
+                      </a>
+                      <a
+                        href={`${file.url}?fl_attachment=true`}
+                        download={file.name}
+                        className="text-xs px-3 py-1 rounded font-semibold border"
+                        style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}
+                      >
+                        ⬇ Baixar
                       </a>
                     </div>
+                  </div>
+                  {/* Visualizador */}
+                  {file.type === 'pdf' ? (
+                    <iframe
+                      src={`https://docs.google.com/viewer?url=${encodeURIComponent(file.url)}&embedded=true`}
+                      title={file.name}
+                      width="100%"
+                      height="650px"
+                      style={{ border: 'none', display: 'block' }}
+                      onError={(e) => {
+                        // Fallback: link direto se o viewer falhar
+                        e.target.style.display = 'none';
+                        e.target.nextSibling.style.display = 'block';
+                      }}
+                    />
                   ) : (
                     <img
                       src={file.url}
                       alt={file.name}
-                      style={{ maxWidth: '100%', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                      style={{ maxWidth: '100%', display: 'block' }}
                     />
                   )}
                 </div>
