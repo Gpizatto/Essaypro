@@ -133,8 +133,9 @@ export const CreatePrompt = () => {
   // Gera array de níveis vazio com base no peso_maximo
   const buildEmptyLevels = (pesoMaximo) => {
     const levels = [];
-    for (let v = 0; v <= pesoMaximo; v += 40) {
-      levels.push({ pontuacao: v, proficiencia: '', descricao: '' });
+    const step = pesoMaximo <= 10 ? 1 : pesoMaximo <= 50 ? 5 : 40;
+    for (let v = 0; v <= pesoMaximo; v += step) {
+      levels.push({ pontuacao: Math.round(v * 100) / 100, proficiencia: '', descricao: '' });
     }
     return levels;
   };
