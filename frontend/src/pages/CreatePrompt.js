@@ -109,6 +109,8 @@ export const CreatePrompt = () => {
     course_ids: [],
     supporting_texts: '',
     instructions: '',
+    start_date: '',
+    end_date: '',
   });
   const [criteria, setCriteria] = useState(() => {
     return CRITERIA_MODELS.enem.criteria.map(c => ({
@@ -165,10 +167,12 @@ export const CreatePrompt = () => {
     // Se mudou o peso_maximo, reconstruir níveis mantendo descrições existentes
     if (field === 'peso_maximo' && !isNaN(value) && value > 0) {
       const existing = updated[index].level_descriptions || [];
+      const step = value <= 10 ? 1 : value <= 50 ? 5 : 40;
       const newLevels = [];
-      for (let v = 0; v <= value; v += 40) {
-        const prev = existing.find(l => l.pontuacao === v);
-        newLevels.push(prev || { pontuacao: v, proficiencia: '', descricao: '' });
+      for (let v = 0; v <= value; v += step) {
+        const rounded = Math.round(v * 100) / 100;
+        const prev = existing.find(l => Math.abs(parseFloat(l.pontuacao) - rounded) < 0.01);
+        newLevels.push(prev || { pontuacao: rounded, proficiencia: '', descricao: '' });
       }
       updated[index].level_descriptions = newLevels;
     }
@@ -288,6 +292,36 @@ export const CreatePrompt = () => {
                   </div>
                 </div>
               )}
+
+              {/* Período de disponibilidade */}
+              <div>
+                <Label className="text-sm font-semibold">Período de disponibilidade (opcional)</Label>
+                <p className="text-xs mt-0.5 mb-2" style={{ color: '#6B5B4E' }}>
+                  Defina quando esta proposta ficará disponível para os alunos. Deixe em branco para sempre disponível.
+                </p>
+                <div className="flex gap-3">
+                  <div className="flex-1">
+                    <Label htmlFor="start_date" className="text-xs">Data de início</Label>
+                    <Input
+                      id="start_date"
+                      type="date"
+                      value={formData.start_date}
+                      onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                  <div className="flex-1">
+                    <Label htmlFor="end_date" className="text-xs">Data de encerramento</Label>
+                    <Input
+                      id="end_date"
+                      type="date"
+                      value={formData.end_date}
+                      onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                      className="mt-1"
+                    />
+                  </div>
+                </div>
+              </div>
 
               <div>
                 <div className="flex items-center justify-between mb-1">
@@ -427,7 +461,7 @@ export const CreatePrompt = () => {
                     </div>
 
                     <div>
-                      <Label htmlFor={`criterion-peso-${index}`} className="text-xs">Pontuação Máxima (múltiplo de 40)</Label>
+                      <Label htmlFor={`criterion-peso-${index}`} className="text-xs">Pontuação Máxima</Label>
                       <Input
                         id={`criterion-peso-${index}`}
                         type="number"
