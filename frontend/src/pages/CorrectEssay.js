@@ -1236,6 +1236,46 @@ export const CorrectEssay = () => {
             </div>
           )}
 
+          {/* ARQUIVO ENVIADO (PDF ou imagem) — mostra se submission_method === 'upload' e tem file_url */}
+          {essay?.submission_method === 'upload' && essay?.file_url && (
+            <div className="px-8 pb-4">
+              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E8DDD0' }}>
+                <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: '#FDF3E8' }}>
+                  <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+                    {essay.file_url.match(/\.(jpg|jpeg|png|gif|webp)/i) ? '🖼️ Imagem enviada pelo aluno' : '📄 PDF enviado pelo aluno'}
+                  </span>
+                  <div className="flex gap-2">
+                    <a href={essay.file_url} target="_blank" rel="noreferrer"
+                      className="text-xs px-3 py-1 rounded font-semibold"
+                      style={{ backgroundColor: '#7C1805', color: 'white' }}>
+                      ↗ Abrir
+                    </a>
+                    <a href={`${essay.file_url}?fl_attachment=true`} download
+                      className="text-xs px-3 py-1 rounded font-semibold border"
+                      style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
+                      ⬇ Baixar
+                    </a>
+                  </div>
+                </div>
+                {essay.file_url.match(/\.(jpg|jpeg|png|gif|webp)/i) ? (
+                  <img
+                    src={essay.file_url}
+                    alt="Redação do aluno"
+                    style={{ width: '100%', display: 'block', maxHeight: '800px', objectFit: 'contain', backgroundColor: '#fff' }}
+                  />
+                ) : (
+                  <iframe
+                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(essay.file_url)}&embedded=true`}
+                    title="Redação do aluno"
+                    width="100%"
+                    height="700px"
+                    style={{ border: 'none', display: 'block' }}
+                  />
+                )}
+              </div>
+            </div>
+          )}
+
           {/* TEXTO DA REDAÇÃO */}
           <div className="p-8">
             <div
