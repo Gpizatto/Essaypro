@@ -38,6 +38,7 @@ export const AdvancedReports = () => {
   const [tab, setTab] = useState('ranking');
   const [students, setStudents] = useState([]);
   const [prompts, setPrompts] = useState([]);
+  const [engagement, setEngagement] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [sortBy, setSortBy] = useState('average_score');
@@ -46,9 +47,11 @@ export const AdvancedReports = () => {
     Promise.all([
       axios.get(`${API_URL}/api/admin/reports/ranking`, { withCredentials: true }),
       axios.get(`${API_URL}/api/admin/reports/prompts`, { withCredentials: true }),
-    ]).then(([s, p]) => {
+      axios.get(`${API_URL}/api/admin/reports/course-engagement`, { withCredentials: true }).catch(() => ({ data: [] })),
+    ]).then(([s, p, e]) => {
       setStudents(s.data);
       setPrompts(p.data);
+      setEngagement(e.data || []);
     }).catch(console.error)
     .finally(() => setLoading(false));
   }, []);
@@ -124,6 +127,7 @@ export const AdvancedReports = () => {
   const TABS = [
     { key: 'ranking', label: 'Ranking de Alunos', icon: Trophy },
     { key: 'prompts', label: 'Análise de Propostas', icon: BookOpen },
+    { key: 'engagement', label: 'Engajamento por Turma', icon: Users },
   ];
 
   if (loading) return (
