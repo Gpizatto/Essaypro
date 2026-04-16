@@ -77,9 +77,11 @@ export const SubmitEssay = () => {
 
   const handleFileUpload = async (file) => {
     try {
-      const sigRes = await axios.get(`${API_URL}/api/cloudinary/signature?resource_type=auto`, {
-        withCredentials: true,
-      });
+      const folder = 'essaypro/essays';
+      const sigRes = await axios.get(
+        `${API_URL}/api/cloudinary/signature?resource_type=auto&folder=${encodeURIComponent(folder)}`,
+        { withCredentials: true }
+      );
       const sig = sigRes.data;
 
       const formData = new FormData();
@@ -87,20 +89,22 @@ export const SubmitEssay = () => {
       formData.append('api_key', sig.api_key);
       formData.append('timestamp', sig.timestamp);
       formData.append('signature', sig.signature);
-      formData.append('folder', sig.folder);
+      formData.append('folder', folder);
+      formData.append('resource_type', 'auto');
 
       const uploadRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${sig.cloud_name}/${sig.resource_type}/upload`,
+        `https://api.cloudinary.com/v1_1/${sig.cloud_name}/auto/upload`,
         { method: 'POST', body: formData }
       );
 
       const result = await uploadRes.json();
+      if (!result.secure_url) throw new Error(result.error?.message || 'Upload falhou');
       setUploadUrl(result.secure_url);
-      toast.success('Arquivo enviado com sucesso!');
+      toast.success('Arquivo enviado!');
       return result.secure_url;
     } catch (error) {
       console.error('Upload error:', error);
-      toast.error('Erro ao fazer upload do arquivo');
+      toast.error('Erro ao fazer upload: ' + (error.message || 'tente novamente'));
       return null;
     }
   };
@@ -442,7 +446,28 @@ export const SubmitEssay = () => {
                 data-testid="file-upload-input"
               />
               {uploadFile && (
-                <p className="mt-4 text-sm text-slate-600">Arquivo selecionado: {uploadFile.name}</p>
+                <div className="mt-4">
+                  <p className="text-sm text-slate-600 mb-2">
+                    ✅ Arquivo selecionado: <strong>{uploadFile.name}</strong>
+                  </p>
+                  {uploadFile.type.startsWith('image/') && (
+                    <img
+                      src={URL.createObjectURL(uploadFile)}
+                      alt="Preview"
+                      style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid #E8DDD0', objectFit: 'contain' }}
+                    />
+                  )}
+                  {uploadFile.type === 'application/pdf' && (
+                    <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#FDF3E8', color: '#7C1805' }}>
+                      📄 PDF pronto para envio. O professor poderá visualizá-lo durante a correção.
+                    </p>
+                  )}
+                </div>
+              )}
+              {uploadUrl && (
+                <p className="mt-2 text-xs font-semibold" style={{ color: '#36555A' }}>
+                  ✓ Arquivo enviado com sucesso! Clique em "Enviar Redação" para concluir.
+                </p>
               )}
             </Card>
             <div className="mt-6 flex justify-center">
