@@ -1184,19 +1184,18 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/cloudinary/signature")
 def generate_cloudinary_signature(
-    resource_type: str = Query("image", enum=["image", "auto"]),
+    resource_type: str = Query("auto"),
     folder: str = "essaypro/uploads",
     current_user: dict = Depends(get_current_user)
 ):
-    timestamp = int(time.time())
+    import time as time_module
+    timestamp = int(time_module.time())
+    # resource_type NAO entra na assinatura — só folder e timestamp
     params = {
         "timestamp": timestamp,
         "folder": folder,
-        "resource_type": resource_type
     }
-    
     signature = cloudinary.utils.api_sign_request(params, os.getenv("CLOUDINARY_API_SECRET"))
-    
     return {
         "signature": signature,
         "timestamp": timestamp,
