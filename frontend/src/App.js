@@ -6,6 +6,7 @@ import { Toaster } from './components/ui/sonner';
 import { Login } from './pages/Login';
 import { Register } from './pages/Register';
 import { ForgotPassword } from './pages/ForgotPassword';
+import { PromptsCalendar } from './pages/PromptsCalendar';
 import { ResetPassword } from './pages/ResetPassword';
 import { StudentDashboard } from './pages/StudentDashboard';
 import { TeacherDashboard } from './pages/TeacherDashboard';
@@ -59,6 +60,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/calendar" element={<ProtectedRoute allowedRoles={['student']}><PromptsCalendar /></ProtectedRoute>} />
           <Route path="/reset-password" element={<ResetPassword />} />
           
           <Route
