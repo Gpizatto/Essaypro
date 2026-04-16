@@ -41,6 +41,11 @@ export const CorrectionQueue = () => {
   const [deadlineDays, setDeadlineDays] = useState(3);
   const [courses, setCourses] = useState([]);
   const [filterCourse, setFilterCourse] = useState('all');
+  const [sortBy, setSortBy] = useState('oldest');
+  const [selectedEssays, setSelectedEssays] = useState(new Set());
+  const [showBatchComment, setShowBatchComment] = useState(false);
+  const [batchCommentText, setBatchCommentText] = useState('');
+  const [sendingBatch, setSendingBatch] = useState(false);
   const [search, setSearch] = useState('');
   const [filterPrompt, setFilterPrompt] = useState('all');
   const navigate = useNavigate();
@@ -54,6 +59,22 @@ export const CorrectionQueue = () => {
       .then(r => setCourses(r.data || []))
       .catch(() => {});
   }, []);
+
+  const sendBatchComment = async () => {
+    if (!batchCommentText.trim() || selectedEssays.size === 0) return;
+    setSendingBatch(true);
+    try {
+      await axios.post(`${API_URL}/api/corrections/batch-comment`, {
+        essay_ids: Array.from(selectedEssays),
+        comment: batchCommentText,
+      }, { withCredentials: true });
+      toast.success(`Comentário enviado para ${selectedEssays.size} redações!`);
+      setSelectedEssays(new Set());
+      setBatchCommentText('');
+      setShowBatchComment(false);
+    } catch (e) { toast.error('Erro ao enviar comentário em lote'); }
+    finally { setSendingBatch(false); }
+  };
 
   const fetchAll = async () => {
     try {
@@ -181,6 +202,11 @@ export const CorrectionQueue = () => {
                 ))}
               </select>
             )}
+            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...selectStyle, maxWidth: '160px' }}>
+              <option value="oldest">Mais antigas primeiro</option>
+              <option value="newest">Mais recentes primeiro</option>
+              <option value="name">Por nome do aluno</option>
+            </select>
             {(search || filterPrompt !== 'all' || filterCourse !== 'all') && (
               <button onClick={() => { setSearch(''); setFilterPrompt('all'); setFilterCourse('all'); }}
                 className="text-xs px-2 py-1 rounded flex items-center gap-1"
