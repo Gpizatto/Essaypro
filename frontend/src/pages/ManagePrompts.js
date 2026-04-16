@@ -57,6 +57,7 @@ export const ManagePrompts = () => {
       course_ids: prompt.course_ids || [],
       start_date: prompt.start_date || '',
       end_date: prompt.end_date || '',
+      supporting_files: prompt.supporting_files || [],
     });
   };
 
@@ -239,6 +240,11 @@ export const ManagePrompts = () => {
                           )}
                         </div>
                         <p className="text-sm truncate" style={{ color: '#6B5B4E' }}>{prompt.theme}</p>
+                        {(prompt.supporting_files || []).length > 0 && (
+                          <p className="text-xs mt-0.5" style={{ color: '#36555A' }}>
+                            📎 {prompt.supporting_files.length} arquivo{prompt.supporting_files.length !== 1 ? 's' : ''} anexado{prompt.supporting_files.length !== 1 ? 's' : ''}
+                          </p>
+                        )}
                         <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
                           {prompt.criteria?.length || 0} critérios · criada em {new Date(prompt.created_at).toLocaleDateString('pt-BR')}
                         </p>
