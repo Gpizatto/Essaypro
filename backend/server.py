@@ -129,16 +129,16 @@ class UserResponse(BaseModel):
     created_at: datetime
 
 class LevelDescription(BaseModel):
-    pontuacao: int
-    proficiencia: str
-    descricao: str
+    pontuacao: float  # float para suportar 0.5, 5, 40 etc.
+    proficiencia: Optional[str] = ""
+    descricao: Optional[str] = ""
 
 class Criterion(BaseModel):
     id: str
     nome: str
-    descricao: str
-    peso_maximo: int = Field(..., ge=40, le=400)
-    level_descriptions: Optional[List[LevelDescription]] = None
+    descricao: Optional[str] = ""
+    peso_maximo: float = Field(..., gt=0)  # qualquer valor positivo
+    level_descriptions: Optional[List[LevelDescription]] = []
 
 class PromptCreate(BaseModel):
     title: str
