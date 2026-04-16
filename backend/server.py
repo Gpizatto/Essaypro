@@ -1294,6 +1294,118 @@ async def update_course_settings(body: dict, current_user: dict = Depends(get_cu
     return {"message": "Configurações salvas", **clean}
 
 # ============================================================
+# RESET DE SENHA VIA EMAIL (Resend)
+# ============================================================
+
+import secrets
+
+async def send_reset_email(to_email: str, to_name: str, reset_token: str):
+    resend_key = os.getenv("RESEND_API_KEY")
+    if not resend_key:
+        raise Exception("RESEND_API_KEY não configurada")
+
+    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro-frontend.onrender.com")
+    reset_link = f"{frontend_url}/reset-password?token={reset_token}"
+
+    payload = {
+        "from": os.getenv("RESEND_FROM_EMAIL", "RcN <noreply@redacaocomnicolle.com.br>"),
+        "to": [to_email],
+        "subject": "Redefinição de senha — RcN",
+        "html": f"""
+        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #FDF3E8;">
+          <h2 style="color: #7C1805; font-size: 22px; margin-bottom: 8px;">Redefinir sua senha</h2>
+          <p style="color: #6B5B4E; font-size: 15px;">Olá, <strong>{to_name}</strong>!</p>
+          <p style="color: #6B5B4E; font-size: 14px;">
+            Recebemos uma solicitação para redefinir a senha da sua conta no <strong>RcN</strong>.
+            Clique no botão abaixo para criar uma nova senha:
+          </p>
+          <div style="text-align: center; margin: 28px 0;">
+            <a href="{reset_link}"
+              style="background-color: #7C1805; color: white; padding: 12px 28px; border-radius: 8px;
+                     text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
+              Redefinir senha
+            </a>
+          </div>
+          <p style="color: #6B5B4E; font-size: 12px;">
+            Este link expira em <strong>1 hora</strong>. Se você não solicitou a redefinição, ignore este email.
+          </p>
+          <hr style="border: none; border-top: 1px solid #E8DDD0; margin: 24px 0;">
+          <p style="color: #A89080; font-size: 11px; text-align: center;">redação com nicolle</p>
+        </div>
+        """
+    }
+
+    import httpx
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            "https://api.resend.com/emails",
+            json=payload,
+            headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}
+        )
+        if resp.status_code not in (200, 201):
+            raise Exception(f"Resend error: {resp.text}")
+
+@api_router.post("/auth/forgot-password")
+async def forgot_password(body: dict):
+    email = body.get("email", "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email obrigatório")
+
+    user = await db.users.find_one({"email": email})
+    # Sempre retorna sucesso para não revelar se o email existe
+    if not user:
+        return {"message": "Se este email estiver cadastrado, você receberá as instruções em breve."}
+
+    token = secrets.token_urlsafe(32)
+    expires = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    await db.password_resets.update_one(
+        {"email": email},
+        {"$set": {"email": email, "token": token, "expires_at": expires, "used": False}},
+        upsert=True
+    )
+
+    try:
+        await send_reset_email(email, user.get("name", ""), token)
+    except Exception as e:
+        logger.error(f"Email send error: {str(e)}")
+        raise HTTPException(status_code=500, detail="Erro ao enviar email. Tente novamente.")
+
+    return {"message": "Se este email estiver cadastrado, você receberá as instruções em breve."}
+
+@api_router.post("/auth/reset-password")
+async def reset_password(body: dict):
+    token = body.get("token", "").strip()
+    new_password = body.get("password", "").strip()
+
+    if not token or not new_password:
+        raise HTTPException(status_code=400, detail="Token e senha obrigatórios")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="A senha deve ter pelo menos 6 caracteres")
+
+    reset = await db.password_resets.find_one({"token": token, "used": False})
+    if not reset:
+        raise HTTPException(status_code=400, detail="Link inválido ou já utilizado")
+
+    if datetime.now(timezone.utc) > reset["expires_at"]:
+        raise HTTPException(status_code=400, detail="Link expirado. Solicite um novo.")
+
+    hashed = hash_password(new_password)
+    await db.users.update_one({"email": reset["email"]}, {"$set": {"password_hash": hashed}})
+    await db.password_resets.update_one({"token": token}, {"$set": {"used": True}})
+
+    return {"message": "Senha redefinida com sucesso! Faça login com sua nova senha."}
+
+@api_router.get("/auth/validate-reset-token/{token}")
+async def validate_reset_token(token: str):
+    reset = await db.password_resets.find_one({"token": token, "used": False})
+    if not reset:
+        raise HTTPException(status_code=400, detail="Link inválido ou já utilizado")
+    if datetime.now(timezone.utc) > reset["expires_at"]:
+        raise HTTPException(status_code=400, detail="Link expirado")
+    return {"valid": True, "email": reset["email"]}
+
+# ============================================================
 # LOGS DE ATIVIDADE E HISTÓRICO DE VERSÕES
 # ============================================================
 
