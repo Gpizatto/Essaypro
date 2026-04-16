@@ -42,9 +42,11 @@ export const CreatePrompt = () => {
       setUploadingFile(true);
       try {
         const API_URL = process.env.REACT_APP_BACKEND_URL;
-        const sigRes = await fetch(`${API_URL}/api/cloudinary/signature?resource_type=auto`, {
-          credentials: 'include'
-        });
+        const folder = 'essaypro/supporting';
+        const sigRes = await fetch(
+          `${API_URL}/api/cloudinary/signature?resource_type=auto&folder=${encodeURIComponent(folder)}`,
+          { credentials: 'include' }
+        );
         const sig = await sigRes.json();
 
         const fd = new FormData();
@@ -52,7 +54,8 @@ export const CreatePrompt = () => {
         fd.append('api_key', sig.api_key);
         fd.append('timestamp', sig.timestamp);
         fd.append('signature', sig.signature);
-        fd.append('folder', 'essaypro/supporting');
+        fd.append('folder', folder);
+        fd.append('resource_type', 'auto');
 
         const uploadRes = await fetch(
           `https://api.cloudinary.com/v1_1/${sig.cloud_name}/auto/upload`,
