@@ -55,6 +55,8 @@ export const ManagePrompts = () => {
       supporting_texts: prompt.supporting_texts,
       instructions: prompt.instructions,
       course_ids: prompt.course_ids || [],
+      start_date: prompt.start_date || '',
+      end_date: prompt.end_date || '',
     });
   };
 
@@ -330,6 +332,25 @@ export const ManagePrompts = () => {
                       <Textarea style={inputStyle} rows={3} value={editForm.instructions}
                         onChange={e => setEditForm({ ...editForm, instructions: e.target.value })} />
                     </div>
+                    {/* Período de disponibilidade */}
+                    <div>
+                      <label style={labelStyle}>Período de disponibilidade</label>
+                      <div className="flex gap-2 mt-1">
+                        <div className="flex-1">
+                          <label style={{ fontSize: '11px', color: '#6B5B4E' }}>Início</label>
+                          <input type="date" value={editForm.start_date || ''}
+                            onChange={e => setEditForm({ ...editForm, start_date: e.target.value })}
+                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', color: '#2C1A0E' }} />
+                        </div>
+                        <div className="flex-1">
+                          <label style={{ fontSize: '11px', color: '#6B5B4E' }}>Fim</label>
+                          <input type="date" value={editForm.end_date || ''}
+                            onChange={e => setEditForm({ ...editForm, end_date: e.target.value })}
+                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', color: '#2C1A0E' }} />
+                        </div>
+                      </div>
+                    </div>
+
                     {/* Turmas */}
                     {availableCourses.length > 0 && (
                       <div>
