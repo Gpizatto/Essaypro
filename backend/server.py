@@ -100,6 +100,7 @@ class UserResponse(BaseModel):
     role: str
     is_active: bool = True
     course_ids: Optional[List[str]] = []
+    phone: Optional[str] = None
     created_at: datetime
 
 class LevelDescription(BaseModel):
@@ -216,9 +217,10 @@ async def register(user_data: UserRegister):
         "name": user_data.name,
         "email": email,
         "password_hash": hashed_pw,
-        "role": "student",  # sempre começa como aluno
-        "is_active": False,  # bloqueado até aprovação
+        "role": "student",
+        "is_active": False,
         "is_approved": False,
+        "phone": getattr(user_data, 'phone', None) or "",
         "created_at": datetime.now(timezone.utc)
     }
     await db.users.insert_one(user_doc)
@@ -560,10 +562,25 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
         "improvements": correction_data.improvements,
         "inline_comments": [ic.model_dump() for ic in correction_data.inline_comments] if correction_data.inline_comments else [],
         "canvas_annotations": correction_data.canvas_annotations,
-        "corrected_at": datetime.now(timezone.utc)
+        "corrected_at": datetime.now(timezone.utc),
+        "correction_time_minutes": correction_data.get("correction_time_minutes", 0) if hasattr(correction_data, 'get') else 0,
     }
     await db.corrections.insert_one(correction_doc)
     await db.essays.update_one({"id": correction_data.essay_id}, {"$set": {"status": "corrected"}})
+
+    # Notificar aluno que a correção ficou pronta
+    essay_data = await db.essays.find_one({"id": correction_data.essay_id}, {"_id": 0})
+    if essay_data:
+        await db.notifications.insert_one({
+            "user_id": essay_data.get("student_id"),
+            "type": "correction_ready",
+            "title": "Sua redação foi corrigida! ✅",
+            "message": f"A correção de '{essay_data.get('prompt_title', 'sua redação')}' já está disponível.",
+            "link": f"/my-essays",
+            "read": False,
+            "created_at": datetime.now(timezone.utc)
+        })
+
 
     # Salvar no histórico de versões
     history_doc = {**correction_doc, "saved_at": datetime.now(timezone.utc), "version": 1}
@@ -643,22 +660,28 @@ async def get_pending_users(current_user: dict = Depends(get_current_user)):
              "role": u.get("role", "student"), "created_at": u["created_at"]} for u in users]
 
 @api_router.post("/admin/approve-user/{user_id}")
-async def approve_user(user_id: str, current_user: dict = Depends(get_current_user)):
+async def approve_user(user_id: str, body: dict = {}, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
+    role = body.get("role", "student")
+    course_id = body.get("course_id")
+    update = {"is_approved": True, "is_active": True, "role": role}
     result = await db.users.update_one(
         {"_id": ObjectId(user_id)},
-        {"$set": {"is_approved": True, "is_active": True}}
+        {"$set": update}
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    # Adicionar à turma se informado
+    if course_id:
+        await db.users.update_one({"_id": ObjectId(user_id)}, {"$addToSet": {"course_ids": course_id}})
     await create_activity_log(
         user_id=current_user["_id"],
         user_name=current_user.get("name", "?"),
         action="approved_user",
         entity_type="user",
         entity_id=user_id,
-        detail="Usuário aprovado"
+        detail=f"Aprovado como {role}" + (f" na turma {course_id}" if course_id else "")
     )
     return {"ok": True}
 
@@ -1669,6 +1692,190 @@ async def get_my_courses(current_user: dict = Depends(get_current_user)):
     return courses
 
 # ============================================================
+# BACKUP AUTOMÁTICO
+# ============================================================
+
+import asyncio
+import json as json_module2
+
+async def run_backup():
+    """Exporta todas as coleções para um documento de backup no MongoDB"""
+    try:
+        collections = ["users", "essays", "corrections", "prompts", "courses", "drafts"]
+        backup_data = {"created_at": datetime.now(timezone.utc).isoformat(), "collections": {}}
+        for col in collections:
+            docs = await db[col].find({}, {"_id": 0}).to_list(10000)
+            backup_data["collections"][col] = docs
+        await db.backups.insert_one({
+            "created_at": datetime.now(timezone.utc),
+            "data": backup_data,
+            "size": len(str(backup_data))
+        })
+        # Manter apenas os últimos 7 backups
+        all_backups = await db.backups.find({}, {"_id": 1}).sort("created_at", -1).to_list(100)
+        if len(all_backups) > 7:
+            old_ids = [b["_id"] for b in all_backups[7:]]
+            await db.backups.delete_many({"_id": {"$in": old_ids}})
+        logger.info("Backup automático concluído")
+    except Exception as e:
+        logger.error(f"Backup error: {str(e)}")
+
+async def backup_scheduler():
+    """Roda backup diário"""
+    while True:
+        await asyncio.sleep(24 * 60 * 60)  # 24 horas
+        await run_backup()
+
+@api_router.post("/admin/backup/run")
+async def manual_backup(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    await run_backup()
+    return {"message": "Backup realizado com sucesso!"}
+
+@api_router.get("/admin/backup/list")
+async def list_backups(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    backups = await db.backups.find({}, {"_id": 0, "data": 0}).sort("created_at", -1).to_list(10)
+    return backups
+
+@api_router.get("/admin/backup/download/{backup_id}")
+async def download_backup(backup_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    from fastapi.responses import JSONResponse
+    backup = await db.backups.find_one({"created_at": {"$exists": True}}, sort=[("created_at", -1)])
+    if not backup:
+        raise HTTPException(status_code=404, detail="Backup não encontrado")
+    return JSONResponse(content=backup["data"])
+
+# ============================================================
+# EVOLUÇÃO DO ALUNO POR COMPETÊNCIA
+# ============================================================
+
+@api_router.get("/student/evolution")
+async def get_student_evolution(current_user: dict = Depends(get_current_user)):
+    student_id = current_user["_id"]
+    essays = await db.essays.find(
+        {"student_id": student_id, "status": "corrected"},
+        {"_id": 0, "id": 1, "submitted_at": 1, "prompt_title": 1}
+    ).sort("submitted_at", 1).to_list(20)
+
+    result = []
+    for essay in essays:
+        corr = await db.corrections.find_one(
+            {"essay_id": essay["id"]},
+            {"_id": 0, "total_score": 1, "criteria_scores": 1, "corrected_at": 1}
+        )
+        if corr:
+            result.append({
+                "essay_id": essay["id"],
+                "prompt_title": essay.get("prompt_title", ""),
+                "submitted_at": essay.get("submitted_at"),
+                "total_score": corr.get("total_score", 0),
+                "criteria_scores": corr.get("criteria_scores", []),
+            })
+    return result
+
+# ============================================================
+# RELATÓRIO DE ENGAJAMENTO POR TURMA
+# ============================================================
+
+@api_router.get("/admin/reports/course-engagement")
+async def get_course_engagement(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    courses = await db.courses.find({"is_active": True}, {"_id": 0}).to_list(100)
+    result = []
+
+    for course in courses:
+        cid = course["id"]
+        students = await db.users.find(
+            {"role": "student", "course_ids": cid},
+            {"_id": 1}
+        ).to_list(1000)
+        student_ids = [str(s["_id"]) for s in students]
+
+        if not student_ids:
+            result.append({
+                "course_id": cid,
+                "course_name": course["name"],
+                "total_students": 0,
+                "active_students": 0,
+                "total_essays": 0,
+                "total_corrected": 0,
+                "avg_score": 0,
+                "engagement_rate": 0,
+            })
+            continue
+
+        # Essays nas últimas 4 semanas
+        four_weeks_ago = datetime.now(timezone.utc) - timedelta(weeks=4)
+        essays = await db.essays.find(
+            {"student_id": {"$in": student_ids}},
+            {"_id": 0, "student_id": 1, "status": 1, "submitted_at": 1}
+        ).to_list(10000)
+
+        recent = [e for e in essays if e.get("submitted_at") and e["submitted_at"] >= four_weeks_ago]
+        active_students = len(set(e["student_id"] for e in recent))
+        corrected = [e for e in essays if e.get("status") == "corrected"]
+
+        scores = []
+        for essay in corrected[:50]:  # limitar para performance
+            corr = await db.corrections.find_one(
+                {"essay_id": essay.get("id", "")}, {"_id": 0, "total_score": 1}
+            )
+            if corr:
+                scores.append(corr["total_score"])
+
+        result.append({
+            "course_id": cid,
+            "course_name": course["name"],
+            "modality": course.get("modality", ""),
+            "total_students": len(student_ids),
+            "active_students": active_students,
+            "total_essays": len(essays),
+            "total_corrected": len(corrected),
+            "avg_score": round(sum(scores) / len(scores), 1) if scores else 0,
+            "engagement_rate": round(active_students / len(student_ids) * 100, 1) if student_ids else 0,
+        })
+
+    return sorted(result, key=lambda x: -x["engagement_rate"])
+
+# ============================================================
+# CORREÇÃO EM LOTE (Batch Comments)
+# ============================================================
+
+@api_router.post("/corrections/batch-comment")
+async def batch_comment(body: dict, current_user: dict = Depends(get_current_user)):
+    """Adiciona um comentário a múltiplas redações de uma vez"""
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    essay_ids = body.get("essay_ids", [])
+    comment = body.get("comment", "").strip()
+    if not comment or not essay_ids:
+        raise HTTPException(status_code=400, detail="essay_ids e comment obrigatórios")
+    count = 0
+    for essay_id in essay_ids:
+        draft = await db.drafts.find_one({"essay_id": essay_id, "teacher_id": current_user["_id"]})
+        existing_comments = draft.get("inlineComments", []) if draft else []
+        new_comment = {
+            "id": len(existing_comments) + 1,
+            "comment": comment,
+            "type": "batch",
+            "color": "#E53935",
+        }
+        await db.drafts.update_one(
+            {"essay_id": essay_id, "teacher_id": current_user["_id"]},
+            {"$push": {"inlineComments": new_comment}, "$set": {"essay_id": essay_id, "teacher_id": current_user["_id"]}},
+            upsert=True
+        )
+        count += 1
+    return {"message": f"Comentário adicionado a {count} redações", "count": count}
+
+# ============================================================
 # WHITE LABEL / PERSONALIZAÇÃO
 # ============================================================
 
@@ -1748,14 +1955,49 @@ async def update_credit_config(config: CreditConfig, current_user: dict = Depend
     )
     return {"message": "Configuração atualizada"}
 
+@api_router.get("/credits/course/{course_id}")
+async def get_course_credit_config(course_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    config = await db.settings.find_one({"key": f"credit_config_{course_id}"})
+    if not config:
+        return {"course_id": course_id, "mode": "default", "limit": 0}
+    return {"course_id": course_id, "mode": config.get("mode", "default"), "limit": config.get("limit", 0)}
+
+@api_router.put("/credits/course/{course_id}")
+async def set_course_credit_config(course_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    mode = body.get("mode", "default")
+    limit = int(body.get("limit", 0))
+    await db.settings.update_one(
+        {"key": f"credit_config_{course_id}"},
+        {"$set": {"key": f"credit_config_{course_id}", "mode": mode, "limit": limit, "course_id": course_id}},
+        upsert=True
+    )
+    return {"message": "Configuração de créditos da turma salva!"}
+
 @api_router.get("/credits/me")
 async def get_my_credits(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "student":
         raise HTTPException(status_code=403, detail="Students only")
 
-    config = await db.settings.find_one({"key": "credit_config"})
+    # Verificar config específica da turma do aluno primeiro
+    student_course_ids = current_user.get("course_ids", [])
+    course_config = None
+    for cid in student_course_ids:
+        cfg = await db.settings.find_one({"key": f"credit_config_{cid}"})
+        if cfg and cfg.get("mode") != "default":
+            course_config = cfg
+            break
+
+    config = course_config or await db.settings.find_one({"key": "credit_config"})
     mode = config.get("mode", "unlimited") if config else "unlimited"
     limit = config.get("limit", 4) if config else 4
+    if mode == "default":  # fallback para global
+        global_cfg = await db.settings.find_one({"key": "credit_config"})
+        mode = global_cfg.get("mode", "unlimited") if global_cfg else "unlimited"
+        limit = global_cfg.get("limit", 4) if global_cfg else 4
 
     if mode == "unlimited":
         return {"mode": "unlimited", "limit": None, "used": 0, "remaining": None, "renews_at": None}
@@ -1806,6 +2048,8 @@ app.include_router(api_router)
 @app.on_event("startup")
 async def startup_event():
     await db.users.create_index("email", unique=True)
+    # Iniciar backup scheduler em background
+    asyncio.create_task(backup_scheduler())
     
     admin_email = os.getenv("ADMIN_EMAIL", "admin@essaypro.com")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
