@@ -27,6 +27,8 @@ export const ManageCourses = () => {
   const [form, setForm] = useState({ name: '', description: '', modality: 'online', is_active: true });
   const [saving, setSaving] = useState(false);
   const [addUserId, setAddUserId] = useState('');
+  const [creditConfigs, setCreditConfigs] = useState({}); // {courseId: {mode, limit}}
+  const [savingCredits, setSavingCredits] = useState(null);
 
   useEffect(() => {
     fetchCourses();
@@ -37,6 +39,15 @@ export const ManageCourses = () => {
     try {
       const { data } = await axios.get(`${API_URL}/api/courses`, { withCredentials: true });
       setCourses(data);
+      // Buscar configs de crédito de cada turma
+      const configs = {};
+      await Promise.all(data.map(async c => {
+        try {
+          const r = await axios.get(`${API_URL}/api/credits/course/${c.id}`, { withCredentials: true });
+          configs[c.id] = r.data;
+        } catch (e) {}
+      }));
+      setCreditConfigs(configs);
     } catch (e) { toast.error('Erro ao carregar turmas'); }
     finally { setLoading(false); }
   };
@@ -108,6 +119,16 @@ export const ManageCourses = () => {
       fetchMembers(courseId);
       fetchCourses();
     } catch (e) { toast.error('Erro ao remover'); }
+  };
+
+  const saveCreditConfig = async (courseId) => {
+    setSavingCredits(courseId);
+    const cfg = creditConfigs[courseId] || { mode: 'default', limit: 0 };
+    try {
+      await axios.put(`${API_URL}/api/credits/course/${courseId}`, cfg, { withCredentials: true });
+      toast.success('Créditos da turma salvos!');
+    } catch (e) { toast.error('Erro ao salvar'); }
+    finally { setSavingCredits(null); }
   };
 
   const startEdit = (course) => {
