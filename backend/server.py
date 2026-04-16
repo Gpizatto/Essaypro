@@ -332,6 +332,7 @@ async def update_prompt(prompt_id: str, prompt_data: PromptCreate, current_user:
         "theme": prompt_data.theme,
         "supporting_texts": prompt_data.supporting_texts,
         "instructions": prompt_data.instructions,
+        "course_ids": prompt_data.course_ids or [],
     }
     if prompt_data.criteria:
         update_data["criteria"] = [c.model_dump() for c in prompt_data.criteria]
