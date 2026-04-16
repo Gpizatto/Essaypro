@@ -4,7 +4,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { Button } from './ui/button';
-import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Moon, Sun, Palette } from 'lucide-react';
+import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Moon, Sun, Palette, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 
 export const Layout = ({ children }) => {
@@ -87,6 +87,7 @@ export const Layout = ({ children }) => {
       return [
         { path: '/dashboard', icon: Home, label: 'Início' },
         { path: '/prompts', icon: BookOpen, label: 'Temas' },
+        { path: '/calendar', icon: Calendar, label: 'Calendário' },
         { path: '/my-essays', icon: FileText, label: 'Minhas Redações' },
       ];
     } else if (user.role === 'teacher') {
