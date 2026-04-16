@@ -1308,7 +1308,7 @@ async def send_reset_email(to_email: str, to_name: str, reset_token: str):
     reset_link = f"{frontend_url}/reset-password?token={reset_token}"
 
     payload = {
-        "from": os.getenv("RESEND_FROM_EMAIL", "RcN <noreply@redacaocomnicolle.com.br>"),
+        "from": os.getenv("RESEND_FROM_EMAIL", "RcN <onboarding@resend.dev>"),
         "to": [to_email],
         "subject": "Redefinição de senha — RcN",
         "html": f"""
