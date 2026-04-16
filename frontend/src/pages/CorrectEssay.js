@@ -532,22 +532,27 @@ export const CorrectEssay = () => {
       ctx.putImageData(snapshotRef.current, 0, 0);
       const sx = shapeStartRef.current.x;
       const sy = shapeStartRef.current.y;
+      ctx.globalAlpha = 1;
       ctx.strokeStyle = color;
-      ctx.lineWidth = 2;
-      ctx.fillStyle = 'transparent';
-      ctx.beginPath();
+      ctx.lineWidth = penWidthRef.current || 2;
+      ctx.lineCap = 'round';
+      ctx.lineJoin = 'round';
       if (tool === 'line' || tool === 'arrow') {
+        ctx.beginPath();
         ctx.moveTo(sx, sy);
         ctx.lineTo(pos.x, pos.y);
         ctx.stroke();
       } else if (tool === 'rect') {
-        ctx.strokeRect(sx, sy, pos.x - sx, pos.y - sy);
+        ctx.beginPath();
+        ctx.rect(sx, sy, pos.x - sx, pos.y - sy);
+        ctx.stroke();
       } else if (tool === 'oval') {
         const rx = Math.abs(pos.x - sx) / 2;
         const ry = Math.abs(pos.y - sy) / 2;
         const cx = (sx + pos.x) / 2;
         const cy = (sy + pos.y) / 2;
-        ctx.ellipse(cx, cy, rx, ry, 0, 0, 2 * Math.PI);
+        ctx.beginPath();
+        ctx.ellipse(cx, cy, Math.max(1, rx), Math.max(1, ry), 0, 0, 2 * Math.PI);
         ctx.stroke();
       }
     }
@@ -1142,24 +1147,21 @@ export const CorrectEssay = () => {
               </Button>
             </div>
 
-            {(selectedTool === 'underline' || selectedTool === 'highlight' || selectedTool === 'pen' || selectedTool === 'strikethrough') && (
-              <>
-                <Separator orientation="vertical" className="h-6" />
-                <div className="flex gap-1">
-                  {COLORS.map(color => (
-                    <button
-                      key={color.value}
-                      onClick={() => setSelectedColor(color.value)}
-                      className={`w-6 h-6 rounded border-2 ${
-                        selectedColor === color.value ? 'border-slate-900' : 'border-slate-300'
-                      }`}
-                      style={{ backgroundColor: color.value }}
-                      title={color.name}
-                    />
-                  ))}
-                </div>
-              </>
-            )}
+            {/* Cores sempre visíveis — independente da ferramenta */}
+            <Separator orientation="vertical" className="h-6" />
+            <div className="flex gap-1">
+              {COLORS.map(color => (
+                <button
+                  key={color.value}
+                  onClick={() => setSelectedColor(color.value)}
+                  className={`w-6 h-6 rounded border-2 transition-transform ${
+                    selectedColor === color.value ? 'border-slate-900 scale-125' : 'border-slate-300'
+                  }`}
+                  style={{ backgroundColor: color.value }}
+                  title={color.name}
+                />
+              ))}
+            </div>
 
             {selectedTool === 'pen' && (
               <>
