@@ -44,10 +44,10 @@ export const AuthProvider = ({ children }) => {
     return data;
   };
 
-  const register = async (name, email, password, role = 'student') => {
+  const register = async (name, email, password, role = 'student', phone = '') => {
     const { data } = await axios.post(
       `${API_URL}/api/auth/register`,
-      { name, email, password, role }
+      { name, email, password, role, phone }
     );
     // Não faz login automático — aguarda aprovação do admin
     return data;
