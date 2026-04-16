@@ -19,82 +19,70 @@ export const CreatePrompt = () => {
   const [availableCourses, setAvailableCourses] = useState([]);
   const fileInputRef = useRef(null);
 
-  const handleImportFile = (e) => {
+  const handleImportFile = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
     const ext = file.name.split('.').pop().toLowerCase();
 
-    const appendText = (text) => {
-      setFormData(prev => ({
-        ...prev,
-        supporting_texts: prev.supporting_texts
-          ? prev.supporting_texts + '\n\n' + text
-          : text
-      }));
-      toast.success('Arquivo importado!');
-    };
-
     if (ext === 'txt') {
-      // TXT: leitura direta
+      // TXT: adicionar como texto de apoio
       const reader = new FileReader();
-      reader.onload = (ev) => appendText(ev.target.result);
+      reader.onload = (ev) => {
+        setFormData(prev => ({
+          ...prev,
+          supporting_texts: prev.supporting_texts
+            ? prev.supporting_texts + '\n\n' + ev.target.result
+            : ev.target.result
+        }));
+        toast.success('Arquivo de texto importado!');
+      };
       reader.readAsText(file, 'UTF-8');
+    } else if (ext === 'pdf' || ['jpg','jpeg','png'].includes(ext)) {
+      // PDF e imagens: fazer upload para Cloudinary e guardar URL
+      setUploadingFile(true);
+      try {
+        const API_URL = process.env.REACT_APP_BACKEND_URL;
+        const sigRes = await fetch(`${API_URL}/api/cloudinary/signature?resource_type=auto`, {
+          credentials: 'include'
+        });
+        const sig = await sigRes.json();
 
-    } else if (ext === 'pdf') {
-      // PDF: extrai texto via pdfjsLib (CDN)
-      const script = document.getElementById('pdfjs-script');
-      const loadAndExtract = () => {
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-          try {
-            const pdfjs = window['pdfjs-dist/build/pdf'];
-            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            const pdf = await pdfjs.getDocument({ data: new Uint8Array(ev.target.result) }).promise;
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-              const page = await pdf.getPage(i);
-              const tc = await page.getTextContent();
-              fullText += tc.items.map(item => item.str).join(' ') + '\n';
-            }
-            appendText(fullText.trim() || '(PDF sem texto extraível)');
-          } catch (err) {
-            toast.error('Não foi possível extrair texto do PDF');
-          }
-        };
-        reader.readAsArrayBuffer(file);
-      };
-      if (!window['pdfjs-dist/build/pdf']) {
-        const s = document.createElement('script');
-        s.id = 'pdfjs-script';
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        s.onload = loadAndExtract;
-        document.head.appendChild(s);
-      } else {
-        loadAndExtract();
-      }
+        const fd = new FormData();
+        fd.append('file', file);
+        fd.append('api_key', sig.api_key);
+        fd.append('timestamp', sig.timestamp);
+        fd.append('signature', sig.signature);
+        fd.append('folder', 'essaypro/supporting');
 
-    } else if (['jpg','jpeg','png'].includes(ext)) {
-      // Imagem: usar OCR do Tesseract via CDN
-      const loadAndOCR = () => {
-        const url = URL.createObjectURL(file);
-        toast('Lendo imagem, aguarde...');
-        window.Tesseract.recognize(url, 'por', {})
-          .then(({ data: { text } }) => {
-            URL.revokeObjectURL(url);
-            appendText(text.trim() || '(Imagem sem texto reconhecido)');
-          })
-          .catch(() => toast.error('Não foi possível ler o texto da imagem'));
-      };
-      if (!window.Tesseract) {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';
-        s.onload = loadAndOCR;
-        document.head.appendChild(s);
-      } else {
-        loadAndOCR();
+        const uploadRes = await fetch(
+          `https://api.cloudinary.com/v1_1/${sig.cloud_name}/auto/upload`,
+          { method: 'POST', body: fd }
+        );
+        const data = await uploadRes.json();
+        if (!data.secure_url) throw new Error('Upload falhou');
+
+        setFormData(prev => ({
+          ...prev,
+          supporting_files: [
+            ...(prev.supporting_files || []),
+            { name: file.name, url: data.secure_url, type: ext === 'pdf' ? 'pdf' : 'image' }
+          ]
+        }));
+        toast.success(`${ext.toUpperCase()} enviado com sucesso!`);
+      } catch (err) {
+        toast.error('Erro ao enviar arquivo. Verifique o Cloudinary.');
+      } finally {
+        setUploadingFile(false);
       }
     }
     e.target.value = '';
+  };
+
+  const removeFile = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      supporting_files: prev.supporting_files.filter((_, i) => i !== index)
+    }));
   };
   const [selectedModel, setSelectedModel] = useState('enem');
 
@@ -111,7 +99,9 @@ export const CreatePrompt = () => {
     instructions: '',
     start_date: '',
     end_date: '',
+    supporting_files: [],
   });
+  const [uploadingFile, setUploadingFile] = useState(false);
   const [criteria, setCriteria] = useState(() => {
     return CRITERIA_MODELS.enem.criteria.map(c => ({
       ...c,
@@ -329,10 +319,11 @@ export const CreatePrompt = () => {
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
+                    disabled={uploadingFile}
                     className="flex items-center gap-1 text-xs px-2 py-1 rounded border"
-                    style={{ color: '#7C1805', borderColor: '#D66B27', backgroundColor: 'transparent' }}
+                    style={{ color: '#7C1805', borderColor: '#D66B27', backgroundColor: 'transparent', opacity: uploadingFile ? 0.6 : 1 }}
                   >
-                    <Upload size={12} /> Importar arquivo
+                    <Upload size={12} /> {uploadingFile ? 'Enviando...' : 'Importar arquivo'}
                   </button>
                   <input
                     ref={fileInputRef}
@@ -353,6 +344,37 @@ export const CreatePrompt = () => {
                   data-testid="supporting-texts-input"
                 />
               </div>
+
+              {/* Arquivos enviados (PDF/imagens) */}
+              {(formData.supporting_files || []).length > 0 && (
+                <div>
+                  <Label className="text-sm font-semibold">Arquivos anexados</Label>
+                  <div className="mt-2 space-y-2">
+                    {formData.supporting_files.map((f, i) => (
+                      <div key={i} className="flex items-center justify-between p-2 rounded-lg"
+                        style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded"
+                            style={{ backgroundColor: '#7C1805', color: 'white' }}>
+                            {f.type === 'pdf' ? 'PDF' : 'IMG'}
+                          </span>
+                          <span className="text-xs" style={{ color: '#2C1A0E' }}>{f.name}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <a href={f.url} target="_blank" rel="noreferrer"
+                            className="text-xs" style={{ color: '#36555A' }}>
+                            Visualizar
+                          </a>
+                          <button type="button" onClick={() => removeFile(i)}
+                            className="text-xs" style={{ color: '#7C1805' }}>
+                            ✕
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               <div>
                 <Label htmlFor="instructions">Instruções</Label>
