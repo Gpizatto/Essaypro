@@ -105,6 +105,39 @@ export const SubmitEssay = () => {
     }
   };
 
+  const extractPdfText = (file) => {
+    return new Promise((resolve) => {
+      const loadAndExtract = () => {
+        const reader = new FileReader();
+        reader.onload = async (ev) => {
+          try {
+            const pdfjs = window['pdfjs-dist/build/pdf'];
+            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            const pdf = await pdfjs.getDocument({ data: new Uint8Array(ev.target.result) }).promise;
+            let fullText = '';
+            for (let i = 1; i <= pdf.numPages; i++) {
+              const page = await pdf.getPage(i);
+              const tc = await page.getTextContent();
+              fullText += tc.items.map(item => item.str).join(' ') + '\n';
+            }
+            resolve(fullText.trim());
+          } catch (err) {
+            resolve('');
+          }
+        };
+        reader.readAsArrayBuffer(file);
+      };
+      if (!window['pdfjs-dist/build/pdf']) {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        s.onload = loadAndExtract;
+        document.head.appendChild(s);
+      } else {
+        loadAndExtract();
+      }
+    });
+  };
+
   const handleSubmit = async (method) => {
     setSubmitting(true);
     try {
@@ -116,6 +149,19 @@ export const SubmitEssay = () => {
       } else if (method === 'paste') {
         content = pasteContent;
       } else if (method === 'upload') {
+        if (!uploadFile && !uploadUrl) {
+          toast.error('Selecione um arquivo para enviar');
+          setSubmitting(false);
+          return;
+        }
+        // Tentar extrair texto do PDF para ter content disponível
+        if (uploadFile && uploadFile.name.toLowerCase().endsWith('.pdf')) {
+          try {
+            content = await extractPdfText(uploadFile);
+          } catch (e) {
+            content = '';
+          }
+        }
         if (uploadFile && !uploadUrl) {
           fileUrl = await handleFileUpload(uploadFile);
           if (!fileUrl) {
