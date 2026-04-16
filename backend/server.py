@@ -15,6 +15,31 @@ from bson import ObjectId
 import bcrypt
 import jwt
 import secrets
+from functools import lru_cache
+import time
+
+# Simple in-memory cache for frequently read, rarely changed settings
+_settings_cache = {}
+_cache_ttl = 300  # 5 minutes
+
+async def get_cached_setting(key: str, default: dict):
+    """Cache settings to avoid repeated DB reads for every request"""
+    now = time.time()
+    if key in _settings_cache:
+        value, expires = _settings_cache[key]
+        if now < expires:
+            return value
+    config = await db.settings.find_one({"key": key}, {"_id": 0})
+    result = {**default, **(config or {})}
+    _settings_cache[key] = (result, now + _cache_ttl)
+    return result
+
+def invalidate_cache(key: str = None):
+    """Call after any settings update"""
+    if key:
+        _settings_cache.pop(key, None)
+    else:
+        _settings_cache.clear()
 import time
 import cloudinary
 import cloudinary.utils
@@ -459,14 +484,20 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
 async def get_my_essays(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "student":
         raise HTTPException(status_code=403, detail="Access denied")
-    
+
     essays = await db.essays.find({"student_id": current_user["_id"]}, {"_id": 0}).to_list(1000)
-    
+
+    # Batch load prompts — 1 query instead of N
+    prompt_ids = list({e["prompt_id"] for e in essays if e.get("prompt_id")})
+    prompts_map = {}
+    if prompt_ids:
+        prompts = await db.prompts.find({"id": {"$in": prompt_ids}}, {"_id": 0, "id": 1, "title": 1}).to_list(len(prompt_ids))
+        prompts_map = {p["id"]: p["title"] for p in prompts}
+
     for essay in essays:
-        prompt = await db.prompts.find_one({"id": essay["prompt_id"]}, {"_id": 0})
-        if prompt:
-            essay["prompt_title"] = prompt["title"]
-    
+        if essay.get("prompt_id") in prompts_map:
+            essay["prompt_title"] = prompts_map[essay["prompt_id"]]
+
     return [EssayResponse(**e) for e in essays]
 
 @api_router.get("/essays/queue", response_model=List[EssayResponse])
@@ -489,13 +520,30 @@ async def get_correction_queue(current_user: dict = Depends(get_current_user)):
 
     essays = await db.essays.find(essay_query, {"_id": 0}).to_list(1000)
 
+    # Batch load students and prompts — 2 queries instead of 2N
+    student_ids_set = {e["student_id"] for e in essays if e.get("student_id")}
+    prompt_ids_set = {e["prompt_id"] for e in essays if e.get("prompt_id")}
+
+    students_list = []
+    if student_ids_set:
+        students_list = await db.users.find(
+            {"_id": {"$in": [ObjectId(sid) for sid in student_ids_set]}},
+            {"_id": 1, "name": 1}
+        ).to_list(len(student_ids_set))
+    students_map = {str(s["_id"]): s["name"] for s in students_list}
+
+    prompts_list = []
+    if prompt_ids_set:
+        prompts_list = await db.prompts.find(
+            {"id": {"$in": list(prompt_ids_set)}},
+            {"_id": 0, "id": 1, "title": 1}
+        ).to_list(len(prompt_ids_set))
+    prompts_map = {p["id"]: p["title"] for p in prompts_list}
+
     for essay in essays:
-        student = await db.users.find_one({"_id": ObjectId(essay["student_id"])}, {"_id": 0})
-        prompt = await db.prompts.find_one({"id": essay["prompt_id"]}, {"_id": 0})
-        if student:
-            essay["student_name"] = student["name"]
-        if prompt:
-            essay["prompt_title"] = prompt["title"]
+        essay["student_name"] = students_map.get(essay.get("student_id", ""), "")
+        if essay.get("prompt_id") in prompts_map:
+            essay["prompt_title"] = prompts_map[essay["prompt_id"]]
 
     return [EssayResponse(**e) for e in essays]
 
@@ -929,19 +977,42 @@ async def get_teacher_students(current_user: dict = Depends(get_current_user)):
     students = await db.users.find(student_query, {"_id": 1, "name": 1, "email": 1, "created_at": 1}).to_list(1000)
     result = []
 
+    # Batch load ALL essays for all students at once
+    all_student_ids = [str(s["_id"]) for s in students]
+    all_essays = await db.essays.find(
+        {"student_id": {"$in": all_student_ids}}, {"_id": 0}
+    ).to_list(50000)
+
+    # Group essays by student
+    essays_by_student = {}
+    for e in all_essays:
+        sid = e.get("student_id", "")
+        if sid not in essays_by_student:
+            essays_by_student[sid] = []
+        essays_by_student[sid].append(e)
+
+    # Batch load all corrections for corrected essays
+    corrected_essay_ids = [e["id"] for e in all_essays if e.get("status") == "corrected" and e.get("id")]
+    corrections_map = {}
+    if corrected_essay_ids:
+        corrections = await db.corrections.find(
+            {"essay_id": {"$in": corrected_essay_ids}},
+            {"_id": 0, "essay_id": 1, "total_score": 1, "corrected_at": 1}
+        ).to_list(len(corrected_essay_ids))
+        corrections_map = {c["essay_id"]: c for c in corrections}
+
     for student in students:
         sid = str(student["_id"])
-        essays = await db.essays.find({"student_id": sid}, {"_id": 0}).to_list(1000)
+        essays = essays_by_student.get(sid, [])
 
         scores = []
         rewrite_count = sum(1 for e in essays if e.get("is_rewrite"))
         pending_count = sum(1 for e in essays if e.get("status") == "pending")
         corrected_count = sum(1 for e in essays if e.get("status") == "corrected")
 
-        # Buscar notas das correções
         for essay in essays:
-            if essay.get("status") == "corrected":
-                correction = await db.corrections.find_one({"essay_id": essay["id"]}, {"_id": 0, "total_score": 1, "corrected_at": 1})
+            if essay.get("status") == "corrected" and essay.get("id"):
+                correction = corrections_map.get(essay["id"])
                 if correction:
                     scores.append({
                         "score": correction["total_score"],
@@ -1314,6 +1385,7 @@ async def update_course_settings(body: dict, current_user: dict = Depends(get_cu
         {"$set": {"key": "course_settings", **clean}},
         upsert=True
     )
+    invalidate_cache("course_settings")
     return {"message": "Configurações salvas", **clean}
 
 # ============================================================
@@ -1321,6 +1393,31 @@ async def update_course_settings(body: dict, current_user: dict = Depends(get_cu
 # ============================================================
 
 import secrets
+from functools import lru_cache
+import time
+
+# Simple in-memory cache for frequently read, rarely changed settings
+_settings_cache = {}
+_cache_ttl = 300  # 5 minutes
+
+async def get_cached_setting(key: str, default: dict):
+    """Cache settings to avoid repeated DB reads for every request"""
+    now = time.time()
+    if key in _settings_cache:
+        value, expires = _settings_cache[key]
+        if now < expires:
+            return value
+    config = await db.settings.find_one({"key": key}, {"_id": 0})
+    result = {**default, **(config or {})}
+    _settings_cache[key] = (result, now + _cache_ttl)
+    return result
+
+def invalidate_cache(key: str = None):
+    """Call after any settings update"""
+    if key:
+        _settings_cache.pop(key, None)
+    else:
+        _settings_cache.clear()
 
 async def send_reset_email(to_email: str, to_name: str, reset_token: str):
     resend_key = os.getenv("RESEND_API_KEY")
@@ -1726,6 +1823,25 @@ async def backup_scheduler():
         await asyncio.sleep(24 * 60 * 60)  # 24 horas
         await run_backup()
 
+async def keep_alive_scheduler():
+    """Pinga o próprio servidor a cada 10min para evitar hibernação no Render Free"""
+    import httpx
+    await asyncio.sleep(60)  # aguarda o servidor iniciar
+    backend_url = os.getenv("BACKEND_URL", "")
+    if not backend_url:
+        return  # Sem URL configurada, não faz nada
+    while True:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                await client.get(f"{backend_url}/api/health")
+        except Exception:
+            pass
+        await asyncio.sleep(600)  # 10 minutos
+
+@api_router.get("/health")
+async def health_check():
+    return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
 @api_router.post("/admin/backup/run")
 async def manual_backup(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
@@ -1905,12 +2021,7 @@ async def get_branding(current_user: dict = Depends(get_current_user)):
 @api_router.get("/settings/branding/public")
 async def get_branding_public():
     """Endpoint público para carregar branding antes do login"""
-    config = await db.settings.find_one({"key": "branding"}, {"_id": 0})
-    if not config:
-        return DEFAULT_BRANDING
-    result = {**DEFAULT_BRANDING}
-    result.update({k: v for k, v in config.items() if k in DEFAULT_BRANDING})
-    return result
+    return await get_cached_setting("branding", DEFAULT_BRANDING)
 
 @api_router.put("/settings/branding")
 async def update_branding(body: dict, current_user: dict = Depends(get_current_user)):
@@ -1923,6 +2034,7 @@ async def update_branding(body: dict, current_user: dict = Depends(get_current_u
         {"$set": {"key": "branding", **clean}},
         upsert=True
     )
+    invalidate_cache("branding")
     return {"message": "Personalização salva", **clean}
 
 # ============================================================
@@ -2047,9 +2159,38 @@ app.include_router(api_router)
 
 @app.on_event("startup")
 async def startup_event():
+    # ── Índices de performance ──────────────────────────────────
     await db.users.create_index("email", unique=True)
-    # Iniciar backup scheduler em background
+    await db.users.create_index("role")
+    await db.users.create_index("course_ids")
+    await db.users.create_index("is_active")
+    await db.users.create_index("is_approved")
+
+    await db.essays.create_index("student_id")
+    await db.essays.create_index("status")
+    await db.essays.create_index("prompt_id")
+    await db.essays.create_index("submitted_at")
+    await db.essays.create_index([("student_id", 1), ("status", 1)])
+    await db.essays.create_index([("status", 1), ("submitted_at", 1)])
+
+    await db.corrections.create_index("essay_id", unique=True)
+    await db.corrections.create_index("teacher_id")
+    await db.corrections.create_index("corrected_at")
+
+    await db.drafts.create_index([("essay_id", 1), ("teacher_id", 1)])
+    await db.notifications.create_index([("user_id", 1), ("read", 1)])
+    await db.notifications.create_index("created_at")
+    await db.activity_logs.create_index("created_at")
+    await db.activity_logs.create_index("user_id")
+    await db.password_resets.create_index("token")
+    await db.password_resets.create_index("expires_at")
+    await db.prompts.create_index("is_active")
+    await db.prompts.create_index("course_ids")
+
+    logger.info("Índices MongoDB criados/verificados")
+    # Iniciar schedulers em background
     asyncio.create_task(backup_scheduler())
+    asyncio.create_task(keep_alive_scheduler())
     
     admin_email = os.getenv("ADMIN_EMAIL", "admin@essaypro.com")
     admin_password = os.getenv("ADMIN_PASSWORD", "admin123")
