@@ -1,512 +1,462 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
+import { Users, FileText, CheckCircle, Award, Zap, Save, Clock, RotateCcw, BookOpen, TrendingUp, Download } from 'lucide-react';
+import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 import { Button } from '../components/ui/button';
-import { Input } from '../components/ui/input';
-import { Label } from '../components/ui/label';
-import { Textarea } from '../components/ui/textarea';
-import { toast } from 'sonner';
-import { Plus, Trash2, Upload } from 'lucide-react';
-import { CRITERIA_MODELS } from '../utils/criteriaModels';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-export const CreatePrompt = () => {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [availableCourses, setAvailableCourses] = useState([]);
-  const fileInputRef = useRef(null);
+const StatCard = ({ label, value, icon: Icon, color, sub }) => (
+  <Card className="p-5 bg-white border shadow-sm">
+    <div className="flex items-start justify-between">
+      <div>
+        <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>{label}</p>
+        <p className="text-3xl font-bold mt-1" style={{ color }}>{value}</p>
+        {sub && <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>{sub}</p>}
+      </div>
+      <div className="p-2 rounded-md" style={{ backgroundColor: color }}>
+        <Icon className="text-white" size={20} />
+      </div>
+    </div>
+  </Card>
+);
 
-  const handleImportFile = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const ext = file.name.split('.').pop().toLowerCase();
-
-    const appendText = (text) => {
-      setFormData(prev => ({
-        ...prev,
-        supporting_texts: prev.supporting_texts
-          ? prev.supporting_texts + '\n\n' + text
-          : text
-      }));
-      toast.success('Arquivo importado!');
-    };
-
-    if (ext === 'txt') {
-      // TXT: leitura direta
-      const reader = new FileReader();
-      reader.onload = (ev) => appendText(ev.target.result);
-      reader.readAsText(file, 'UTF-8');
-
-    } else if (ext === 'pdf') {
-      // PDF: extrai texto via pdfjsLib (CDN)
-      const script = document.getElementById('pdfjs-script');
-      const loadAndExtract = () => {
-        const reader = new FileReader();
-        reader.onload = async (ev) => {
-          try {
-            const pdfjs = window['pdfjs-dist/build/pdf'];
-            pdfjs.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            const pdf = await pdfjs.getDocument({ data: new Uint8Array(ev.target.result) }).promise;
-            let fullText = '';
-            for (let i = 1; i <= pdf.numPages; i++) {
-              const page = await pdf.getPage(i);
-              const tc = await page.getTextContent();
-              fullText += tc.items.map(item => item.str).join(' ') + '\n';
-            }
-            appendText(fullText.trim() || '(PDF sem texto extraível)');
-          } catch (err) {
-            toast.error('Não foi possível extrair texto do PDF');
-          }
-        };
-        reader.readAsArrayBuffer(file);
-      };
-      if (!window['pdfjs-dist/build/pdf']) {
-        const s = document.createElement('script');
-        s.id = 'pdfjs-script';
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        s.onload = loadAndExtract;
-        document.head.appendChild(s);
-      } else {
-        loadAndExtract();
-      }
-
-    } else if (['jpg','jpeg','png'].includes(ext)) {
-      // Imagem: usar OCR do Tesseract via CDN
-      const loadAndOCR = () => {
-        const url = URL.createObjectURL(file);
-        toast('Lendo imagem, aguarde...');
-        window.Tesseract.recognize(url, 'por', {})
-          .then(({ data: { text } }) => {
-            URL.revokeObjectURL(url);
-            appendText(text.trim() || '(Imagem sem texto reconhecido)');
-          })
-          .catch(() => toast.error('Não foi possível ler o texto da imagem'));
-      };
-      if (!window.Tesseract) {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js';
-        s.onload = loadAndOCR;
-        document.head.appendChild(s);
-      } else {
-        loadAndOCR();
-      }
-    }
-    e.target.value = '';
-  };
-  const [selectedModel, setSelectedModel] = useState('enem');
+export const AdminDashboard = () => {
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [pendingUsers, setPendingUsers] = useState([]);
+  const [courses, setCourses] = useState([]);
+  const [filterCourse, setFilterCourse] = useState('all');
+  const [creditConfig, setCreditConfig] = useState({ mode: 'unlimited', limit: 4 });
+  const [savingCredits, setSavingCredits] = useState(false);
 
   useEffect(() => {
-    axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/courses`, { withCredentials: true })
-      .then(r => setAvailableCourses(r.data || []))
-      .catch(() => {});
+    fetchStats();
+    fetchCreditConfig();
   }, []);
-  const [formData, setFormData] = useState({
-    title: '',
-    theme: '',
-    course_ids: [],
-    supporting_texts: '',
-    instructions: '',
-  });
-  const [criteria, setCriteria] = useState(() => {
-    return CRITERIA_MODELS.enem.criteria.map(c => ({
-      ...c,
-      level_descriptions: c.level_descriptions || [],
-    }));
-  });
-  const [showLevels, setShowLevels] = useState({});
 
-  const handleModelChange = (modelKey) => {
-    setSelectedModel(modelKey);
-    const modelCriteria = JSON.parse(JSON.stringify(CRITERIA_MODELS[modelKey].criteria));
-    // Garantir que todos os critérios têm level_descriptions
-    modelCriteria.forEach(c => {
-      if (!c.level_descriptions) {
-        c.level_descriptions = buildEmptyLevels(c.peso_maximo);
-      }
-    });
-    setCriteria(modelCriteria);
-  };
-
-  // Gera array de níveis vazio com base no peso_maximo
-  const buildEmptyLevels = (pesoMaximo) => {
-    const levels = [];
-    for (let v = 0; v <= pesoMaximo; v += 40) {
-      levels.push({ pontuacao: v, proficiencia: '', descricao: '' });
-    }
-    return levels;
-  };
-
-  const handleAddCriterion = () => {
-    const newId = `c${criteria.length + 1}`;
-    setCriteria([...criteria, {
-      id: newId,
-      nome: '',
-      descricao: '',
-      peso_maximo: 200,
-      level_descriptions: buildEmptyLevels(200),
-    }]);
-  };
-
-  const handleRemoveCriterion = (index) => {
-    if (criteria.length <= 1) {
-      toast.error('Deve haver pelo menos um critério');
-      return;
-    }
-    setCriteria(criteria.filter((_, i) => i !== index));
-  };
-
-  const handleCriterionChange = (index, field, value) => {
-    const updated = [...criteria];
-    updated[index] = { ...updated[index], [field]: value };
-    // Se mudou o peso_maximo, reconstruir níveis mantendo descrições existentes
-    if (field === 'peso_maximo' && !isNaN(value) && value > 0) {
-      const existing = updated[index].level_descriptions || [];
-      const newLevels = [];
-      for (let v = 0; v <= value; v += 40) {
-        const prev = existing.find(l => l.pontuacao === v);
-        newLevels.push(prev || { pontuacao: v, proficiencia: '', descricao: '' });
-      }
-      updated[index].level_descriptions = newLevels;
-    }
-    setCriteria(updated);
-  };
-
-  const handleLevelChange = (criterionIndex, levelIndex, field, value) => {
-    const updated = [...criteria];
-    const levels = [...(updated[criterionIndex].level_descriptions || [])];
-    levels[levelIndex] = { ...levels[levelIndex], [field]: value };
-    updated[criterionIndex] = { ...updated[criterionIndex], level_descriptions: levels };
-    setCriteria(updated);
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    // Validar critérios
-    for (const criterion of criteria) {
-      if (!criterion.nome.trim() || !criterion.descricao.trim()) {
-        toast.error('Preencha nome e descrição de todos os critérios');
-        return;
-      }
-      if (!criterion.peso_maximo || criterion.peso_maximo <= 0) {
-        toast.error(`Critério "${criterion.nome}": pontuação deve ser maior que 0`);
-        return;
-      }
-    }
-
-    setLoading(true);
+  const fetchStats = async () => {
     try {
-      await axios.post(`${API_URL}/api/prompts`, {
-        ...formData,
-        criteria
-      }, { withCredentials: true });
-      toast.success('Tema criado com sucesso!');
-      navigate('/dashboard');
+      const { data } = await axios.get(`${API_URL}/api/admin/stats`, { withCredentials: true });
+      setStats(data);
     } catch (error) {
-      console.error('Error creating prompt:', error);
-      toast.error('Erro ao criar tema');
+      console.error('Error fetching stats:', error);
     } finally {
       setLoading(false);
     }
   };
 
+  const fetchCreditConfig = async () => {
+    try {
+      const { data } = await axios.get(`${API_URL}/api/credits/config`, { withCredentials: true });
+      setCreditConfig(data);
+    } catch (error) {
+      console.error('Error fetching credit config:', error);
+    }
+  };
+
+  const saveCreditConfig = async () => {
+    setSavingCredits(true);
+    try {
+      await axios.put(`${API_URL}/api/credits/config`, creditConfig, { withCredentials: true });
+      alert('Configuração salva!');
+    } catch (error) {
+      alert('Erro ao salvar');
+    } finally {
+      setSavingCredits(false);
+    }
+  };
+
+  const selectStyle = {
+    padding: '8px 12px', borderRadius: '6px',
+    border: '1px solid #E8DDD0', fontSize: '14px',
+    color: '#2C1A0E', backgroundColor: '#FFF',
+  };
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3"></div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-28 bg-muted rounded" />)}
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
+  const approveUser = async (userId) => {
+    try {
+      await axios.post(`${API_URL}/api/admin/approve-user/${userId}`, {}, { withCredentials: true });
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      toast.success('Usuário aprovado!');
+    } catch (e) { toast.error('Erro ao aprovar'); }
+  };
+
+  const rejectUser = async (userId) => {
+    if (!window.confirm('Rejeitar e excluir este cadastro?')) return;
+    try {
+      await axios.post(`${API_URL}/api/admin/reject-user/${userId}`, {}, { withCredentials: true });
+      setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      toast.success('Cadastro rejeitado');
+    } catch (e) { toast.error('Erro ao rejeitar'); }
+  };
+
+  const handleExportPDF = () => {
+    exportToPDF('Relatório do Curso — RcN', `
+      <h1>Relatório Geral do Curso</h1>
+      <p class="subtitle">Gerado em ${new Date().toLocaleDateString('pt-BR')}</p>
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value">${stats?.total_users || 0}</div><div class="stat-label">Usuários</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.total_essays || 0}</div><div class="stat-label">Redações</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.total_corrections || 0}</div><div class="stat-label">Corrigidas</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.total_pending || 0}</div><div class="stat-label">Pendentes</div></div>
+        <div class="stat-box"><div class="stat-value">${stats?.total_rewrites || 0}</div><div class="stat-label">Reescritas</div></div>
+        <div class="stat-box"><div class="stat-value">${Math.round(stats?.average_score || 0)}</div><div class="stat-label">Média Geral</div></div>
+      </div>
+      ${stats?.top_prompts?.length ? `
+        <h2>Propostas Mais Enviadas</h2>
+        <table>
+          <tr><th>#</th><th>Proposta</th><th>Envios</th></tr>
+          ${stats.top_prompts.map((p, i) => `<tr><td>${i+1}</td><td>${p.title}</td><td>${p.count}</td></tr>`).join('')}
+        </table>` : ''}
+      ${stats?.top_students?.length ? `
+        <h2>Alunos Mais Ativos</h2>
+        <table>
+          <tr><th>#</th><th>Aluno</th><th>Redações</th></tr>
+          ${stats.top_students.map((s, i) => `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.count}</td></tr>`).join('')}
+        </table>` : ''}
+    `);
+  };
+
+  const handleExportExcel = () => {
+    const headers = ['Métrica', 'Valor'];
+    const rows = [
+      ['Total de Usuários', stats?.total_users || 0],
+      ['Total de Alunos', stats?.total_students || 0],
+      ['Total de Professores', stats?.total_teachers || 0],
+      ['Redações Enviadas', stats?.total_essays || 0],
+      ['Redações Pendentes', stats?.total_pending || 0],
+      ['Correções Realizadas', stats?.total_corrections || 0],
+      ['Reescritas', stats?.total_rewrites || 0],
+      ['Média Geral de Pontos', Math.round(stats?.average_score || 0)],
+    ];
+    exportToExcel('relatorio-curso-rcn', headers, rows);
+  };
+
+  const pendingRate = stats?.total_essays > 0
+    ? Math.round((stats.total_pending / stats.total_essays) * 100)
+    : 0;
+
   return (
     <Layout>
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6">
         <div>
-          <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="create-prompt-title">
-            Criar Nova Proposta
+          <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }} data-testid="admin-dashboard-title">
+            Painel Administrativo
           </h1>
-          <p className="text-lg mt-2 text-slate-600">Adicione uma nova proposta de redação para os alunos</p>
+          <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>Visão geral da plataforma</p>
+          {courses.length > 0 && (
+            <div className="flex items-center gap-2 mt-2">
+              <span className="text-xs" style={{ color: '#6B5B4E' }}>Turma:</span>
+              <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)}
+                style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', color: '#2C1A0E' }}>
+                <option value="all">Todas</option>
+                {courses.filter(c => c.is_active).map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <div className="flex gap-2 mt-3">
+            <button onClick={handleExportPDF}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
+              <Download size={13} /> PDF
+            </button>
+            <button onClick={handleExportExcel}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#36555A', color: '#36555A', backgroundColor: 'white' }}>
+              <Download size={13} /> Excel
+            </button>
+          </div>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-6" data-testid="create-prompt-form">
-          <Card className="p-8 bg-white border">
-            <h3 className="font-semibold text-lg mb-4" style={{ color: '#7C1805' }}>Informações do Tema</h3>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="title">Título do Tema</Label>
-                <Input
-                  id="title"
-                  value={formData.title}
-                  onChange={(e) => setFormData({ ...formData, title: e.target.value })}
-                  required
-                  placeholder="Ex: Desafios da educação digital no Brasil"
-                  className="mt-1"
-                  data-testid="title-input"
-                />
-              </div>
+        {/* MÉTRICAS PRINCIPAIS */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          <StatCard label="USUÁRIOS" value={stats?.total_users || 0} icon={Users} color="#7C1805"
+            sub={`${stats?.total_students || 0} alunos · ${stats?.total_teachers || 0} prof.`} />
+          <StatCard label="REDAÇÕES" value={stats?.total_essays || 0} icon={FileText} color="#D66B27" />
+          <StatCard label="PENDENTES" value={stats?.total_pending || 0} icon={Clock} color="#DAB257"
+            sub={`${pendingRate}% do total`} />
+          <StatCard label="CORRIGIDAS" value={stats?.total_corrections || 0} icon={CheckCircle} color="#36555A" />
+          <StatCard label="REESCRITAS" value={stats?.total_rewrites || 0} icon={RotateCcw} color="#D9B2CF"
+            sub="taxa de reenvio" />
+          <StatCard label="MÉDIA GERAL" value={Math.round(stats?.average_score || 0)} icon={Award} color="#A03217" />
+        </div>
 
-              <div>
-                <Label htmlFor="theme">Tema Central</Label>
-                <Textarea
-                  id="theme"
-                  value={formData.theme}
-                  onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
-                  required
-                  rows={3}
-                  placeholder="Descreva o tema central da redação..."
-                  className="mt-1"
-                  data-testid="theme-input"
-                />
-              </div>
-
-              {/* Restringir por turma */}
-              {availableCourses.length > 0 && (
-                <div>
-                  <Label className="text-sm font-semibold">Restringir a turmas (opcional)</Label>
-                  <p className="text-xs mt-0.5 mb-2" style={{ color: '#6B5B4E' }}>
-                    Deixe em branco para todos os alunos verem. Selecione turmas para restringir.
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {availableCourses.filter(c => c.is_active).map(c => (
-                      <label key={c.id} className="flex items-center gap-1.5 cursor-pointer text-xs px-3 py-1.5 rounded-full border transition-all"
-                        style={{
-                          backgroundColor: (formData.course_ids || []).includes(c.id) ? '#7C1805' : 'transparent',
-                          color: (formData.course_ids || []).includes(c.id) ? '#FDF3E8' : '#6B5B4E',
-                          borderColor: (formData.course_ids || []).includes(c.id) ? '#7C1805' : '#E8DDD0',
-                        }}>
-                        <input type="checkbox" style={{ display: 'none' }}
-                          checked={(formData.course_ids || []).includes(c.id)}
-                          onChange={e => {
-                            const ids = formData.course_ids || [];
-                            setFormData({ ...formData,
-                              course_ids: e.target.checked
-                                ? [...ids, c.id]
-                                : ids.filter(id => id !== c.id)
-                            });
-                          }}
-                        />
-                        {c.name}
-                      </label>
-                    ))}
+        {/* APROVAÇÃO DE USUÁRIOS PENDENTES */}
+        {pendingUsers.length > 0 && (
+          <Card className="p-5 bg-white border shadow-sm" style={{ borderColor: '#DAB257' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D66B27' }} />
+              <h2 className="font-semibold text-sm" style={{ color: '#7C1805' }}>
+                Aguardando aprovação ({pendingUsers.length})
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {pendingUsers.map(u => (
+                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
+                    <p className="text-xs" style={{ color: '#6B5B4E' }}>{u.email}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => approveUser(u.id)}
+                      className="px-3 py-1 rounded text-xs font-semibold text-white"
+                      style={{ backgroundColor: '#36555A' }}>
+                      ✓ Aprovar
+                    </button>
+                    <button onClick={() => rejectUser(u.id)}
+                      className="px-3 py-1 rounded text-xs font-semibold"
+                      style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
+                      ✕ Rejeitar
+                    </button>
                   </div>
                 </div>
-              )}
-
-              <div>
-                <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="supporting-texts">Textos de Apoio</Label>
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current?.click()}
-                    className="flex items-center gap-1 text-xs px-2 py-1 rounded border"
-                    style={{ color: '#7C1805', borderColor: '#D66B27', backgroundColor: 'transparent' }}
-                  >
-                    <Upload size={12} /> Importar arquivo
-                  </button>
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    accept=".txt,.pdf,.jpg,.jpeg,.png"
-                    style={{ display: 'none' }}
-                    onChange={handleImportFile}
-                  />
-                </div>
-                <Textarea
-                  id="supporting-texts"
-                  value={formData.supporting_texts}
-                  onChange={(e) => setFormData({ ...formData, supporting_texts: e.target.value })}
-                  required
-                  rows={6}
-                  placeholder="Adicione os textos motivadores..."
-                  className="mt-1"
-                  data-testid="supporting-texts-input"
-                />
-              </div>
-
-              <div>
-                <Label htmlFor="instructions">Instruções</Label>
-                <Textarea
-                  id="instructions"
-                  value={formData.instructions}
-                  onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
-                  required
-                  rows={4}
-                  placeholder="Com base nos textos motivadores e em seus conhecimentos, redija um texto dissertativo-argumentativo..."
-                  className="mt-1"
-                  data-testid="instructions-input"
-                />
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-8 bg-white border">
-            <div className="mb-6">
-              <Label className="text-base font-semibold mb-3 block">Selecione um Modelo de Critérios</Label>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-3" data-testid="criteria-model-select">
-                {Object.entries(CRITERIA_MODELS).map(([key, model]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => handleModelChange(key)}
-                    style={{
-                      padding: '12px',
-                      borderRadius: '8px',
-                      border: selectedModel === key ? '2px solid #7C1805' : '1px solid #E8DDD0',
-                      backgroundColor: selectedModel === key ? '#7C1805' : '#FFF',
-                      color: selectedModel === key ? '#FDF3E8' : '#2C1A0E',
-                      textAlign: 'left',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s',
-                    }}
-                  >
-                    <p className="text-sm font-semibold">{model.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: selectedModel === key ? 'rgba(253,243,232,0.75)' : '#6B5B4E' }}>
-                      {model.description}
-                    </p>
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg" style={{ color: '#7C1805' }}>Critérios de Avaliação</h3>
-              <Button
-                type="button"
-                onClick={handleAddCriterion}
-                variant="outline"
-                size="sm"
-                data-testid="add-criterion-button"
-              >
-                <Plus size={16} className="mr-2" />
-                Adicionar Critério
-              </Button>
-            </div>
-
-            <div className="space-y-6">
-              {criteria.map((criterion, index) => (
-                <Card key={index} className="p-4 border" style={{ backgroundColor: '#FDF3E8' }} data-testid={`criterion-${index}`}>
-                  <div className="space-y-3">
-                    <div className="flex items-start justify-between">
-                      <Label className="text-sm font-semibold">Critério {index + 1}</Label>
-                      {criteria.length > 1 && (
-                        <Button
-                          type="button"
-                          onClick={() => handleRemoveCriterion(index)}
-                          variant="ghost"
-                          size="sm"
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          data-testid={`remove-criterion-${index}`}
-                        >
-                          <Trash2 size={16} />
-                        </Button>
-                      )}
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`criterion-nome-${index}`} className="text-xs">Nome do Critério</Label>
-                      <Input
-                        id={`criterion-nome-${index}`}
-                        value={criterion.nome}
-                        onChange={(e) => handleCriterionChange(index, 'nome', e.target.value)}
-                        required
-                        placeholder="Ex: Competência 1 — Domínio da Norma Culta"
-                        className="mt-1"
-                        data-testid={`criterion-nome-${index}`}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`criterion-descricao-${index}`} className="text-xs">Descrição</Label>
-                      <Textarea
-                        id={`criterion-descricao-${index}`}
-                        value={criterion.descricao}
-                        onChange={(e) => handleCriterionChange(index, 'descricao', e.target.value)}
-                        required
-                        rows={2}
-                        placeholder="Descreva o que será avaliado neste critério..."
-                        className="mt-1"
-                        data-testid={`criterion-descricao-${index}`}
-                      />
-                    </div>
-
-                    <div>
-                      <Label htmlFor={`criterion-peso-${index}`} className="text-xs">Pontuação Máxima (múltiplo de 40)</Label>
-                      <Input
-                        id={`criterion-peso-${index}`}
-                        type="number"
-                        value={criterion.peso_maximo}
-                        onChange={(e) => handleCriterionChange(index, 'peso_maximo', parseFloat(e.target.value) || 0)}
-                        required
-                        min={0.5}
-                        step={0.5}
-                        className="mt-1"
-                        data-testid={`criterion-peso-${index}`}
-                      />
-                    </div>
-
-                    {/* Descrições por nível */}
-                    <div>
-                      <button
-                        type="button"
-                        onClick={() => setShowLevels(prev => ({ ...prev, [index]: !prev[index] }))}
-                        className="text-xs font-semibold flex items-center gap-1 mt-1"
-                        style={{ color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
-                      >
-                        {showLevels[index] ? '▲' : '▼'} Descrições por nível ({criterion.level_descriptions?.length || 0} níveis)
-                      </button>
-
-                      {showLevels[index] && (
-                        <div className="mt-2 space-y-3">
-                          <p className="text-xs" style={{ color: '#6B5B4E' }}>
-                            Preencha o nome e a descrição de cada nível de pontuação. Serão exibidos para o corretor durante a avaliação.
-                          </p>
-                          {(criterion.level_descriptions || []).map((level, li) => (
-                            <div key={li} className="p-3 rounded-lg border" style={{ backgroundColor: '#FFF', borderColor: '#E8DDD0' }}>
-                              <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: '#7C1805', color: '#FFF' }}>
-                                  {level.pontuacao} pts
-                                </span>
-                                <Input
-                                  value={level.proficiencia}
-                                  onChange={(e) => handleLevelChange(index, li, 'proficiencia', e.target.value)}
-                                  placeholder={`Ex: Nível ${li} — Bom domínio`}
-                                  className="flex-1 h-7 text-xs"
-                                />
-                              </div>
-                              <Textarea
-                                value={level.descricao}
-                                onChange={(e) => handleLevelChange(index, li, 'descricao', e.target.value)}
-                                placeholder="Descreva o que caracteriza este nível de desempenho..."
-                                rows={2}
-                                className="text-xs"
-                              />
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </Card>
               ))}
             </div>
+          </Card>
+        )}
 
-            <div className="mt-4 p-4 rounded-md" style={{ backgroundColor: '#E0E7FF' }}>
-              <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>
-                Pontuação Total: {criteria.reduce((sum, c) => sum + c.peso_maximo, 0)} pontos
-              </p>
+        {/* FREQUÊNCIA DE ENVIO */}
+        <div className="grid grid-cols-2 gap-4">
+          <Card className="p-4 bg-white border shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS (7 DIAS)</p>
+                <p className="text-3xl font-bold mt-1" style={{ color: '#7C1805' }}>
+                  {stats?.essays_last_7_days ?? 0}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>redações enviadas</p>
+              </div>
+              <div className="p-2 rounded-md" style={{ backgroundColor: '#D9B2CF' }}>
+                <TrendingUp className="text-white" size={20} />
+              </div>
             </div>
           </Card>
+          <Card className="p-4 bg-white border shadow-sm">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS (30 DIAS)</p>
+                <p className="text-3xl font-bold mt-1" style={{ color: '#7C1805' }}>
+                  {stats?.essays_last_30_days ?? 0}
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                  ~{stats?.essays_last_30_days ? Math.round(stats.essays_last_30_days / 4) : 0}/semana
+                </p>
+              </div>
+              <div className="p-2 rounded-md" style={{ backgroundColor: '#DAB257' }}>
+                <TrendingUp className="text-white" size={20} />
+              </div>
+            </div>
+          </Card>
+        </div>
 
-          <div className="flex gap-4">
-            <Button
-              type="submit"
-              disabled={loading}
-              style={{ backgroundColor: '#7C1805' }}
-              data-testid="submit-prompt-button"
-            >
-              {loading ? 'Criando...' : 'Criar Proposta'}
-            </Button>
-            <Button type="button" variant="outline" onClick={() => navigate('/dashboard')} data-testid="cancel-button">
-              Cancelar
+        {/* APROVAÇÃO DE USUÁRIOS PENDENTES */}
+        {pendingUsers.length > 0 && (
+          <Card className="p-5 bg-white border shadow-sm" style={{ borderColor: '#DAB257' }}>
+            <div className="flex items-center gap-2 mb-3">
+              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D66B27' }} />
+              <h2 className="font-semibold text-sm" style={{ color: '#7C1805' }}>
+                Aguardando aprovação ({pendingUsers.length})
+              </h2>
+            </div>
+            <div className="space-y-2">
+              {pendingUsers.map(u => (
+                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg"
+                  style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
+                  <div>
+                    <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
+                    <p className="text-xs" style={{ color: '#6B5B4E' }}>{u.email}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button onClick={() => approveUser(u.id)}
+                      className="px-3 py-1 rounded text-xs font-semibold text-white"
+                      style={{ backgroundColor: '#36555A' }}>
+                      ✓ Aprovar
+                    </button>
+                    <button onClick={() => rejectUser(u.id)}
+                      className="px-3 py-1 rounded text-xs font-semibold"
+                      style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
+                      ✕ Rejeitar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
+
+        {/* FREQUÊNCIA DE ENVIO */}
+        {(stats?.essays_last_7_days !== undefined || stats?.essays_last_30_days !== undefined) && (
+          <div className="grid grid-cols-2 gap-4">
+            <Card className="p-5 bg-white border shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS — ÚLTIMOS 7 DIAS</p>
+                  <p className="text-3xl font-bold mt-1" style={{ color: '#D66B27' }}>
+                    {stats?.essays_last_7_days || 0}
+                  </p>
+                </div>
+                <div className="p-2 rounded-md" style={{ backgroundColor: '#D66B27' }}>
+                  <TrendingUp className="text-white" size={20} />
+                </div>
+              </div>
+            </Card>
+            <Card className="p-5 bg-white border shadow-sm">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS — ÚLTIMOS 30 DIAS</p>
+                  <p className="text-3xl font-bold mt-1" style={{ color: '#D66B27' }}>
+                    {stats?.essays_last_30_days || 0}
+                  </p>
+                </div>
+                <div className="p-2 rounded-md" style={{ backgroundColor: '#DAB257' }}>
+                  <TrendingUp className="text-white" size={20} />
+                </div>
+              </div>
+            </Card>
+          </div>
+        )}
+
+        {/* SEGUNDA LINHA — Top propostas + Top alunos */}
+        <div className="grid md:grid-cols-2 gap-6">
+          {/* Propostas mais enviadas */}
+          <Card className="p-5 bg-white border shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <BookOpen size={18} style={{ color: '#7C1805' }} />
+              <h2 className="font-heading font-semibold text-base" style={{ color: '#7C1805' }}>
+                Propostas mais enviadas
+              </h2>
+            </div>
+            {stats?.top_prompts?.length > 0 ? (
+              <div className="space-y-3">
+                {stats.top_prompts.map((p, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-xs font-bold w-5 text-center" style={{ color: '#D66B27' }}>{i + 1}</span>
+                      <span className="text-sm truncate" style={{ color: '#2C1A0E' }}>{p.title}</span>
+                    </div>
+                    <span className="text-sm font-bold ml-2 shrink-0" style={{ color: '#7C1805' }}>{p.count}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: '#6B5B4E' }}>Nenhum dado ainda</p>
+            )}
+          </Card>
+
+          {/* Alunos mais ativos */}
+          <Card className="p-5 bg-white border shadow-sm">
+            <div className="flex items-center gap-2 mb-4">
+              <TrendingUp size={18} style={{ color: '#7C1805' }} />
+              <h2 className="font-heading font-semibold text-base" style={{ color: '#7C1805' }}>
+                Alunos mais ativos
+              </h2>
+            </div>
+            {stats?.top_students?.length > 0 ? (
+              <div className="space-y-3">
+                {stats.top_students.map((s, i) => (
+                  <div key={i} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-xs font-bold w-5 text-center" style={{ color: '#D66B27' }}>{i + 1}</span>
+                      <span className="text-sm truncate" style={{ color: '#2C1A0E' }}>{s.name}</span>
+                    </div>
+                    <span className="text-sm font-bold ml-2 shrink-0" style={{ color: '#7C1805' }}>
+                      {s.count} red.
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm" style={{ color: '#6B5B4E' }}>Nenhum dado ainda</p>
+            )}
+          </Card>
+        </div>
+
+        {/* CONFIGURAÇÃO DE CRÉDITOS */}
+        <Card className="p-5 bg-white border shadow-sm">
+          <div className="flex items-center gap-2 mb-3">
+            <Zap size={18} style={{ color: '#7C1805' }} />
+            <h2 className="font-heading font-semibold text-base" style={{ color: '#7C1805' }}>
+              Créditos de Envio
+            </h2>
+          </div>
+          <p className="text-xs mb-4" style={{ color: '#6B5B4E' }}>
+            Configure quantas redações cada aluno pode enviar por período.
+          </p>
+          <div className="flex flex-wrap items-end gap-4">
+            <div>
+              <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>Modo</label>
+              <select
+                value={creditConfig.mode}
+                onChange={e => setCreditConfig({ ...creditConfig, mode: e.target.value })}
+                style={selectStyle}
+              >
+                <option value="unlimited">Ilimitado</option>
+                <option value="monthly">Limite por mês</option>
+                <option value="weekly">Limite por semana</option>
+              </select>
+            </div>
+            {creditConfig.mode !== 'unlimited' && (
+              <div>
+                <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>
+                  Qtd. {creditConfig.mode === 'monthly' ? 'por mês' : 'por semana'}
+                </label>
+                <input
+                  type="number" min="1" max="50"
+                  value={creditConfig.limit}
+                  onChange={e => setCreditConfig({ ...creditConfig, limit: parseInt(e.target.value) || 1 })}
+                  style={{ ...selectStyle, width: '80px' }}
+                />
+              </div>
+            )}
+            <Button onClick={saveCreditConfig} disabled={savingCredits} size="sm">
+              <Save size={14} className="mr-1" />
+              {savingCredits ? 'Salvando...' : 'Salvar'}
             </Button>
           </div>
-        </form>
+        </Card>
+
+        {/* AÇÕES RÁPIDAS */}
+        <Card className="p-5 bg-white border shadow-sm">
+          <h2 className="font-heading font-semibold text-base mb-4" style={{ color: '#7C1805' }}>
+            Ações rápidas
+          </h2>
+          <div className="flex flex-wrap gap-3">
+            <a href="/admin/users"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm text-white"
+              style={{ backgroundColor: '#7C1805' }} data-testid="manage-users-button">
+              <Users size={15} /> Gerenciar Usuários
+            </a>
+            <a href="/create-prompt"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm border"
+              style={{ borderColor: '#7C1805', color: '#7C1805' }}>
+              <BookOpen size={15} /> Criar Proposta
+            </a>
+            <a href="/correction-queue"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm border"
+              style={{ borderColor: '#36555A', color: '#36555A' }}>
+              <FileText size={15} /> Fila de Correções
+            </a>
+          </div>
+        </Card>
       </div>
     </Layout>
   );
