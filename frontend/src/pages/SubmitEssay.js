@@ -232,7 +232,45 @@ export const SubmitEssay = () => {
           <h3 className="font-semibold mb-2" style={{ color: '#7C1805' }}>
             Textos de Apoio
           </h3>
-          <p className="text-slate-700 whitespace-pre-line leading-relaxed">{prompt.supporting_texts}</p>
+          {/* Textos de apoio */}
+          {prompt.supporting_texts && (
+            <p className="text-slate-700 whitespace-pre-line leading-relaxed mb-4">{prompt.supporting_texts}</p>
+          )}
+
+          {/* Arquivos de apoio (PDF/imagens) */}
+          {(prompt.supporting_files || []).length > 0 && (
+            <div className="space-y-4 mt-2">
+              {prompt.supporting_files.map((file, i) => (
+                <div key={i}>
+                  <p className="text-xs font-semibold mb-1" style={{ color: '#7C1805' }}>
+                    📎 {file.name}
+                  </p>
+                  {file.type === 'pdf' ? (
+                    <div>
+                      <iframe
+                        src={file.url}
+                        title={file.name}
+                        width="100%"
+                        height="600px"
+                        style={{ border: '1px solid #E8DDD0', borderRadius: '8px' }}
+                      />
+                      <a href={file.url} target="_blank" rel="noreferrer"
+                        className="text-xs mt-1 inline-block"
+                        style={{ color: '#36555A' }}>
+                        ↗ Abrir PDF em nova aba
+                      </a>
+                    </div>
+                  ) : (
+                    <img
+                      src={file.url}
+                      alt={file.name}
+                      style={{ maxWidth: '100%', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                    />
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card className="p-6 bg-white border">
