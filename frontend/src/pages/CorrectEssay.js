@@ -52,6 +52,7 @@ export const CorrectEssay = () => {
   const [prompt, setPrompt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const correctionStartTime = React.useRef(Date.now());
   const textRef = useRef(null);
   const canvasContainerRef = useRef(null);
   const textInitializedRef = useRef(false);
@@ -86,7 +87,8 @@ export const CorrectEssay = () => {
   const [hoveredCommentId, setHoveredCommentId] = useState(null);
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [activeTooltip, setActiveTooltip] = useState(null);
-  const [eraserCursor, setEraserCursor] = useState(null); // {x, y} for visual cursor // { label, x, y }
+  const [eraserCursor, setEraserCursor] = useState(null);
+  const [selectionToolbar, setSelectionToolbar] = useState(null); // {x, y} for visual cursor // { label, x, y }
 
   const [scores, setScores] = useState({});
   const [scoreErrors, setScoreErrors] = useState({});
@@ -928,7 +930,8 @@ export const CorrectEssay = () => {
           total_score: totalScore,
           ...feedback,
           inline_comments: inlineComments,
-          canvas_annotations: canvasData
+          canvas_annotations: canvasData,
+          correction_time_minutes: Math.round((Date.now() - correctionStartTime.current) / 60000),
         },
         { withCredentials: true }
       );
@@ -1231,7 +1234,18 @@ export const CorrectEssay = () => {
             >
               <div
                 ref={textRef}
-                onMouseUp={handleTextSelection}
+                onMouseUp={(e) => {
+                  handleTextSelection(e);
+                  // C1: Mini toolbar ao selecionar texto
+                  const sel = window.getSelection();
+                  if (sel && sel.toString().trim().length > 0) {
+                    const range = sel.getRangeAt(0);
+                    const rect = range.getBoundingClientRect();
+                    setSelectionToolbar({ x: rect.left + rect.width / 2, y: rect.top - 10, text: sel.toString().trim() });
+                  } else {
+                    setSelectionToolbar(null);
+                  }
+                }}
                 onDoubleClick={() => setSelectedTool('comment')}
                 onContextMenu={(e) => { e.preventDefault(); setSelectedTool('pen'); }}
                 onMouseMove={(e) => {
@@ -1302,6 +1316,58 @@ export const CorrectEssay = () => {
           backgroundColor: 'rgba(124,24,5,0.08)',
           boxShadow: '0 0 0 1px rgba(255,255,255,0.8)',
         }} />
+      )}
+
+      {/* C1: MINI TOOLBAR DE SELEÇÃO */}
+      {selectionToolbar && (
+        <div style={{
+          position: 'fixed',
+          left: selectionToolbar.x,
+          top: selectionToolbar.y,
+          transform: 'translate(-50%, -100%)',
+          display: 'flex',
+          gap: '4px',
+          backgroundColor: '#2C1A0E',
+          borderRadius: '6px',
+          padding: '4px 6px',
+          zIndex: 9999,
+          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
+        }}>
+          <button
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setSelectedTool('comment');
+              setShowCommentPopup(true);
+              setSelectionToolbar(null);
+            }}
+            style={{ color: 'white', fontSize: '11px', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px' }}
+            title="Adicionar comentário"
+          >
+            💬 Comentar
+          </button>
+          <button
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setSelectedTool('underline');
+              setSelectionToolbar(null);
+            }}
+            style={{ color: '#FFD700', fontSize: '11px', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px' }}
+            title="Sublinhar"
+          >
+            U̲
+          </button>
+          <button
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setSelectedTool('highlight');
+              setSelectionToolbar(null);
+            }}
+            style={{ color: '#FFD700', fontSize: '11px', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px' }}
+            title="Grifar"
+          >
+            ✏️
+          </button>
+        </div>
       )}
 
       {/* TOOLTIP GLOBAL */}
@@ -1429,7 +1495,23 @@ export const CorrectEssay = () => {
 
             {/* FEEDBACK */}
             <div>
-              <h3 className="font-semibold mb-2" style={{ color: '#7C1805' }}>Feedback Geral *</h3>
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-semibold" style={{ color: '#7C1805' }}>Feedback Geral *</h3>
+                <div className="flex gap-1">
+                  {[
+                    { label: '⭐ Ótimo', text: 'Excelente trabalho! Sua redação demonstra ótimo domínio da língua portuguesa e capacidade argumentativa. Continue assim!' },
+                    { label: '👍 Bom', text: 'Boa redação! Você demonstrou compreensão do tema e boa estrutura argumentativa. Atenção aos pontos de melhoria indicados.' },
+                    { label: '📚 Atenção', text: 'Sua redação apresenta aspectos importantes a desenvolver. Leia os comentários com atenção e revise os pontos indicados para melhorar.' },
+                  ].map(tpl => (
+                    <button key={tpl.label} type="button"
+                      onClick={() => setFeedback(prev => ({ ...prev, general_feedback: tpl.text }))}
+                      className="text-xs px-2 py-0.5 rounded border"
+                      style={{ color: '#6B5B4E', borderColor: '#E8DDD0', backgroundColor: 'white', fontSize: '11px' }}>
+                      {tpl.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
               <Textarea
                 id="general-feedback"
                 value={feedback.general_feedback}
