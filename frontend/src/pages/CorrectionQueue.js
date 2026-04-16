@@ -39,6 +39,8 @@ export const CorrectionQueue = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
   const [deadlineDays, setDeadlineDays] = useState(3);
+  const [courses, setCourses] = useState([]);
+  const [filterCourse, setFilterCourse] = useState('all');
   const [search, setSearch] = useState('');
   const [filterPrompt, setFilterPrompt] = useState('all');
   const navigate = useNavigate();
@@ -47,6 +49,9 @@ export const CorrectionQueue = () => {
     fetchAll();
     axios.get(`${API_URL}/api/settings/course`, { withCredentials: true })
       .then(r => { if (r.data.correction_deadline_days > 0) setDeadlineDays(r.data.correction_deadline_days); })
+      .catch(() => {});
+    axios.get(`${API_URL}/api/courses`, { withCredentials: true })
+      .then(r => setCourses(r.data || []))
       .catch(() => {});
   }, []);
 
@@ -168,8 +173,16 @@ export const CorrectionQueue = () => {
                 {promptOptions.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             )}
-            {(search || filterPrompt !== 'all') && (
-              <button onClick={() => { setSearch(''); setFilterPrompt('all'); }}
+            {courses.length > 0 && (
+              <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} style={{ ...selectStyle, maxWidth: '180px' }}>
+                <option value="all">Todas as turmas</option>
+                {courses.filter(c => c.is_active).map(c => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            )}
+            {(search || filterPrompt !== 'all' || filterCourse !== 'all') && (
+              <button onClick={() => { setSearch(''); setFilterPrompt('all'); setFilterCourse('all'); }}
                 className="text-xs px-2 py-1 rounded flex items-center gap-1"
                 style={{ backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27' }}>
                 ✕ Limpar
