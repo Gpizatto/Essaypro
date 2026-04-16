@@ -147,8 +147,10 @@ class PromptCreate(BaseModel):
     instructions: str
     criteria: Optional[List[Criterion]] = None
     course_ids: Optional[List[str]] = []
-    start_date: Optional[str] = None   # ISO date string
-    end_date: Optional[str] = None     # ISO date string
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
+    supporting_files: Optional[List[dict]] = []
+    supporting_files: Optional[List[dict]] = []  # [{name, url, type}]
 
 class PromptResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -164,6 +166,7 @@ class PromptResponse(BaseModel):
     course_ids: Optional[List[str]] = []
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    supporting_files: Optional[List[dict]] = []
 
 class EssaySubmit(BaseModel):
     prompt_id: str
@@ -349,6 +352,7 @@ async def create_prompt(prompt_data: PromptCreate, current_user: dict = Depends(
         "course_ids": prompt_data.course_ids or [],
         "start_date": prompt_data.start_date,
         "end_date": prompt_data.end_date,
+        "supporting_files": prompt_data.supporting_files or [],
     }
     await db.prompts.insert_one(prompt_doc)
     return PromptResponse(**prompt_doc)
@@ -845,7 +849,14 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
         raise HTTPException(status_code=403, detail="Access denied")
 
     tid = current_user["_id"]
-    corrections = await db.corrections.find({"teacher_id": tid}, {"_id": 0}).to_list(10000)
+    # Busca tanto string quanto ObjectId (compatibilidade com correções antigas)
+    try:
+        corrections = await db.corrections.find(
+            {"$or": [{"teacher_id": tid}, {"teacher_id": ObjectId(tid)}]},
+            {"_id": 0}
+        ).to_list(10000)
+    except Exception:
+        corrections = await db.corrections.find({"teacher_id": tid}, {"_id": 0}).to_list(10000)
     total = len(corrections)
 
     # Tempo médio — batch load essays (evita N+1)
