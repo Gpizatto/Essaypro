@@ -1183,24 +1183,26 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     }
 
 @api_router.get("/cloudinary/signature")
-def generate_cloudinary_signature(
+async def generate_cloudinary_signature(
     resource_type: str = Query("auto"),
     folder: str = "essaypro/uploads",
     current_user: dict = Depends(get_current_user)
 ):
-    import time as time_module
-    timestamp = int(time_module.time())
-    # resource_type NAO entra na assinatura — só folder e timestamp
+    timestamp = int(time.time())
+    # resource_type NAO vai nos params assinados — apenas folder e timestamp
     params = {
         "timestamp": timestamp,
         "folder": folder,
     }
-    signature = cloudinary.utils.api_sign_request(params, os.getenv("CLOUDINARY_API_SECRET"))
+    secret = os.getenv("CLOUDINARY_API_SECRET", "")
+    if not secret:
+        raise HTTPException(status_code=503, detail="Cloudinary não configurado")
+    signature = cloudinary.utils.api_sign_request(params, secret)
     return {
         "signature": signature,
         "timestamp": timestamp,
-        "cloud_name": os.getenv("CLOUDINARY_CLOUD_NAME"),
-        "api_key": os.getenv("CLOUDINARY_API_KEY"),
+        "cloud_name": os.getenv("CLOUDINARY_CLOUD_NAME", ""),
+        "api_key": os.getenv("CLOUDINARY_API_KEY", ""),
         "folder": folder,
         "resource_type": resource_type
     }
