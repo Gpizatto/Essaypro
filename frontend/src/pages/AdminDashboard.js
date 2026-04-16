@@ -28,6 +28,9 @@ export const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pendingUsers, setPendingUsers] = useState([]);
+  const [pendingSelections, setPendingSelections] = useState({}); // {userId: {role, course_id}}
+  const [backups, setBackups] = useState([]);
+  const [runningBackup, setRunningBackup] = useState(false);
   const [courses, setCourses] = useState([]);
   const [filterCourse, setFilterCourse] = useState('all');
   const [creditConfig, setCreditConfig] = useState({ mode: 'unlimited', limit: 4 });
@@ -90,9 +93,13 @@ export const AdminDashboard = () => {
   }
 
   const approveUser = async (userId) => {
+    const sel = pendingSelections[userId] || {};
     try {
-      await axios.post(`${API_URL}/api/admin/approve-user/${userId}`, {}, { withCredentials: true });
+      await axios.post(`${API_URL}/api/admin/approve-user/${userId}`,
+        { role: sel.role || 'student', course_id: sel.course_id || null },
+        { withCredentials: true });
       setPendingUsers(prev => prev.filter(u => u.id !== userId));
+      setPendingSelections(prev => { const n = {...prev}; delete n[userId]; return n; });
       toast.success('Usuário aprovado!');
     } catch (e) { toast.error('Erro ao aprovar'); }
   };
@@ -104,6 +111,17 @@ export const AdminDashboard = () => {
       setPendingUsers(prev => prev.filter(u => u.id !== userId));
       toast.success('Cadastro rejeitado');
     } catch (e) { toast.error('Erro ao rejeitar'); }
+  };
+
+  const handleRunBackup = async () => {
+    setRunningBackup(true);
+    try {
+      await axios.post(`${API_URL}/api/admin/backup/run`, {}, { withCredentials: true });
+      toast.success('Backup realizado com sucesso!');
+      const r = await axios.get(`${API_URL}/api/admin/backup/list`, { withCredentials: true });
+      setBackups(r.data || []);
+    } catch (e) { toast.error('Erro ao fazer backup'); }
+    finally { setRunningBackup(false); }
   };
 
   const handleExportPDF = () => {
@@ -173,6 +191,18 @@ export const AdminDashboard = () => {
             </div>
           )}
           <div className="flex gap-2 mt-3">
+            <button onClick={handleRunBackup} disabled={runningBackup}
+              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
+              style={{ borderColor: '#6B5B4E', color: '#6B5B4E', backgroundColor: 'white' }}>
+              {runningBackup ? '⏳ Salvando...' : '💾 Backup agora'}
+            </button>
+            {backups.length > 0 && (
+              <span className="text-xs" style={{ color: '#6B5B4E', alignSelf: 'center' }}>
+                Último: {new Date(backups[0].created_at).toLocaleDateString('pt-BR')}
+              </span>
+            )}
+          </div>
+          <div className="flex gap-2 mt-2">
             <button onClick={handleExportPDF}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
               style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
@@ -210,23 +240,46 @@ export const AdminDashboard = () => {
             </div>
             <div className="space-y-2">
               {pendingUsers.map(u => (
-                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg"
+                <div key={u.id} className="p-3 rounded-lg"
                   style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
-                    <p className="text-xs" style={{ color: '#6B5B4E' }}>{u.email}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => approveUser(u.id)}
-                      className="px-3 py-1 rounded text-xs font-semibold text-white"
-                      style={{ backgroundColor: '#36555A' }}>
-                      ✓ Aprovar
-                    </button>
-                    <button onClick={() => rejectUser(u.id)}
-                      className="px-3 py-1 rounded text-xs font-semibold"
-                      style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
-                      ✕ Rejeitar
-                    </button>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
+                      <p className="text-xs mb-2" style={{ color: '#6B5B4E' }}>{u.email}</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <select
+                          value={pendingSelections[u.id]?.role || 'student'}
+                          onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], role: e.target.value }}))}
+                          style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}>
+                          <option value="student">Aluno</option>
+                          <option value="teacher">Professor</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                        {courses.length > 0 && (
+                          <select
+                            value={pendingSelections[u.id]?.course_id || ''}
+                            onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], course_id: e.target.value }}))}
+                            style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}>
+                            <option value="">Sem turma</option>
+                            {courses.filter(c => c.is_active).map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <button onClick={() => approveUser(u.id)}
+                        className="px-3 py-1 rounded text-xs font-semibold text-white"
+                        style={{ backgroundColor: '#36555A' }}>
+                        ✓ Aprovar
+                      </button>
+                      <button onClick={() => rejectUser(u.id)}
+                        className="px-3 py-1 rounded text-xs font-semibold"
+                        style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
+                        ✕ Rejeitar
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -279,23 +332,46 @@ export const AdminDashboard = () => {
             </div>
             <div className="space-y-2">
               {pendingUsers.map(u => (
-                <div key={u.id} className="flex items-center justify-between p-3 rounded-lg"
+                <div key={u.id} className="p-3 rounded-lg"
                   style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
-                  <div>
-                    <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
-                    <p className="text-xs" style={{ color: '#6B5B4E' }}>{u.email}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => approveUser(u.id)}
-                      className="px-3 py-1 rounded text-xs font-semibold text-white"
-                      style={{ backgroundColor: '#36555A' }}>
-                      ✓ Aprovar
-                    </button>
-                    <button onClick={() => rejectUser(u.id)}
-                      className="px-3 py-1 rounded text-xs font-semibold"
-                      style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
-                      ✕ Rejeitar
-                    </button>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex-1">
+                      <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
+                      <p className="text-xs mb-2" style={{ color: '#6B5B4E' }}>{u.email}</p>
+                      <div className="flex gap-2 flex-wrap">
+                        <select
+                          value={pendingSelections[u.id]?.role || 'student'}
+                          onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], role: e.target.value }}))}
+                          style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}>
+                          <option value="student">Aluno</option>
+                          <option value="teacher">Professor</option>
+                          <option value="admin">Admin</option>
+                        </select>
+                        {courses.length > 0 && (
+                          <select
+                            value={pendingSelections[u.id]?.course_id || ''}
+                            onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], course_id: e.target.value }}))}
+                            style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}>
+                            <option value="">Sem turma</option>
+                            {courses.filter(c => c.is_active).map(c => (
+                              <option key={c.id} value={c.id}>{c.name}</option>
+                            ))}
+                          </select>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <button onClick={() => approveUser(u.id)}
+                        className="px-3 py-1 rounded text-xs font-semibold text-white"
+                        style={{ backgroundColor: '#36555A' }}>
+                        ✓ Aprovar
+                      </button>
+                      <button onClick={() => rejectUser(u.id)}
+                        className="px-3 py-1 rounded text-xs font-semibold"
+                        style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
+                        ✕ Rejeitar
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}
