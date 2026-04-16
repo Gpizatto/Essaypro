@@ -134,6 +134,11 @@ export const Login = () => {
               Cadastre-se
             </Link>
           </p>
+          <p className="text-center text-sm mt-2" style={{ color: '#6B5B4E' }}>
+            <Link to="/forgot-password" className="hover:underline" style={{ color: '#7C1805' }}>
+              Esqueci minha senha
+            </Link>
+          </p>
 
         </div>
       </div>
