@@ -218,13 +218,21 @@ export const CorrectEssay = () => {
     autoSaveTimerRef.current = setTimeout(async () => {
       setAutoSaveStatus('saving');
       try {
+        // Auto-save: apenas texto e notas (SEM canvas) — mais leve e rápido
+        // Canvas é salvo apenas no Ctrl+S / botão Rascunho
+        const textAnnotations = textRef.current ? textRef.current.innerHTML : null;
         await axios.post(`${API_URL}/api/corrections/draft`, {
-          essay_id: essayId, scores, feedback, inlineComments,
+          essay_id: essayId,
+          scores,
+          feedback,
+          inlineComments,
+          textAnnotations,
+          // canvasDataUrl omitido intencionalmente no auto-save
         }, { withCredentials: true });
         setAutoSaveStatus('saved');
         setTimeout(() => setAutoSaveStatus(''), 3000);
       } catch (e) { setAutoSaveStatus(''); }
-    }, 30000);
+    }, 45000); // 45s — menos frequente que antes (era 30s)
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
   }, [scores, feedback, inlineComments]);
 
@@ -1407,7 +1415,7 @@ export const CorrectEssay = () => {
               {prompt.criteria.map((criterion) => {
                 const levels = [];
                 if (criterion.level_descriptions && criterion.level_descriptions.length > 0) {
-                  criterion.level_descriptions.forEach(l => levels.push(l.pontuacao));
+                  criterion.level_descriptions.forEach(l => levels.push(parseFloat(l.pontuacao)));
                 } else {
                   const step = criterion.peso_maximo <= 10 ? 1 : criterion.peso_maximo <= 50 ? 5 : 40;
                   for (let v = 0; v <= criterion.peso_maximo; v += step) levels.push(Math.round(v * 100) / 100);
@@ -1459,7 +1467,8 @@ export const CorrectEssay = () => {
 
                     {/* Descrição do nível selecionado */}
                     {(() => {
-                      const levelInfo = criterion.level_descriptions?.find(l => l.pontuacao === current);
+                      // Comparação tolerante: 200 === 200.0, evita bug float vs int
+                      const levelInfo = criterion.level_descriptions?.find(l => Math.abs(parseFloat(l.pontuacao) - parseFloat(current)) < 0.01);
                       if (levelInfo?.proficiencia || levelInfo?.descricao) {
                         return (
                           <div className="mt-2 p-2 rounded" style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
