@@ -146,7 +146,9 @@ class PromptCreate(BaseModel):
     supporting_texts: str
     instructions: str
     criteria: Optional[List[Criterion]] = None
-    course_ids: Optional[List[str]] = []  # [] = visível para todos
+    course_ids: Optional[List[str]] = []
+    start_date: Optional[str] = None   # ISO date string
+    end_date: Optional[str] = None     # ISO date string
 
 class PromptResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -160,6 +162,8 @@ class PromptResponse(BaseModel):
     created_at: datetime
     is_active: bool
     course_ids: Optional[List[str]] = []
+    start_date: Optional[str] = None
+    end_date: Optional[str] = None
 
 class EssaySubmit(BaseModel):
     prompt_id: str
@@ -343,6 +347,8 @@ async def create_prompt(prompt_data: PromptCreate, current_user: dict = Depends(
         "created_at": datetime.now(timezone.utc),
         "is_active": True,
         "course_ids": prompt_data.course_ids or [],
+        "start_date": prompt_data.start_date,
+        "end_date": prompt_data.end_date,
     }
     await db.prompts.insert_one(prompt_doc)
     return PromptResponse(**prompt_doc)
@@ -842,14 +848,20 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
     corrections = await db.corrections.find({"teacher_id": tid}, {"_id": 0}).to_list(10000)
     total = len(corrections)
 
-    # Tempo médio (entre submitted_at do essay e corrected_at)
+    # Tempo médio — batch load essays (evita N+1)
     durations = []
-    for c in corrections:
-        essay = await db.essays.find_one({"id": c["essay_id"]}, {"_id": 0, "submitted_at": 1})
-        if essay and c.get("corrected_at") and essay.get("submitted_at"):
-            diff = (c["corrected_at"] - essay["submitted_at"]).total_seconds() / 3600
-            if 0 < diff < 720:  # ignorar outliers > 30 dias
-                durations.append(diff)
+    if corrections:
+        essay_ids = list({c["essay_id"] for c in corrections if c.get("essay_id")})
+        essays_batch = await db.essays.find(
+            {"id": {"$in": essay_ids}}, {"_id": 0, "id": 1, "submitted_at": 1}
+        ).to_list(len(essay_ids))
+        essays_map = {e["id"]: e for e in essays_batch}
+        for c in corrections:
+            essay = essays_map.get(c.get("essay_id", ""))
+            if essay and c.get("corrected_at") and essay.get("submitted_at"):
+                diff = (c["corrected_at"] - essay["submitted_at"]).total_seconds() / 3600
+                if 0 < diff < 720:
+                    durations.append(diff)
 
     avg_hours = sum(durations) / len(durations) if durations else 0
 
@@ -1577,7 +1589,7 @@ async def get_ranking(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Filtrar por turmas do professor
+    # Admin vê todos; professor filtra por turma
     teacher_course_ids = current_user.get("course_ids", [])
     if current_user["role"] == "teacher" and teacher_course_ids:
         student_filter = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
@@ -1586,9 +1598,24 @@ async def get_ranking(current_user: dict = Depends(get_current_user)):
     students = await db.users.find(student_filter, {"_id": 1, "name": 1, "created_at": 1}).to_list(1000)
     result = []
 
+    # Batch load all essays and corrections — evita N+1
+    all_student_ids = [str(s["_id"]) for s in students]
+    all_essays = await db.essays.find(
+        {"student_id": {"$in": all_student_ids}}, {"_id": 0}
+    ).to_list(50000)
+    essays_by_student = {}
+    for e in all_essays:
+        essays_by_student.setdefault(e["student_id"], []).append(e)
+
+    corrected_ids = [e["id"] for e in all_essays if e.get("status") == "corrected" and e.get("id")]
+    corrections_list = await db.corrections.find(
+        {"essay_id": {"$in": corrected_ids}}, {"_id": 0, "essay_id": 1, "total_score": 1, "corrected_at": 1}
+    ).to_list(len(corrected_ids)) if corrected_ids else []
+    corrections_by_essay = {c["essay_id"]: c for c in corrections_list}
+
     for student in students:
         sid = str(student["_id"])
-        essays = await db.essays.find({"student_id": sid}, {"_id": 0}).to_list(1000)
+        essays = essays_by_student.get(sid, [])
         if not essays:
             continue
 
@@ -1597,8 +1624,8 @@ async def get_ranking(current_user: dict = Depends(get_current_user)):
         for essay in essays:
             if essay.get("submitted_at"):
                 submission_dates.append(essay["submitted_at"])
-            if essay.get("status") == "corrected":
-                corr = await db.corrections.find_one({"essay_id": essay["id"]}, {"_id": 0, "total_score": 1, "corrected_at": 1})
+            if essay.get("status") == "corrected" and essay.get("id"):
+                corr = corrections_by_essay.get(essay["id"])
                 if corr:
                     scores.append({"score": corr["total_score"], "date": corr.get("corrected_at")})
 
