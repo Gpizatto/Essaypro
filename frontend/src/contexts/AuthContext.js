@@ -7,6 +7,20 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 axios.defaults.withCredentials = true;
 
+// Interceptor global: redireciona para login em qualquer 401
+axios.interceptors.response.use(
+  response => response,
+  error => {
+    if (error.response?.status === 401) {
+      // Token expirou — limpa estado e redireciona
+      if (window.location.pathname !== '/login' && window.location.pathname !== '/register') {
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
