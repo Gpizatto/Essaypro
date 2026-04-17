@@ -96,7 +96,10 @@ export const CorrectEssay = () => {
   const [tooltipPosition, setTooltipPosition] = useState({ x: 0, y: 0 });
   const [activeTooltip, setActiveTooltip] = useState(null);
   const [eraserCursor, setEraserCursor] = useState(null);
-  const [selectionToolbar, setSelectionToolbar] = useState(null); // {x, y} for visual cursor // { label, x, y }
+  const [selectionToolbar, setSelectionToolbar] = useState(null);
+  const [imageRotation, setImageRotation] = useState(0);
+  const [showClickCommentPopup, setShowClickCommentPopup] = useState(false);
+  const [clickCommentText, setClickCommentText] = useState(''); // {x, y} for visual cursor // { label, x, y }
 
   const [scores, setScores] = useState({});
   const [scoreErrors, setScoreErrors] = useState({});
@@ -548,6 +551,25 @@ export const CorrectEssay = () => {
   // Eventos de desenho no canvas nativo
   const handleCanvasMouseDown = (e) => {
     const tool = selectedToolRef.current;
+    // Comentário por clique em imagem/PDF (sem precisar selecionar texto)
+    if (tool === 'comment' && essay?.file_url) {
+      if (!ensureCtx()) return;
+      const pos = getPos(e);
+      const ctx = ctxRef.current;
+      const color = selectedColorRef.current;
+      ctx.save();
+      ctx.beginPath();
+      ctx.arc(pos.x, pos.y - 6, 10, 0, 2 * Math.PI);
+      ctx.fillStyle = color; ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(pos.x - 4, pos.y - 2); ctx.lineTo(pos.x + 4, pos.y - 2); ctx.lineTo(pos.x, pos.y + 8);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle = 'white'; ctx.font = 'bold 11px sans-serif';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('!', pos.x, pos.y - 6); ctx.restore();
+      setClickCommentText(''); setShowClickCommentPopup(true);
+      return;
+    }
     if (!['pen','eraser','line','arrow','oval','rect'].includes(tool)) return;
     if (!ensureCtx() || !nativeCanvasRef.current) return;
     e.preventDefault();
@@ -1374,19 +1396,20 @@ export const CorrectEssay = () => {
               ref={canvasContainerRef}
               style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}
             >
-              {/* Cabeçalho da imagem */}
+              {/* Cabeçalho da imagem — rotação */}
               {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
-                <div className="flex items-center justify-between mb-2">
-                  <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>🖼️ Imagem do aluno — desenhe diretamente sobre ela</span>
-                  <div className="flex gap-2">
+                <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
+                  <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>🖼️ Imagem do aluno</span>
+                  <div className="flex gap-1 items-center">
+                    <button onClick={() => setImageRotation(r => (r - 90 + 360) % 360)} title="Girar esquerda"
+                      className="text-xs px-2 py-1 rounded border font-bold" style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>↺</button>
+                    <button onClick={() => setImageRotation(r => (r + 90) % 360)} title="Girar direita"
+                      className="text-xs px-2 py-1 rounded border font-bold" style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>↻</button>
+                    {imageRotation !== 0 && <span className="text-xs" style={{ color: '#D66B27' }}>{imageRotation}°</span>}
                     <a href={essay.file_url} target="_blank" rel="noreferrer"
-                      className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>
-                      ↗ Abrir
-                    </a>
+                      className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>↗ Abrir</a>
                     <a href={`${essay.file_url}?fl_attachment=true`}
-                      className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: '#7C1805', color: '#7C1805' }}>
-                      ⬇ Baixar
-                    </a>
+                      className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: '#7C1805', color: '#7C1805' }}>⬇ Baixar</a>
                   </div>
                 </div>
               )}
@@ -1405,14 +1428,19 @@ export const CorrectEssay = () => {
                 />
               )}
 
-              {/* Imagem — dentro do container, canvas fica por cima */}
+              {/* Imagem — com zoom e rotação, canvas fica por cima */}
               {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
                 <img
                   src={essay.file_url}
                   alt="Redação do aluno"
-                  style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                  style={{
+                    width: '100%', display: 'block',
+                    borderRadius: '8px', border: '1px solid #E8DDD0',
+                    transformOrigin: 'center center',
+                    transform: `rotate(${imageRotation}deg) scale(${zoom})`,
+                    transition: 'transform 0.2s ease',
+                  }}
                   onLoad={() => {
-                    // Redimensionar canvas para cobrir a imagem após ela carregar
                     const canvas = nativeCanvasRef.current;
                     const container = canvasContainerRef.current;
                     if (!canvas || !container) return;
@@ -1422,8 +1450,7 @@ export const CorrectEssay = () => {
                       const ctx = canvas.getContext('2d');
                       let saved = null;
                       try { if (canvas.width > 0 && canvas.height > 0) saved = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch(e) {}
-                      canvas.width = w;
-                      canvas.height = h;
+                      canvas.width = w; canvas.height = h;
                       if (saved) ctx.putImageData(saved, 0, 0);
                     }
                   }}
@@ -1858,6 +1885,62 @@ export const CorrectEssay = () => {
                 style={{ backgroundColor: '#36555A' }}
               >
                 ✓ Confirmar e publicar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* POPUP DE COMENTÁRIO EM IMAGEM/PDF — por clique, sem seleção de texto */}
+      {showClickCommentPopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+          onClick={() => setShowClickCommentPopup(false)}>
+          <div className="bg-white rounded-xl p-6 w-[480px] shadow-2xl" onClick={e => e.stopPropagation()}>
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="font-semibold" style={{ color: '#7C1805' }}>💬 Comentário na imagem</h3>
+              <button onClick={() => setShowClickCommentPopup(false)} style={{ color: '#6B5B4E', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+            </div>
+            <textarea
+              autoFocus
+              value={clickCommentText}
+              onChange={e => setClickCommentText(e.target.value)}
+              rows={4}
+              placeholder="Digite seu comentário sobre este trecho..."
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E8DDD0', fontSize: '14px', resize: 'vertical' }}
+            />
+            {/* Sugestões rápidas */}
+            <div className="flex flex-wrap gap-1 mt-2 mb-4">
+              {['Atenção à ortografia', 'Revisar pontuação', 'Boa argumentação', 'Desenvolver mais', 'Coesão textual'].map(s => (
+                <button key={s} onClick={() => setClickCommentText(s)}
+                  className="text-xs px-2 py-1 rounded-full border"
+                  style={{ borderColor: '#E8DDD0', color: '#6B5B4E', backgroundColor: 'white' }}>
+                  {s}
+                </button>
+              ))}
+            </div>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowClickCommentPopup(false)}
+                className="px-4 py-2 rounded text-sm" style={{ border: '1px solid #E8DDD0', color: '#6B5B4E' }}>
+                Cancelar
+              </button>
+              <button
+                onClick={() => {
+                  if (clickCommentText.trim()) {
+                    setInlineComments(prev => [...prev, {
+                      id: prev.length + 1,
+                      selected_text: '📍 Marcação na imagem',
+                      comment: clickCommentText.trim(),
+                      color: '#FEF3C7',
+                    }]);
+                    toast.success('Comentário adicionado!');
+                  }
+                  setShowClickCommentPopup(false);
+                  setClickCommentText('');
+                }}
+                disabled={!clickCommentText.trim()}
+                className="px-4 py-2 rounded text-sm font-semibold text-white"
+                style={{ backgroundColor: '#7C1805', opacity: clickCommentText.trim() ? 1 : 0.5 }}>
+                Salvar comentário
               </button>
             </div>
           </div>
