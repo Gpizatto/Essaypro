@@ -1182,29 +1182,33 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         "essays_last_30_days": essays_last_30,
     }
 
+
 @api_router.get("/cloudinary/signature")
 async def generate_cloudinary_signature(
     resource_type: str = Query("auto"),
     folder: str = "essaypro/uploads",
     current_user: dict = Depends(get_current_user)
 ):
-    timestamp = int(time.time())
-    # resource_type NAO vai nos params assinados — apenas folder e timestamp
-    params = {
-        "timestamp": timestamp,
-        "folder": folder,
-    }
+    cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "")
+    api_key = os.getenv("CLOUDINARY_API_KEY", "")
     secret = os.getenv("CLOUDINARY_API_SECRET", "")
-    if not secret:
-        raise HTTPException(status_code=503, detail="Cloudinary não configurado")
-    signature = cloudinary.utils.api_sign_request(params, secret)
+    if not cloud_name or not api_key or not secret:
+        raise HTTPException(status_code=503, detail="Cloudinary não configurado. Verifique CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY e CLOUDINARY_API_SECRET no Render.")
+    timestamp = int(time.time())
+    # IMPORTANTE: apenas folder e timestamp são assinados
+    # resource_type NÃO entra na assinatura
+    params_to_sign = {
+        "folder": folder,
+        "timestamp": timestamp,
+    }
+    signature = cloudinary.utils.api_sign_request(params_to_sign, secret)
     return {
         "signature": signature,
         "timestamp": timestamp,
-        "cloud_name": os.getenv("CLOUDINARY_CLOUD_NAME", ""),
-        "api_key": os.getenv("CLOUDINARY_API_KEY", ""),
+        "cloud_name": cloud_name,
+        "api_key": api_key,
         "folder": folder,
-        "resource_type": resource_type
+        "resource_type": resource_type,
     }
 
 @api_router.get("/users/quick-comments")
