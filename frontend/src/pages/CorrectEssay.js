@@ -68,6 +68,14 @@ export const CorrectEssay = () => {
   const historyRef = useRef([]);          // array de ImageData
   const [zoom, setZoom] = useState(1);
 
+  // ── PDF.js state ──────────────────────────────────────────
+  const pdfBgCanvasRef = useRef(null);    // canvas de fundo que renderiza o PDF
+  const pdfDocRef = useRef(null);         // documento PDF carregado
+  const [pdfPage, setPdfPage] = useState(1);
+  const [pdfTotalPages, setPdfTotalPages] = useState(0);
+  const pdfAnnotationsRef = useRef({});   // {pageNum: dataUrl} anotações por página
+  const pdfPageRef = useRef(1);           // ref síncrona do número da página atual
+
   const [selectedTool, setSelectedTool] = useState('select');
   const [selectedColor, setSelectedColor] = useState('#E53935');
 
@@ -276,6 +284,71 @@ export const CorrectEssay = () => {
 
     return () => ro.disconnect();
   }, [essay]);
+
+  // ── PDF.js: carregar e renderizar ────────────────────────
+  const loadPdfJs = () => new Promise((resolve) => {
+    if (window.pdfjsLib) { resolve(window.pdfjsLib); return; }
+    const script = document.createElement('script');
+    script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+    script.onload = () => {
+      window.pdfjsLib.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      resolve(window.pdfjsLib);
+    };
+    document.head.appendChild(script);
+  });
+
+  const renderPdfPage = async (pageNum) => {
+    const pdfDoc = pdfDocRef.current;
+    const bgCanvas = pdfBgCanvasRef.current;
+    const annoCanvas = nativeCanvasRef.current;
+    if (!pdfDoc || !bgCanvas || !annoCanvas) return;
+
+    // Salvar anotações da página atual antes de trocar
+    const ctx = ctxRef.current;
+    if (ctx && annoCanvas.width > 0 && annoCanvas.height > 0) {
+      pdfAnnotationsRef.current[pdfPageRef.current] = annoCanvas.toDataURL('image/png');
+    }
+
+    const page = await pdfDoc.getPage(pageNum);
+    const viewport = page.getViewport({ scale: 1.5 });
+
+    bgCanvas.width = viewport.width;
+    bgCanvas.height = viewport.height;
+    annoCanvas.width = viewport.width;
+    annoCanvas.height = viewport.height;
+    ctxRef.current = annoCanvas.getContext('2d');
+
+    const bgCtx = bgCanvas.getContext('2d');
+    await page.render({ canvasContext: bgCtx, viewport }).promise;
+
+    // Restaurar anotações desta página se existirem
+    const savedAnno = pdfAnnotationsRef.current[pageNum];
+    if (savedAnno) {
+      const img = new Image();
+      img.onload = () => ctxRef.current?.drawImage(img, 0, 0);
+      img.src = savedAnno;
+    } else {
+      ctxRef.current?.clearRect(0, 0, annoCanvas.width, annoCanvas.height);
+    }
+
+    pdfPageRef.current = pageNum;
+    setPdfPage(pageNum);
+  };
+
+  // Carregar PDF quando essay carrega
+  useEffect(() => {
+    if (!essay?.file_url || !/\.pdf$/i.test(essay.file_url)) return;
+    let cancelled = false;
+    loadPdfJs().then(async (pdfjsLib) => {
+      const pdfDoc = await pdfjsLib.getDocument(essay.file_url).promise;
+      if (cancelled) return;
+      pdfDocRef.current = pdfDoc;
+      setPdfTotalPages(pdfDoc.numPages);
+      renderPdfPage(1);
+    }).catch(console.error);
+    return () => { cancelled = true; };
+  }, [essay?.file_url]);
 
   const hexToRgba = (hex, alpha) => {
     const r = parseInt(hex.slice(1, 3), 16);
@@ -605,6 +678,12 @@ export const CorrectEssay = () => {
       // Salvar anotações de texto (innerHTML)
       const textAnnotations = textRef.current ? textRef.current.innerHTML : null;
 
+      // Salvar anotação da página atual do PDF antes de enviar
+      const annoCanvas = nativeCanvasRef.current;
+      if (pdfDocRef.current && annoCanvas && annoCanvas.width > 0) {
+        pdfAnnotationsRef.current[pdfPageRef.current] = annoCanvas.toDataURL('image/png');
+      }
+
       await axios.post(`${API_URL}/api/corrections/draft`, {
         essay_id: essayId,
         scores,
@@ -612,6 +691,7 @@ export const CorrectEssay = () => {
         inlineComments,
         canvasDataUrl: canvasDraft,
         textAnnotations,
+        pdfAnnotations: pdfDocRef.current ? pdfAnnotationsRef.current : undefined,
       }, { withCredentials: true });
       setDraftSaved(true);
       toast.success('Rascunho salvo!');
@@ -940,6 +1020,11 @@ export const CorrectEssay = () => {
         }
       }
       
+      // Salvar anotação da página atual do PDF antes de publicar
+      if (pdfDocRef.current && nativeCanvasRef.current && nativeCanvasRef.current.width > 0) {
+        pdfAnnotationsRef.current[pdfPageRef.current] = nativeCanvasRef.current.toDataURL('image/png');
+      }
+
       await axios.post(
         `${API_URL}/api/corrections`,
         {
@@ -949,6 +1034,7 @@ export const CorrectEssay = () => {
           ...feedback,
           inline_comments: inlineComments,
           canvas_annotations: canvasData,
+          pdf_annotations: pdfDocRef.current ? pdfAnnotationsRef.current : undefined,
           correction_time_minutes: Math.round((Date.now() - correctionStartTime.current) / 60000),
         },
         { withCredentials: true }
@@ -1241,12 +1327,34 @@ export const CorrectEssay = () => {
             </div>
           )}
 
-          {/* PDF — viewer separado, sem canvas */}
+          {/* PDF renderizado via PDF.js — canvas de fundo + canvas de anotações */}
           {essay?.file_url && /\.pdf$/i.test(essay.file_url) && (
             <div className="px-8 pb-4">
-              <div className="flex items-center justify-between mb-2">
-                <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>📄 PDF do aluno</span>
-                <div className="flex gap-2">
+              {/* Header: título + navegação de páginas + botões */}
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+                  📄 PDF do aluno
+                </span>
+                <div className="flex items-center gap-2">
+                  {pdfTotalPages > 1 && (
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => pdfPage > 1 && renderPdfPage(pdfPage - 1)}
+                        disabled={pdfPage <= 1}
+                        className="px-2 py-1 rounded text-xs font-bold border"
+                        style={{ borderColor: '#E8DDD0', color: pdfPage <= 1 ? '#ccc' : '#7C1805' }}>
+                        ←
+                      </button>
+                      <span className="text-xs" style={{ color: '#6B5B4E' }}>
+                        {pdfPage} / {pdfTotalPages}
+                      </span>
+                      <button onClick={() => pdfPage < pdfTotalPages && renderPdfPage(pdfPage + 1)}
+                        disabled={pdfPage >= pdfTotalPages}
+                        className="px-2 py-1 rounded text-xs font-bold border"
+                        style={{ borderColor: '#E8DDD0', color: pdfPage >= pdfTotalPages ? '#ccc' : '#7C1805' }}>
+                        →
+                      </button>
+                    </div>
+                  )}
                   <a href={essay.file_url} target="_blank" rel="noreferrer"
                     className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>
                     ↗ Abrir
@@ -1257,8 +1365,6 @@ export const CorrectEssay = () => {
                   </a>
                 </div>
               </div>
-              <embed src={essay.file_url} type="application/pdf" width="100%" height="750px"
-                style={{ display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }} />
             </div>
           )}
 
@@ -1283,6 +1389,20 @@ export const CorrectEssay = () => {
                     </a>
                   </div>
                 </div>
+              )}
+
+              {/* PDF background canvas — PDF.js renderiza aqui, anotações ficam no canvas de cima */}
+              {essay?.file_url && /\.pdf$/i.test(essay.file_url) && (
+                <canvas
+                  ref={pdfBgCanvasRef}
+                  style={{
+                    display: 'block',
+                    width: '100%',
+                    borderRadius: '8px',
+                    border: '1px solid #E8DDD0',
+                    backgroundColor: '#fff',
+                  }}
+                />
               )}
 
               {/* Imagem — dentro do container, canvas fica por cima */}
