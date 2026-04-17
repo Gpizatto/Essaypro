@@ -1236,43 +1236,46 @@ export const CorrectEssay = () => {
             </div>
           )}
 
-          {/* ARQUIVO ENVIADO (PDF ou imagem) — mostra se submission_method === 'upload' e tem file_url */}
-          {essay?.submission_method === 'upload' && essay?.file_url && (
-            <div className="px-8 pb-4">
+          {/* ARQUIVO ENVIADO — PDF ou imagem com botões de download/abrir */}
+          {essay?.file_url && (
+            <div className="px-8 pb-2">
               <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E8DDD0' }}>
                 <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: '#FDF3E8' }}>
                   <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>
-                    {essay.file_url.match(/\.(jpg|jpeg|png|gif|webp)/i) ? '🖼️ Imagem enviada pelo aluno' : '📄 PDF enviado pelo aluno'}
+                    {/\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) ? '🖼️ Imagem enviada pelo aluno' : '📄 PDF enviado pelo aluno'}
                   </span>
                   <div className="flex gap-2">
                     <a href={essay.file_url} target="_blank" rel="noreferrer"
                       className="text-xs px-3 py-1 rounded font-semibold"
                       style={{ backgroundColor: '#7C1805', color: 'white' }}>
-                      ↗ Abrir
+                      ↗ Abrir em nova aba
                     </a>
-                    <a href={`${essay.file_url}?fl_attachment=true`} download
+                    <a href={`${essay.file_url}?fl_attachment=true`}
                       className="text-xs px-3 py-1 rounded font-semibold border"
                       style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
                       ⬇ Baixar
                     </a>
                   </div>
                 </div>
-                {essay.file_url.match(/\.(jpg|jpeg|png|gif|webp)/i) ? (
+                {/\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) ? (
                   <img
                     src={essay.file_url}
                     alt="Redação do aluno"
-                    style={{ width: '100%', display: 'block', maxHeight: '800px', objectFit: 'contain', backgroundColor: '#fff' }}
+                    style={{ width: '100%', display: 'block', backgroundColor: '#fff' }}
                   />
                 ) : (
                   <iframe
                     src={`https://docs.google.com/viewer?url=${encodeURIComponent(essay.file_url)}&embedded=true`}
                     title="Redação do aluno"
                     width="100%"
-                    height="700px"
+                    height="750px"
                     style={{ border: 'none', display: 'block' }}
                   />
                 )}
               </div>
+              <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
+                💡 Use as ferramentas de anotação abaixo sobre o texto para adicionar comentários e marcações
+              </p>
             </div>
           )}
 
