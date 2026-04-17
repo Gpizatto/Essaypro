@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+import { uploadFile } from '../utils/uploadFile';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
@@ -77,36 +78,19 @@ export const SubmitEssay = () => {
 
   const handleFileUpload = async (file) => {
     try {
-      // 1. Pegar assinatura do backend
-      const folder = 'essaypro/essays';
-      const sigRes = await axios.get(
-        `${API_URL}/api/cloudinary/signature`,
-        { params: { resource_type: 'auto', folder }, withCredentials: true }
-      );
-      const sig = sigRes.data;
-      if (!sig.cloud_name) throw new Error('Cloudinary não configurado no servidor');
-
-      // 2. Montar FormData exatamente como Cloudinary espera
       const fd = new FormData();
       fd.append('file', file);
-      fd.append('api_key', sig.api_key);
-      fd.append('timestamp', String(sig.timestamp));
-      fd.append('signature', sig.signature);
-      fd.append('folder', sig.folder);
-      // resource_type vai na URL, não no body para upload assinado
-
-      // 3. Fazer upload direto para Cloudinary
-      const uploadRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${sig.cloud_name}/auto/upload`,
-        { method: 'POST', body: fd }
-      );
-      const result = await uploadRes.json();
-      if (result.error) throw new Error(result.error.message);
-      if (!result.secure_url) throw new Error('Cloudinary não retornou URL');
-
-      setUploadUrl(result.secure_url);
+      const res = await fetch(`${API_URL}/api/upload`, {
+        method: 'POST', body: fd, credentials: 'include',
+      });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `Erro ${res.status}`);
+      }
+      const data = await res.json();
+      setUploadUrl(data.url);
       toast.success('Arquivo enviado com sucesso!');
-      return result.secure_url;
+      return data.url;
     } catch (error) {
       console.error('Upload error:', error);
       toast.error('Erro no upload: ' + error.message);
