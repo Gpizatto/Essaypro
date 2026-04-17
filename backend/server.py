@@ -143,7 +143,7 @@ class Criterion(BaseModel):
 class PromptCreate(BaseModel):
     title: str
     theme: str
-    supporting_texts: str
+    supporting_texts: Optional[str] = ""
     instructions: str
     criteria: Optional[List[Criterion]] = None
     course_ids: Optional[List[str]] = []
@@ -157,7 +157,7 @@ class PromptResponse(BaseModel):
     id: str
     title: str
     theme: str
-    supporting_texts: str
+    supporting_texts: Optional[str] = ""
     instructions: str
     criteria: Optional[List[dict]] = []
     created_by: str
@@ -196,8 +196,8 @@ class EssayResponse(BaseModel):
 class CriteriaScore(BaseModel):
     criteria_id: str
     nome: str
-    score: int
-    max: int
+    score: float
+    max: float
 
 class InlineComment(BaseModel):
     id: int
@@ -208,12 +208,13 @@ class InlineComment(BaseModel):
 class CorrectionSubmit(BaseModel):
     essay_id: str
     criteria_scores: List[CriteriaScore]
-    total_score: int = Field(..., ge=0)
+    total_score: float = Field(..., ge=0)
     general_feedback: str
     strengths: str
     improvements: str
     inline_comments: Optional[List[InlineComment]] = None
     canvas_annotations: Optional[dict] = None
+    correction_time_minutes: Optional[int] = 0
 
 class CorrectionResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -621,7 +622,7 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
         "inline_comments": [ic.model_dump() for ic in correction_data.inline_comments] if correction_data.inline_comments else [],
         "canvas_annotations": correction_data.canvas_annotations,
         "corrected_at": datetime.now(timezone.utc),
-        "correction_time_minutes": correction_data.get("correction_time_minutes", 0) if hasattr(correction_data, 'get') else 0,
+        "correction_time_minutes": correction_data.correction_time_minutes or 0,
     }
     await db.corrections.insert_one(correction_doc)
     await db.essays.update_one({"id": correction_data.essay_id}, {"$set": {"status": "corrected"}})
