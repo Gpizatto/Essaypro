@@ -41,37 +41,21 @@ export const CreatePrompt = () => {
       setUploadingFile(true);
       try {
         const BACKEND = process.env.REACT_APP_BACKEND_URL;
-        const folder = 'essaypro/supporting';
-
-        // 1. Buscar assinatura
-        const sigRes = await axios.get(`${BACKEND}/api/cloudinary/signature`, {
-          params: { resource_type: 'auto', folder },
-          withCredentials: true,
-        });
-        const sig = sigRes.data;
-        if (!sig.cloud_name) throw new Error('Cloudinary não configurado no servidor');
-
-        // 2. Upload para Cloudinary — resource_type na URL, não no body
         const fd = new FormData();
         fd.append('file', file);
-        fd.append('api_key', sig.api_key);
-        fd.append('timestamp', String(sig.timestamp));
-        fd.append('signature', sig.signature);
-        fd.append('folder', folder);
-
-        const uploadRes = await fetch(
-          `https://api.cloudinary.com/v1_1/${sig.cloud_name}/auto/upload`,
-          { method: 'POST', body: fd }
-        );
-        const data = await uploadRes.json();
-        if (data.error) throw new Error(data.error.message);
-        if (!data.secure_url) throw new Error('Sem URL de retorno do Cloudinary');
-
+        const res = await fetch(`${BACKEND}/api/upload`, {
+          method: 'POST', body: fd, credentials: 'include',
+        });
+        if (!res.ok) {
+          const errData = await res.json().catch(() => ({}));
+          throw new Error(errData.detail || `Erro ${res.status}`);
+        }
+        const data = await res.json();
         setFormData(prev => ({
           ...prev,
           supporting_files: [
             ...(prev.supporting_files || []),
-            { name: file.name, url: data.secure_url, type: ext === 'pdf' ? 'pdf' : 'image' }
+            { name: file.name, url: data.url, type: ext === 'pdf' ? 'pdf' : 'image' }
           ]
         }));
         toast.success(`${file.name} enviado!`);
