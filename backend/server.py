@@ -2182,7 +2182,6 @@ async def get_my_credits(current_user: dict = Depends(get_current_user)):
         "renews_at": renews_at
     }
 
-# CORS deve ser adicionado ANTES do router para cobrir respostas de erro (401, 403 etc.)
 ALLOWED_ORIGINS = [
     os.environ.get("FRONTEND_URL", "http://localhost:3000"),
     "https://essaypro-frontend.onrender.com",
@@ -2190,6 +2189,7 @@ ALLOWED_ORIGINS = [
     "http://localhost:3001",
 ]
 
+# CORS deve ser adicionado ANTES do router para cobrir respostas de erro
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS,
@@ -2198,6 +2198,34 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["*"],
 )
+
+# Handler global de erros — garante CORS mesmo em exceções não tratadas
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin in ALLOWED_ORIGINS:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    logger.error(f"Unhandled error on {request.url}: {str(exc)}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Erro interno do servidor"},
+        headers=headers,
+    )
+
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    origin = request.headers.get("origin", "")
+    headers = {}
+    if origin in ALLOWED_ORIGINS:
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"detail": exc.detail},
+        headers=headers,
+    )
 
 app.include_router(api_router)
 
