@@ -38,31 +38,34 @@ export const CreatePrompt = () => {
       };
       reader.readAsText(file, 'UTF-8');
     } else if (ext === 'pdf' || ['jpg','jpeg','png'].includes(ext)) {
-      // PDF e imagens: fazer upload para Cloudinary e guardar URL
       setUploadingFile(true);
       try {
-        const API_URL = process.env.REACT_APP_BACKEND_URL;
+        const BACKEND = process.env.REACT_APP_BACKEND_URL;
         const folder = 'essaypro/supporting';
-        const sigRes = await fetch(
-          `${API_URL}/api/cloudinary/signature?resource_type=auto&folder=${encodeURIComponent(folder)}`,
-          { credentials: 'include' }
-        );
-        const sig = await sigRes.json();
 
+        // 1. Buscar assinatura
+        const sigRes = await axios.get(`${BACKEND}/api/cloudinary/signature`, {
+          params: { resource_type: 'auto', folder },
+          withCredentials: true,
+        });
+        const sig = sigRes.data;
+        if (!sig.cloud_name) throw new Error('Cloudinary não configurado no servidor');
+
+        // 2. Upload para Cloudinary — resource_type na URL, não no body
         const fd = new FormData();
         fd.append('file', file);
         fd.append('api_key', sig.api_key);
-        fd.append('timestamp', sig.timestamp);
+        fd.append('timestamp', String(sig.timestamp));
         fd.append('signature', sig.signature);
         fd.append('folder', folder);
-        fd.append('resource_type', 'auto');
 
         const uploadRes = await fetch(
           `https://api.cloudinary.com/v1_1/${sig.cloud_name}/auto/upload`,
           { method: 'POST', body: fd }
         );
         const data = await uploadRes.json();
-        if (!data.secure_url) throw new Error('Upload falhou');
+        if (data.error) throw new Error(data.error.message);
+        if (!data.secure_url) throw new Error('Sem URL de retorno do Cloudinary');
 
         setFormData(prev => ({
           ...prev,
@@ -71,9 +74,9 @@ export const CreatePrompt = () => {
             { name: file.name, url: data.secure_url, type: ext === 'pdf' ? 'pdf' : 'image' }
           ]
         }));
-        toast.success(`${ext.toUpperCase()} enviado com sucesso!`);
+        toast.success(`${file.name} enviado!`);
       } catch (err) {
-        toast.error('Erro ao enviar arquivo. Verifique o Cloudinary.');
+        toast.error('Erro: ' + err.message);
       } finally {
         setUploadingFile(false);
       }
