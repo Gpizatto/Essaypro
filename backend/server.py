@@ -2189,43 +2189,37 @@ ALLOWED_ORIGINS = [
     "http://localhost:3001",
 ]
 
-# CORS deve ser adicionado ANTES do router para cobrir respostas de erro
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=ALLOWED_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-    expose_headers=["*"],
-)
-
-# Handler global de erros — garante CORS mesmo em exceções não tratadas
-@app.exception_handler(Exception)
-async def global_exception_handler(request: Request, exc: Exception):
+# Middleware CORS manual — cobre TODAS as respostas inclusive erros de dependências (401, 403)
+@app.middleware("http")
+async def cors_middleware(request: Request, call_next):
     origin = request.headers.get("origin", "")
-    headers = {}
-    if origin in ALLOWED_ORIGINS:
-        headers["Access-Control-Allow-Origin"] = origin
-        headers["Access-Control-Allow-Credentials"] = "true"
-    logger.error(f"Unhandled error on {request.url}: {str(exc)}")
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Erro interno do servidor"},
-        headers=headers,
-    )
+    is_allowed = origin in ALLOWED_ORIGINS
 
-@app.exception_handler(HTTPException)
-async def http_exception_handler(request: Request, exc: HTTPException):
-    origin = request.headers.get("origin", "")
-    headers = {}
-    if origin in ALLOWED_ORIGINS:
-        headers["Access-Control-Allow-Origin"] = origin
-        headers["Access-Control-Allow-Credentials"] = "true"
-    return JSONResponse(
-        status_code=exc.status_code,
-        content={"detail": exc.detail},
-        headers=headers,
-    )
+    # Responder preflight OPTIONS imediatamente
+    if request.method == "OPTIONS":
+        headers = {
+            "Access-Control-Allow-Origin": origin if is_allowed else "",
+            "Access-Control-Allow-Credentials": "true",
+            "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
+            "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin, X-Requested-With",
+            "Access-Control-Max-Age": "3600",
+        }
+        return Response(status_code=200, headers=headers)
+
+    # Processar request — capturar qualquer exceção não tratada
+    try:
+        response = await call_next(request)
+    except Exception as exc:
+        logger.error(f"Unhandled: {request.url} — {exc}")
+        response = JSONResponse(status_code=500, content={"detail": "Erro interno"})
+
+    # Adicionar CORS em TODA resposta (200, 401, 403, 500...)
+    if is_allowed:
+        response.headers["Access-Control-Allow-Origin"] = origin
+        response.headers["Access-Control-Allow-Credentials"] = "true"
+        response.headers["Access-Control-Expose-Headers"] = "*"
+
+    return response
 
 app.include_router(api_router)
 
