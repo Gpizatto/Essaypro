@@ -248,12 +248,11 @@ export const CorrectEssay = () => {
       if (!canvasContainerRef.current) return;
       const container = canvasContainerRef.current;
       const w = container.offsetWidth || 800;
-      const h = Math.max(
-        container.offsetHeight || 0,
-        textRef.current?.scrollHeight || 0,
-        textRef.current?.offsetHeight || 0,
-        600
-      );
+      // Para imagens: usar altura real do container (que inclui a img)
+      // Para texto: usar scrollHeight do textRef
+      const containerH = container.offsetHeight || 0;
+      const textH = textRef.current?.scrollHeight || 0;
+      const h = Math.max(containerH, textH, 600);
       if (w < 1 || h < 1) return; // evitar canvas com dimensão zero
       if (canvas.width !== w || canvas.height !== h) {
         // Salvar conteúdo antes de redimensionar
@@ -1236,57 +1235,63 @@ export const CorrectEssay = () => {
             </div>
           )}
 
-          {/* ARQUIVO ENVIADO — PDF ou imagem com botões de download/abrir */}
-          {essay?.file_url && (
-            <div className="px-8 pb-2">
-              <div className="rounded-xl overflow-hidden" style={{ border: '1px solid #E8DDD0' }}>
-                <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: '#FDF3E8' }}>
-                  <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>
-                    {/\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) ? '🖼️ Imagem enviada pelo aluno' : '📄 PDF enviado pelo aluno'}
-                  </span>
-                  <div className="flex gap-2">
-                    <a href={essay.file_url} target="_blank" rel="noreferrer"
-                      className="text-xs px-3 py-1 rounded font-semibold"
-                      style={{ backgroundColor: '#7C1805', color: 'white' }}>
-                      ↗ Abrir em nova aba
-                    </a>
-                    <a href={`${essay.file_url}?fl_attachment=true`}
-                      className="text-xs px-3 py-1 rounded font-semibold border"
-                      style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
-                      ⬇ Baixar
-                    </a>
-                  </div>
+          {/* PDF — viewer separado, sem canvas */}
+          {essay?.file_url && /\.pdf$/i.test(essay.file_url) && (
+            <div className="px-8 pb-4">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>📄 PDF do aluno</span>
+                <div className="flex gap-2">
+                  <a href={essay.file_url} target="_blank" rel="noreferrer"
+                    className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>
+                    ↗ Abrir
+                  </a>
+                  <a href={`${essay.file_url}?fl_attachment=true`}
+                    className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: '#7C1805', color: '#7C1805' }}>
+                    ⬇ Baixar
+                  </a>
                 </div>
-                {/\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) ? (
-                  <img
-                    src={essay.file_url}
-                    alt="Redação do aluno"
-                    style={{ width: '100%', display: 'block', backgroundColor: '#fff' }}
-                  />
-                ) : (
-                  <embed
-                    src={essay.file_url}
-                    type="application/pdf"
-                    width="100%"
-                    height="750px"
-                    style={{ display: 'block' }}
-                  />
-                )}
               </div>
-              <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
-                💡 Use as ferramentas de anotação abaixo sobre o texto para adicionar comentários e marcações
-              </p>
+              <embed src={essay.file_url} type="application/pdf" width="100%" height="750px"
+                style={{ display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }} />
             </div>
           )}
 
-          {/* TEXTO DA REDAÇÃO */}
+          {/* IMAGEM + TEXTO: canvas fica por cima de tudo */}
           <div className="p-8">
             <div
               ref={canvasContainerRef}
               style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}
             >
+              {/* Cabeçalho da imagem */}
+              {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>🖼️ Imagem do aluno — desenhe diretamente sobre ela</span>
+                  <div className="flex gap-2">
+                    <a href={essay.file_url} target="_blank" rel="noreferrer"
+                      className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>
+                      ↗ Abrir
+                    </a>
+                    <a href={`${essay.file_url}?fl_attachment=true`}
+                      className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: '#7C1805', color: '#7C1805' }}>
+                      ⬇ Baixar
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {/* Imagem — fica dentro do container com position:relative para o canvas ficar em cima */}
+              {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
+                <img
+                  src={essay.file_url}
+                  alt="Redação do aluno"
+                  style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                />
+              )}
+
+              {/* Campo de texto — só exibe se NAO é upload de arquivo */}
               <div
                 ref={textRef}
+                style={{ display: essay?.file_url ? 'none' : undefined }}
                 onMouseUp={(e) => {
                   handleTextSelection(e);
                   // C1: Mini toolbar ao selecionar texto
