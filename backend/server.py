@@ -1228,32 +1228,75 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     }
 
 
+@api_router.post("/upload")
+async def upload_file(
+    file: UploadFile = File(...),
+    current_user: dict = Depends(get_current_user)
+):
+    """Upload de arquivo — armazena no MongoDB, sem Cloudinary."""
+    MAX_SIZE = 15 * 1024 * 1024  # 15MB
+    data = await file.read()
+    if len(data) > MAX_SIZE:
+        raise HTTPException(status_code=413, detail="Arquivo muito grande. Máximo: 15MB")
+
+    import uuid
+    file_id = str(uuid.uuid4())
+    mime = file.content_type or "application/octet-stream"
+
+    await db.uploaded_files.insert_one({
+        "file_id": file_id,
+        "filename": file.filename,
+        "mime_type": mime,
+        "data": data,
+        "size": len(data),
+        "uploaded_by": current_user["_id"],
+        "created_at": datetime.now(timezone.utc),
+    })
+
+    backend_url = os.getenv("BACKEND_URL", "")
+    return {
+        "file_id": file_id,
+        "filename": file.filename,
+        "url": f"{backend_url}/api/files/{file_id}",
+        "size": len(data),
+    }
+
+@api_router.get("/files/{file_id}")
+async def serve_file(file_id: str):
+    """Serve o arquivo pelo ID — sem autenticação para facilitar visualização."""
+    from fastapi.responses import Response
+    doc = await db.uploaded_files.find_one({"file_id": file_id}, {"_id": 0})
+    if not doc:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+    return Response(
+        content=bytes(doc["data"]),
+        media_type=doc["mime_type"],
+        headers={
+            "Content-Disposition": f'inline; filename="{doc["filename"]}"',
+            "Cache-Control": "public, max-age=86400",
+            "Content-Length": str(doc["size"]),
+        }
+    )
+
 @api_router.get("/cloudinary/signature")
 async def generate_cloudinary_signature(
     resource_type: str = Query("auto"),
     folder: str = "essaypro/uploads",
     current_user: dict = Depends(get_current_user)
 ):
+    """Mantido para compatibilidade — use /api/upload em vez disso."""
     cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "")
     api_key = os.getenv("CLOUDINARY_API_KEY", "")
     secret = os.getenv("CLOUDINARY_API_SECRET", "")
     if not cloud_name or not api_key or not secret:
-        raise HTTPException(status_code=503, detail="Cloudinary não configurado. Verifique CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY e CLOUDINARY_API_SECRET no Render.")
+        raise HTTPException(status_code=503, detail="Cloudinary não configurado")
     timestamp = int(time.time())
-    # IMPORTANTE: apenas folder e timestamp são assinados
-    # resource_type NÃO entra na assinatura
-    params_to_sign = {
-        "folder": folder,
-        "timestamp": timestamp,
-    }
+    params_to_sign = {"folder": folder, "timestamp": timestamp}
     signature = cloudinary.utils.api_sign_request(params_to_sign, secret)
     return {
-        "signature": signature,
-        "timestamp": timestamp,
-        "cloud_name": cloud_name,
-        "api_key": api_key,
-        "folder": folder,
-        "resource_type": resource_type,
+        "signature": signature, "timestamp": timestamp,
+        "cloud_name": cloud_name, "api_key": api_key,
+        "folder": folder, "resource_type": resource_type,
     }
 
 @api_router.get("/users/quick-comments")
