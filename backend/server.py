@@ -214,6 +214,7 @@ class CorrectionSubmit(BaseModel):
     improvements: str
     inline_comments: Optional[List[InlineComment]] = None
     canvas_annotations: Optional[dict] = None
+    pdf_annotations: Optional[dict] = None  # {page_num: dataUrl}
     correction_time_minutes: Optional[int] = 0
 
 class CorrectionResponse(BaseModel):
@@ -621,6 +622,7 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
         "improvements": correction_data.improvements,
         "inline_comments": [ic.model_dump() for ic in correction_data.inline_comments] if correction_data.inline_comments else [],
         "canvas_annotations": correction_data.canvas_annotations,
+        "pdf_annotations": correction_data.pdf_annotations,
         "corrected_at": datetime.now(timezone.utc),
         "correction_time_minutes": correction_data.correction_time_minutes or 0,
     }
