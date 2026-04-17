@@ -288,7 +288,13 @@ export const CorrectEssay = () => {
     try {
       const essayRes = await axios.get(`${API_URL}/api/essays/${essayId}`, { withCredentials: true });
       setEssay(essayRes.data);
-      setEssayHtml(essayRes.data.content ? essayRes.data.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível');
+      // Para redações de upload: não mostrar "Conteúdo não disponível"
+      const isUpload = essayRes.data.submission_method === 'upload';
+      setEssayHtml(
+        essayRes.data.content
+          ? essayRes.data.content.replace(/\n/g, '<br/>')
+          : isUpload ? '' : 'Conteúdo não disponível'
+      );
 
       // Buscar configurações do curso
       try {
@@ -1279,19 +1285,45 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              {/* Imagem — fica dentro do container com position:relative para o canvas ficar em cima */}
+              {/* Imagem — dentro do container, canvas fica por cima */}
               {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
                 <img
                   src={essay.file_url}
                   alt="Redação do aluno"
                   style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                  onLoad={() => {
+                    // Redimensionar canvas para cobrir a imagem após ela carregar
+                    const canvas = nativeCanvasRef.current;
+                    const container = canvasContainerRef.current;
+                    if (!canvas || !container) return;
+                    const w = container.offsetWidth;
+                    const h = container.offsetHeight;
+                    if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
+                      const ctx = canvas.getContext('2d');
+                      let saved = null;
+                      try { if (canvas.width > 0 && canvas.height > 0) saved = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch(e) {}
+                      canvas.width = w;
+                      canvas.height = h;
+                      if (saved) ctx.putImageData(saved, 0, 0);
+                    }
+                  }}
                 />
               )}
 
-              {/* Campo de texto — só exibe se NAO é upload de arquivo */}
+              {/* Upload sem arquivo (Cloudinary não configurado na hora do envio) */}
+              {essay?.submission_method === 'upload' && !essay?.file_url && (
+                <div className="bg-white rounded-lg p-12 text-center" style={{ border: '1px solid #E8DDD0', minHeight: '400px' }}>
+                  <p style={{ color: '#6B5B4E', fontSize: '14px' }}>
+                    📎 Esta redação foi enviada como arquivo, mas o arquivo não está disponível.<br/>
+                    Use as ferramentas acima para adicionar comentários gerais.
+                  </p>
+                </div>
+              )}
+
+              {/* Campo de texto — só para redações digitadas */}
               <div
                 ref={textRef}
-                style={{ display: essay?.file_url ? 'none' : undefined }}
+                style={{ display: essay?.submission_method === 'upload' ? 'none' : undefined }}
                 onMouseUp={(e) => {
                   handleTextSelection(e);
                   // C1: Mini toolbar ao selecionar texto
