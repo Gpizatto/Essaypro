@@ -69,12 +69,13 @@ export const CorrectEssay = () => {
   const [zoom, setZoom] = useState(1);
 
   // ── PDF.js state ──────────────────────────────────────────
-  const pdfBgCanvasRef = useRef(null);    // canvas de fundo que renderiza o PDF
-  const pdfDocRef = useRef(null);         // documento PDF carregado
+  const pdfBgCanvasRef = useRef(null);
+  const pdfDocRef = useRef(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [pdfTotalPages, setPdfTotalPages] = useState(0);
-  const pdfAnnotationsRef = useRef({});   // {pageNum: dataUrl} anotações por página
-  const pdfPageRef = useRef(1);           // ref síncrona do número da página atual
+  const [pdfPageImage, setPdfPageImage] = useState(null); // dataUrl da página atual renderizada
+  const pdfAnnotationsRef = useRef({});
+  const pdfPageRef = useRef(1);
 
   const [selectedTool, setSelectedTool] = useState('select');
   const [selectedColor, setSelectedColor] = useState('#E53935');
@@ -288,7 +289,7 @@ export const CorrectEssay = () => {
     return () => ro.disconnect();
   }, [essay]);
 
-  // ── PDF.js: carregar e renderizar ────────────────────────
+  // ── PDF.js: cada página renderizada como imagem ─────────
   const loadPdfJs = () => new Promise((resolve) => {
     if (window.pdfjsLib) { resolve(window.pdfjsLib); return; }
     const script = document.createElement('script');
@@ -303,41 +304,55 @@ export const CorrectEssay = () => {
 
   const renderPdfPage = async (pageNum) => {
     const pdfDoc = pdfDocRef.current;
-    const bgCanvas = pdfBgCanvasRef.current;
-    const annoCanvas = nativeCanvasRef.current;
-    if (!pdfDoc || !bgCanvas || !annoCanvas) return;
+    if (!pdfDoc) return;
 
     // Salvar anotações da página atual antes de trocar
+    const annoCanvas = nativeCanvasRef.current;
     const ctx = ctxRef.current;
-    if (ctx && annoCanvas.width > 0 && annoCanvas.height > 0) {
+    if (ctx && annoCanvas && annoCanvas.width > 0 && annoCanvas.height > 0) {
       pdfAnnotationsRef.current[pdfPageRef.current] = annoCanvas.toDataURL('image/png');
     }
 
+    // Renderizar a página num canvas temporário e converter para imagem
     const page = await pdfDoc.getPage(pageNum);
     const viewport = page.getViewport({ scale: 1.5 });
-
-    bgCanvas.width = viewport.width;
-    bgCanvas.height = viewport.height;
-    annoCanvas.width = viewport.width;
-    annoCanvas.height = viewport.height;
-    ctxRef.current = annoCanvas.getContext('2d');
-
-    const bgCtx = bgCanvas.getContext('2d');
-    await page.render({ canvasContext: bgCtx, viewport }).promise;
-
-    // Restaurar anotações desta página se existirem
-    const savedAnno = pdfAnnotationsRef.current[pageNum];
-    if (savedAnno) {
-      const img = new Image();
-      img.onload = () => ctxRef.current?.drawImage(img, 0, 0);
-      img.src = savedAnno;
-    } else {
-      ctxRef.current?.clearRect(0, 0, annoCanvas.width, annoCanvas.height);
-    }
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = viewport.width;
+    tempCanvas.height = viewport.height;
+    await page.render({ canvasContext: tempCanvas.getContext('2d'), viewport }).promise;
+    const dataUrl = tempCanvas.toDataURL('image/png');
 
     pdfPageRef.current = pageNum;
     setPdfPage(pageNum);
+    setPdfPageImage(dataUrl); // <img> vai exibir isso, canvas de anotação fica em cima
   };
+
+  // Quando a imagem da página muda, ajustar canvas de anotação
+  useEffect(() => {
+    if (!pdfPageImage) return;
+    // Pequeno delay para a img renderizar e ter dimensões reais
+    const timer = setTimeout(() => {
+      const container = canvasContainerRef.current;
+      const annoCanvas = nativeCanvasRef.current;
+      if (!container || !annoCanvas) return;
+      const w = container.offsetWidth;
+      const h = container.offsetHeight;
+      if (w < 1 || h < 1) return;
+      annoCanvas.width = w;
+      annoCanvas.height = h;
+      ctxRef.current = annoCanvas.getContext('2d');
+      // Restaurar anotações desta página
+      const saved = pdfAnnotationsRef.current[pdfPageRef.current];
+      if (saved) {
+        const img = new Image();
+        img.onload = () => ctxRef.current?.drawImage(img, 0, 0, w, h);
+        img.src = saved;
+      } else {
+        ctxRef.current?.clearRect(0, 0, w, h);
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [pdfPageImage]);
 
   // Carregar PDF quando essay carrega
   useEffect(() => {
@@ -1414,10 +1429,11 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              {/* PDF background canvas — PDF.js renderiza aqui, anotações ficam no canvas de cima */}
-              {essay?.file_url && /\.pdf$/i.test(essay.file_url) && (
-                <canvas
-                  ref={pdfBgCanvasRef}
+              {/* PDF renderizado como imagem — canvas de anotação fica em cima */}
+              {essay?.file_url && /\.pdf$/i.test(essay.file_url) && pdfPageImage && (
+                <img
+                  src={pdfPageImage}
+                  alt={`Página ${pdfPage}`}
                   style={{
                     display: 'block',
                     width: '100%',
@@ -1426,6 +1442,11 @@ export const CorrectEssay = () => {
                     backgroundColor: '#fff',
                   }}
                 />
+              )}
+              {essay?.file_url && /\.pdf$/i.test(essay.file_url) && !pdfPageImage && (
+                <div style={{ minHeight: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E8DDD0', borderRadius: '8px', backgroundColor: '#fff' }}>
+                  <p style={{ color: '#6B5B4E' }}>Carregando PDF...</p>
+                </div>
               )}
 
               {/* Imagem — com zoom e rotação, canvas fica por cima */}
@@ -1467,10 +1488,10 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              {/* Campo de texto — só para redações digitadas */}
+              {/* Campo de texto — só para redações digitadas (sem file_url) */}
               <div
                 ref={textRef}
-                style={{ display: essay?.submission_method === 'upload' ? 'none' : undefined }}
+                style={{ display: essay?.file_url ? 'none' : undefined }}
                 onMouseUp={(e) => {
                   handleTextSelection(e);
                   // C1: Mini toolbar ao selecionar texto
