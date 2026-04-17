@@ -860,30 +860,56 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
         corrections = await db.corrections.find({"teacher_id": tid}, {"_id": 0}).to_list(10000)
     total = len(corrections)
 
-    # Tempo médio — batch load essays (evita N+1)
+    # Helper: converter qualquer formato de data para datetime aware
+    def parse_dt(val):
+        if val is None:
+            return None
+        if isinstance(val, datetime):
+            return val.replace(tzinfo=timezone.utc) if val.tzinfo is None else val
+        try:
+            from dateutil import parser as dtparser
+            return dtparser.parse(str(val)).replace(tzinfo=timezone.utc)
+        except Exception:
+            return None
+
+    # Normalizar corrected_at em todas as correções
+    for c in corrections:
+        c["_corrected_dt"] = parse_dt(c.get("corrected_at"))
+
+    # Tempo médio — batch load essays
     durations = []
     if corrections:
         essay_ids = list({c["essay_id"] for c in corrections if c.get("essay_id")})
-        essays_batch = await db.essays.find(
-            {"id": {"$in": essay_ids}}, {"_id": 0, "id": 1, "submitted_at": 1}
-        ).to_list(len(essay_ids))
-        essays_map = {e["id"]: e for e in essays_batch}
-        for c in corrections:
-            essay = essays_map.get(c.get("essay_id", ""))
-            if essay and c.get("corrected_at") and essay.get("submitted_at"):
-                diff = (c["corrected_at"] - essay["submitted_at"]).total_seconds() / 3600
-                if 0 < diff < 720:
-                    durations.append(diff)
+        if essay_ids:
+            essays_batch = await db.essays.find(
+                {"id": {"$in": essay_ids}}, {"_id": 0, "id": 1, "submitted_at": 1}
+            ).to_list(len(essay_ids))
+            essays_map = {e["id"]: e for e in essays_batch}
+            for c in corrections:
+                essay = essays_map.get(c.get("essay_id", ""))
+                cdt = c["_corrected_dt"]
+                sdt = parse_dt(essay.get("submitted_at")) if essay else None
+                if cdt and sdt:
+                    try:
+                        diff = (cdt - sdt).total_seconds() / 3600
+                        if 0 < diff < 720:
+                            durations.append(diff)
+                    except Exception:
+                        pass
 
-    avg_hours = sum(durations) / len(durations) if durations else 0
+    avg_hours = round(sum(durations) / len(durations), 1) if durations else 0
 
     # Por mês — últimos 6 meses
     from collections import defaultdict
     monthly = defaultdict(int)
     for c in corrections:
-        if c.get("corrected_at"):
-            key = c["corrected_at"].strftime("%Y-%m")
-            monthly[key] += 1
+        cdt = c["_corrected_dt"]
+        if cdt:
+            try:
+                key = cdt.strftime("%Y-%m")
+                monthly[key] += 1
+            except Exception:
+                pass
 
     sorted_months = sorted(monthly.keys())[-6:]
     monthly_data = [{"month": m, "count": monthly[m]} for m in sorted_months]
@@ -892,21 +918,39 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
     now = datetime.now(timezone.utc)
     weekly = []
     for i in range(3, -1, -1):
-        week_start = now - timedelta(days=now.weekday() + 7 * i)
-        week_start = week_start.replace(hour=0, minute=0, second=0, microsecond=0)
+        week_start = (now - timedelta(days=now.weekday() + 7 * i)).replace(hour=0, minute=0, second=0, microsecond=0)
         week_end = week_start + timedelta(days=7)
-        count = sum(1 for c in corrections if c.get("corrected_at") and week_start <= c["corrected_at"] <= week_end)
+        count = 0
+        for c in corrections:
+            cdt = c["_corrected_dt"]
+            if cdt:
+                try:
+                    if week_start <= cdt <= week_end:
+                        count += 1
+                except Exception:
+                    pass
         weekly.append({"week": week_start.strftime("%d/%m"), "count": count})
 
     # Hoje e esta semana
     today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start_curr = now - timedelta(days=now.weekday())
-    week_start_curr = week_start_curr.replace(hour=0, minute=0, second=0, microsecond=0)
-
-    today_count = sum(1 for c in corrections if c.get("corrected_at") and c["corrected_at"] >= today_start)
-    week_count = sum(1 for c in corrections if c.get("corrected_at") and c["corrected_at"] >= week_start_curr)
+    week_start_curr = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    month_count = sum(1 for c in corrections if c.get("corrected_at") and c["corrected_at"] >= month_start)
+
+    def safe_count(dt_field, since):
+        count = 0
+        for c in corrections:
+            cdt = c.get("_corrected_dt")
+            if cdt:
+                try:
+                    if cdt >= since:
+                        count += 1
+                except Exception:
+                    pass
+        return count
+
+    today_count = safe_count("_corrected_dt", today_start)
+    week_count = safe_count("_corrected_dt", week_start_curr)
+    month_count = safe_count("_corrected_dt", month_start)
 
     return {
         "total_corrections": total,
