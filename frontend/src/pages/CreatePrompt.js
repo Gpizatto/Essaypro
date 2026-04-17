@@ -321,7 +321,12 @@ export const CreatePrompt = () => {
 
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <Label htmlFor="supporting-texts">Textos de Apoio</Label>
+                  <Label htmlFor="supporting-texts">
+                    Textos de Apoio
+                    {(formData.supporting_files || []).length > 0 && (
+                      <span className="ml-2 text-xs font-normal" style={{ color: '#6B5B4E' }}>(opcional quando há arquivo anexado)</span>
+                    )}
+                  </Label>
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
@@ -343,9 +348,11 @@ export const CreatePrompt = () => {
                   id="supporting-texts"
                   value={formData.supporting_texts}
                   onChange={(e) => setFormData({ ...formData, supporting_texts: e.target.value })}
-                  required
+                  required={(formData.supporting_files || []).length === 0}
                   rows={6}
-                  placeholder="Adicione os textos motivadores..."
+                  placeholder={(formData.supporting_files || []).length > 0
+                    ? "Texto adicional (opcional — você já anexou um arquivo)"
+                    : "Adicione os textos motivadores..."}
                   className="mt-1"
                   data-testid="supporting-texts-input"
                 />
