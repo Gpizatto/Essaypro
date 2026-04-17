@@ -1264,12 +1264,12 @@ export const CorrectEssay = () => {
                     style={{ width: '100%', display: 'block', backgroundColor: '#fff' }}
                   />
                 ) : (
-                  <iframe
-                    src={`https://docs.google.com/viewer?url=${encodeURIComponent(essay.file_url)}&embedded=true`}
-                    title="Redação do aluno"
+                  <embed
+                    src={essay.file_url}
+                    type="application/pdf"
                     width="100%"
                     height="750px"
-                    style={{ border: 'none', display: 'block' }}
+                    style={{ display: 'block' }}
                   />
                 )}
               </div>
