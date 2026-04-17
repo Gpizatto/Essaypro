@@ -278,17 +278,12 @@ export const SubmitEssay = () => {
                   </div>
                   {/* Visualizador */}
                   {file.type === 'pdf' ? (
-                    <iframe
-                      src={`https://docs.google.com/viewer?url=${encodeURIComponent(file.url)}&embedded=true`}
-                      title={file.name}
+                    <embed
+                      src={file.url}
+                      type="application/pdf"
                       width="100%"
-                      height="650px"
-                      style={{ border: 'none', display: 'block' }}
-                      onError={(e) => {
-                        // Fallback: link direto se o viewer falhar
-                        e.target.style.display = 'none';
-                        e.target.nextSibling.style.display = 'block';
-                      }}
+                      height="700px"
+                      style={{ display: 'block' }}
                     />
                   ) : (
                     <img
