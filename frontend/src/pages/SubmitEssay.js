@@ -1,5 +1,76 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
+
+// Componente que renderiza PDF como imagens usando PDF.js
+const PdfViewer = ({ url }) => {
+  const [pages, setPages] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [error, setError] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!url) return;
+    const loadPdf = () => {
+      const pdfjs = window.pdfjsLib;
+      pdfjs.GlobalWorkerOptions.workerSrc =
+        'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+      pdfjs.getDocument(url).promise
+        .then(async (doc) => {
+          const imgs = [];
+          for (let i = 1; i <= doc.numPages; i++) {
+            const page = await doc.getPage(i);
+            const viewport = page.getViewport({ scale: 1.5 });
+            const canvas = document.createElement('canvas');
+            canvas.width = viewport.width;
+            canvas.height = viewport.height;
+            await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+            imgs.push(canvas.toDataURL('image/png'));
+          }
+          setPages(imgs);
+          setLoading(false);
+        })
+        .catch(() => { setError(true); setLoading(false); });
+    };
+    if (window.pdfjsLib) {
+      loadPdf();
+    } else {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      s.onload = loadPdf;
+      document.head.appendChild(s);
+    }
+  }, [url]);
+
+  if (loading) return (
+    <div style={{ padding: '40px', textAlign: 'center', color: '#6B5B4E' }}>
+      ⏳ Carregando PDF...
+    </div>
+  );
+  if (error) return (
+    <div style={{ padding: '24px', textAlign: 'center' }}>
+      <p style={{ color: '#7C1805', marginBottom: '12px' }}>
+        Não foi possível visualizar o PDF inline.
+      </p>
+      <a href={url} target="_blank" rel="noreferrer"
+        style={{ backgroundColor: '#7C1805', color: 'white', padding: '8px 16px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px' }}>
+        ↗ Abrir PDF em nova aba
+      </a>
+    </div>
+  );
+  return (
+    <div>
+      {pages.map((src, i) => (
+        <div key={i}>
+          {pages.length > 1 && (
+            <div style={{ padding: '6px 12px', backgroundColor: '#F0EBE3', fontSize: '12px', color: '#6B5B4E' }}>
+              Página {i + 1} de {pages.length}
+            </div>
+          )}
+          <img src={src} alt={`Página ${i + 1}`} style={{ width: '100%', display: 'block' }} />
+        </div>
+      ))}
+    </div>
+  );
+};
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
@@ -29,6 +100,7 @@ export const SubmitEssay = () => {
   const [isRewrite, setIsRewrite] = useState(false);
   const [parentEssayId, setParentEssayId] = useState(null);
   const [credits, setCredits] = useState(null);
+  const [uploadProgress, setUploadProgress] = useState(''); // mensagem de progresso
   const location = useLocation();
 
   const editor = useEditor({
@@ -75,6 +147,50 @@ export const SubmitEssay = () => {
     }
   };
 
+  // Converte PDF para PNG usando PDF.js — retorna array de dataUrls (uma por página)
+  const pdfToImages = (file) => new Promise((resolve, reject) => {
+    const loadAndConvert = async () => {
+      try {
+        const pdfjs = window.pdfjsLib;
+        pdfjs.GlobalWorkerOptions.workerSrc =
+          'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        const arrayBuffer = await file.arrayBuffer();
+        const doc = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+        const images = [];
+        for (let i = 1; i <= doc.numPages; i++) {
+          const page = await doc.getPage(i);
+          const viewport = page.getViewport({ scale: 2.0 }); // alta resolução
+          const canvas = document.createElement('canvas');
+          canvas.width = viewport.width;
+          canvas.height = viewport.height;
+          await page.render({ canvasContext: canvas.getContext('2d'), viewport }).promise;
+          images.push(canvas.toDataURL('image/jpeg', 0.92));
+        }
+        resolve(images);
+      } catch (err) { reject(err); }
+    };
+    if (window.pdfjsLib) {
+      loadAndConvert();
+    } else {
+      const s = document.createElement('script');
+      s.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+      s.onload = loadAndConvert;
+      s.onerror = () => reject(new Error('Falha ao carregar PDF.js'));
+      document.head.appendChild(s);
+    }
+  });
+
+  // Converte dataUrl base64 para File
+  const dataUrlToFile = (dataUrl, filename) => {
+    const arr = dataUrl.split(',');
+    const mime = arr[0].match(/:(.*?);/)[1];
+    const bstr = atob(arr[1]);
+    let n = bstr.length;
+    const u8arr = new Uint8Array(n);
+    while (n--) u8arr[n] = bstr.charCodeAt(n);
+    return new File([u8arr], filename, { type: mime });
+  };
+
   const handleFileUpload = async (file) => {
     try {
       const fd = new FormData();
@@ -117,10 +233,44 @@ export const SubmitEssay = () => {
         }
 
         if (uploadFile && !uploadUrl) {
-          fileUrl = await handleFileUpload(uploadFile);
-          if (!fileUrl) {
-            setSubmitting(false);
-            return;
+          // PDF: converter para imagem(ns) antes de enviar
+          if (uploadFile.type === 'application/pdf' || uploadFile.name.toLowerCase().endsWith('.pdf')) {
+            setUploadProgress('Convertendo PDF para imagem...');
+            try {
+              const images = await pdfToImages(uploadFile);
+              // Enviar cada página como imagem separada e guardar a primeira como file_url
+              const uploadedUrls = [];
+              for (let i = 0; i < images.length; i++) {
+                setUploadProgress(`Enviando página ${i + 1} de ${images.length}...`);
+                const imgFile = dataUrlToFile(images[i], `pagina-${i + 1}.jpg`);
+                const fd = new FormData();
+                fd.append('file', imgFile);
+                const res = await fetch(`${API_URL}/api/upload`, {
+                  method: 'POST', body: fd, credentials: 'include',
+                });
+                if (!res.ok) throw new Error('Falha ao enviar página ' + (i + 1));
+                const data = await res.json();
+                uploadedUrls.push(data.url);
+              }
+              fileUrl = uploadedUrls[0]; // primeira página como URL principal
+              // Páginas extras salvas no content como JSON para o professor ver
+              if (uploadedUrls.length > 1) {
+                content = JSON.stringify({ type: 'pdf_pages', urls: uploadedUrls });
+              }
+              setUploadProgress('');
+            } catch (err) {
+              setUploadProgress('');
+              toast.error('Erro ao converter PDF: ' + err.message);
+              setSubmitting(false);
+              return;
+            }
+          } else {
+            // Imagem normal: upload direto
+            fileUrl = await handleFileUpload(uploadFile);
+            if (!fileUrl) {
+              setSubmitting(false);
+              return;
+            }
           }
         } else {
           fileUrl = uploadUrl;
@@ -223,13 +373,7 @@ export const SubmitEssay = () => {
                   </div>
                   {/* Visualizador */}
                   {file.type === 'pdf' ? (
-                    <embed
-                      src={file.url}
-                      type="application/pdf"
-                      width="100%"
-                      height="700px"
-                      style={{ display: 'block' }}
-                    />
+                    <PdfViewer url={file.url} />
                   ) : (
                     <img
                       src={file.url}
@@ -404,7 +548,12 @@ export const SubmitEssay = () => {
                   )}
                   {uploadFile.type === 'application/pdf' && (
                     <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#FDF3E8', color: '#7C1805' }}>
-                      📄 PDF pronto para envio. O professor poderá visualizá-lo durante a correção.
+                      📄 PDF selecionado — será convertido automaticamente para imagem ao enviar, permitindo que o professor corrija diretamente.
+                    </p>
+                  )}
+                  {uploadProgress && (
+                    <p className="text-xs px-3 py-2 rounded mt-2" style={{ backgroundColor: '#E0F2FE', color: '#0369A1' }}>
+                      ⏳ {uploadProgress}
                     </p>
                   )}
                 </div>
