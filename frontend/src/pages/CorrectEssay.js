@@ -74,6 +74,8 @@ export const CorrectEssay = () => {
   const [pdfPage, setPdfPage] = useState(1);
   const [pdfTotalPages, setPdfTotalPages] = useState(0);
   const [pdfPageImage, setPdfPageImage] = useState(null);
+  // Para PDFs convertidos em imagens no frontend (múltiplas páginas)
+  const [pdfImagePages, setPdfImagePages] = useState([]); // array de URLs
   const [pdfError, setPdfError] = useState(null); // mensagem de erro ao carregar PDF
   const pdfAnnotationsRef = useRef({});
   const pdfPageRef = useRef(1);
@@ -393,11 +395,26 @@ export const CorrectEssay = () => {
       setEssay(essayRes.data);
       // Para redações de upload: não mostrar "Conteúdo não disponível"
       const isUpload = essayRes.data.submission_method === 'upload';
-      setEssayHtml(
-        essayRes.data.content
-          ? essayRes.data.content.replace(/\n/g, '<br/>')
-          : isUpload ? '' : 'Conteúdo não disponível'
-      );
+      // Verificar se é PDF convertido em múltiplas páginas
+      const rawContent = essayRes.data.content || '';
+      let pdfPages = [];
+      try {
+        const parsed = JSON.parse(rawContent);
+        if (parsed.type === 'pdf_pages' && Array.isArray(parsed.urls)) {
+          pdfPages = parsed.urls;
+        }
+      } catch (e) {}
+
+      if (pdfPages.length > 0) {
+        setPdfImagePages(pdfPages);
+        setEssayHtml('');
+      } else {
+        setEssayHtml(
+          rawContent
+            ? rawContent.replace(/\n/g, '<br/>')
+            : isUpload ? '' : 'Conteúdo não disponível'
+        );
+      }
 
       // Buscar configurações do curso
       try {
@@ -1423,6 +1440,55 @@ export const CorrectEssay = () => {
               ref={canvasContainerRef}
               style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}
             >
+              {/* PDF convertido em páginas de imagem (novo sistema) */}
+              {pdfImagePages.length > 0 && (
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+                      📄 PDF do aluno — {pdfImagePages.length} página{pdfImagePages.length > 1 ? 's' : ''}
+                    </span>
+                    {pdfImagePages.length > 1 && (
+                      <div className="flex items-center gap-1">
+                        <button onClick={() => { if (pdfPage > 1) { setPdfPage(p => p-1); } }}
+                          disabled={pdfPage <= 1}
+                          className="px-2 py-1 rounded border text-xs font-bold"
+                          style={{ borderColor: '#E8DDD0', color: pdfPage <= 1 ? '#ccc' : '#7C1805' }}>←</button>
+                        <span className="text-xs" style={{ color: '#6B5B4E' }}>{pdfPage}/{pdfImagePages.length}</span>
+                        <button onClick={() => { if (pdfPage < pdfImagePages.length) { setPdfPage(p => p+1); } }}
+                          disabled={pdfPage >= pdfImagePages.length}
+                          className="px-2 py-1 rounded border text-xs font-bold"
+                          style={{ borderColor: '#E8DDD0', color: pdfPage >= pdfImagePages.length ? '#ccc' : '#7C1805' }}>→</button>
+                      </div>
+                    )}
+                  </div>
+                  <img
+                    src={pdfImagePages[pdfPage - 1]}
+                    alt={`Página ${pdfPage}`}
+                    style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                    onLoad={() => {
+                      const canvas = nativeCanvasRef.current;
+                      const container = canvasContainerRef.current;
+                      if (!canvas || !container) return;
+                      const w = container.offsetWidth;
+                      const h = container.offsetHeight;
+                      if (w > 0 && h > 0) {
+                        canvas.width = w; canvas.height = h;
+                        ctxRef.current = canvas.getContext('2d');
+                        // Restaurar anotações desta página
+                        const saved = pdfAnnotationsRef.current[pdfPage];
+                        if (saved) {
+                          const img = new Image();
+                          img.onload = () => ctxRef.current?.drawImage(img, 0, 0, w, h);
+                          img.src = saved;
+                        } else {
+                          ctxRef.current?.clearRect(0, 0, w, h);
+                        }
+                      }
+                    }}
+                  />
+                </div>
+              )}
+
               {/* Cabeçalho da imagem — rotação */}
               {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
@@ -1518,10 +1584,10 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              {/* Campo de texto — só para redações digitadas (sem file_url) */}
+              {/* Campo de texto — só para redações digitadas (sem file_url e sem páginas PDF) */}
               <div
                 ref={textRef}
-                style={{ display: essay?.file_url ? 'none' : undefined }}
+                style={{ display: (essay?.file_url || pdfImagePages.length > 0) ? 'none' : undefined }}
                 onMouseUp={(e) => {
                   handleTextSelection(e);
                   // C1: Mini toolbar ao selecionar texto
