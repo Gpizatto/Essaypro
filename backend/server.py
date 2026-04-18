@@ -41,8 +41,6 @@ def invalidate_cache(key: str = None):
     else:
         _settings_cache.clear()
 import time
-import cloudinary
-import cloudinary.utils
 import logging
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
@@ -52,12 +50,6 @@ mongo_url = os.environ['MONGO_URL']
 client = AsyncIOMotorClient(mongo_url, tls=True, tlsAllowInvalidCertificates=True)
 db = client[os.environ['DB_NAME']]
 
-cloudinary.config(
-    cloud_name=os.getenv("CLOUDINARY_CLOUD_NAME"),
-    api_key=os.getenv("CLOUDINARY_API_KEY"),
-    api_secret=os.getenv("CLOUDINARY_API_SECRET"),
-    secure=True
-)
 
 # AI via Groq (gratuito) — usa httpx direto, sem SDK
 import uuid
@@ -1235,7 +1227,7 @@ async def upload_file(
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
 ):
-    """Upload de arquivo — armazena no MongoDB, sem Cloudinary."""
+    """Upload de arquivo — armazena no MongoDB."""
     MAX_SIZE = 15 * 1024 * 1024  # 15MB
     data = await file.read()
     if len(data) > MAX_SIZE:
@@ -1280,26 +1272,27 @@ async def serve_file(file_id: str):
         }
     )
 
-@api_router.get("/cloudinary/signature")
-async def generate_cloudinary_signature(
-    resource_type: str = Query("auto"),
-    folder: str = "essaypro/uploads",
-    current_user: dict = Depends(get_current_user)
-):
-    """Mantido para compatibilidade — use /api/upload em vez disso."""
-    cloud_name = os.getenv("CLOUDINARY_CLOUD_NAME", "")
-    api_key = os.getenv("CLOUDINARY_API_KEY", "")
-    secret = os.getenv("CLOUDINARY_API_SECRET", "")
-    if not cloud_name or not api_key or not secret:
-        raise HTTPException(status_code=503, detail="Cloudinary não configurado")
-    timestamp = int(time.time())
-    params_to_sign = {"folder": folder, "timestamp": timestamp}
-    signature = cloudinary.utils.api_sign_request(params_to_sign, secret)
-    return {
-        "signature": signature, "timestamp": timestamp,
-        "cloud_name": cloud_name, "api_key": api_key,
-        "folder": folder, "resource_type": resource_type,
-    }
+@api_router.get("/proxy-file")
+async def proxy_file(url: str, current_user: dict = Depends(get_current_user)):
+    """Proxy para arquivos externos — útil para redações antigas migradas."""
+    import httpx
+    from fastapi.responses import Response as FastResponse
+    try:
+        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
+            resp = await client.get(url)
+            if resp.status_code == 401:
+                # Tentar com URL assinada
+                raise HTTPException(status_code=401, detail="Arquivo com acesso restrito")
+            if resp.status_code != 200:
+                raise HTTPException(status_code=resp.status_code, detail="Arquivo não acessível")
+            content_type = resp.headers.get("content-type", "application/octet-stream")
+            return FastResponse(
+                content=resp.content,
+                media_type=content_type,
+                headers={"Cache-Control": "public, max-age=3600"},
+            )
+    except httpx.RequestError as e:
+        raise HTTPException(status_code=502, detail=f"Erro: {str(e)}")
 
 @api_router.get("/users/quick-comments")
 async def get_quick_comments(current_user: dict = Depends(get_current_user)):
