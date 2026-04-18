@@ -362,7 +362,7 @@ export const SubmitEssay = () => {
                         ↗ Abrir
                       </a>
                       <a
-                        href={`${file.url}?fl_attachment=true`}
+                        href={file.url}
                         download={file.name}
                         className="text-xs px-3 py-1 rounded font-semibold border"
                         style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}
