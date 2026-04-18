@@ -420,6 +420,10 @@ export const CorrectEssay = () => {
       if (pdfPages.length > 0) {
         setPdfImagePages(pdfPages);
         setEssayHtml('');
+      } else if (isUpload && essayData.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url)) {
+        // PDF de 1 página convertido — file_url é a imagem, tratar como pdf_pages
+        setPdfImagePages([essayData.file_url]);
+        setEssayHtml('');
       } else {
         setEssayHtml(
           rawContent
