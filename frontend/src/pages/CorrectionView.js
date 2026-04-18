@@ -27,6 +27,7 @@ export const CorrectionView = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [essay, setEssay] = useState(null);
+  const [pdfPages, setPdfPages] = useState([]);
   const [correction, setCorrection] = useState(null);
   const [loading, setLoading] = useState(true);
   const textRef = useRef(null);
@@ -61,7 +62,32 @@ export const CorrectionView = () => {
         axios.get(`${API_URL}/api/essays/${essayId}`, { withCredentials: true }),
         axios.get(`${API_URL}/api/corrections/${essayId}`, { withCredentials: true }),
       ]);
-      setEssay(essayRes.data);
+      const essayData = { ...essayRes.data };
+
+      // Normalizar file_url relativa
+      if (essayData.file_url && essayData.file_url.startsWith('/api/')) {
+        essayData.file_url = `${process.env.REACT_APP_BACKEND_URL}${essayData.file_url}`;
+      }
+
+      // Detectar PDF convertido em imagens
+      let pages = [];
+      try {
+        const parsed = JSON.parse(essayData.content || '');
+        if (parsed.type === 'pdf_pages' && Array.isArray(parsed.urls)) {
+          pages = parsed.urls.map(u =>
+            u.startsWith('/api/') ? `${process.env.REACT_APP_BACKEND_URL}${u}` : u
+          );
+        }
+      } catch (e) {}
+
+      // Fallback: file_url é imagem (PDF de 1 página antigo)
+      if (pages.length === 0 && essayData.file_url &&
+          /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url)) {
+        pages = [essayData.file_url];
+      }
+
+      setPdfPages(pages);
+      setEssay(essayData);
       setCorrection(correctionRes.data);
 
       // Buscar proposta para o modal
@@ -347,6 +373,38 @@ export const CorrectionView = () => {
               </a>
             )}
           </div>
+          {/* PDF convertido em imagens */}
+          {pdfPages.length > 0 ? (
+            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+              {pdfPages.map((src, i) => (
+                <div key={i} style={{ position: 'relative', marginBottom: '16px' }}>
+                  {pdfPages.length > 1 && (
+                    <p className="text-xs mb-1" style={{ color: '#6B5B4E' }}>
+                      Página {i + 1} de {pdfPages.length}
+                    </p>
+                  )}
+                  <img
+                    src={src}
+                    alt={`Página ${i + 1}`}
+                    style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                  />
+                  {/* Anotações do professor desta página */}
+                  {correction.pdf_annotations?.[i + 1] && (
+                    <img
+                      src={correction.pdf_annotations[i + 1]}
+                      alt={`Anotações página ${i + 1}`}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', borderRadius: '8px' }}
+                    />
+                  )}
+                </div>
+              ))}
+              {/* Anotações gerais do canvas */}
+              {correction.canvas_annotations?.dataUrl && (
+                <img src={correction.canvas_annotations.dataUrl} alt="Anotações"
+                  style={{ width: '100%', display: 'block', marginTop: '8px', borderRadius: '8px' }} />
+              )}
+            </div>
+          ) : (
           <div ref={canvasContainerRef} style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}>
             <div
               ref={textRef}
@@ -363,25 +421,17 @@ export const CorrectionView = () => {
               className="relative z-10 bg-white p-8"
               style={{ fontSize: '18px', fontFamily: 'Lora, serif', lineHeight: '1.8', minHeight: '400px' }}
               ref={textRef}
-              dangerouslySetInnerHTML={{ __html: essay?.content ? essay.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível' }}
+              dangerouslySetInnerHTML={{ __html: essay?.content && !essay.content.startsWith('{') ? essay.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível' }}
             />
             {correction.canvas_annotations?.dataUrl && (
               <img
                 src={correction.canvas_annotations.dataUrl}
                 alt="Anotações da correção"
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: 'none',
-                  zIndex: 15,
-                  objectFit: 'fill',
-                }}
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 15, objectFit: 'fill' }}
               />
             )}
           </div>
+          )}
 
             {/* Anotações do professor em PDF — mostra página por página */}
             {correction.pdf_annotations && Object.keys(correction.pdf_annotations).length > 0 && (
