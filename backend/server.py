@@ -1224,6 +1224,7 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/upload")
 async def upload_file(
+    request: Request,
     file: UploadFile = File(...),
     current_user: dict = Depends(get_current_user)
 ):
@@ -1247,7 +1248,12 @@ async def upload_file(
         "created_at": datetime.now(timezone.utc),
     })
 
-    backend_url = os.getenv("BACKEND_URL", "")
+    # Usar BACKEND_URL do env, ou fallback para a URL da requisição atual
+    backend_url = os.getenv("BACKEND_URL", "").rstrip("/")
+    if not backend_url:
+        # Derivar da URL da requisição atual
+        base = str(request.base_url).rstrip("/")
+        backend_url = base
     return {
         "file_id": file_id,
         "filename": file.filename,
@@ -2314,6 +2320,40 @@ async def startup_event():
     await db.prompts.create_index("course_ids")
 
     logger.info("Índices MongoDB criados/verificados")
+
+    # Corrigir URLs de arquivos que foram salvas sem domínio
+    backend_url = os.getenv("BACKEND_URL", "").rstrip("/")
+    if backend_url:
+        # uploaded_files: corrigir url field
+        broken_files = await db.uploaded_files.find(
+            {"url": {"$regex": "^/api/files/"}}, {"_id": 1, "file_id": 1}
+        ).to_list(10000)
+        for f in broken_files:
+            new_url = f"{backend_url}/api/files/{f['file_id']}"
+            await db.uploaded_files.update_one({"_id": f["_id"]}, {"$set": {"url": new_url}})
+
+        # essays: corrigir file_url field
+        broken_essays = await db.essays.find(
+            {"file_url": {"$regex": "^/api/files/"}}, {"_id": 1, "file_url": 1}
+        ).to_list(10000)
+        for e in broken_essays:
+            new_url = f"{backend_url}{e['file_url']}"
+            await db.essays.update_one({"_id": e["_id"]}, {"$set": {"file_url": new_url}})
+
+        # prompts: corrigir supporting_files urls
+        broken_prompts = await db.prompts.find(
+            {"supporting_files.url": {"$regex": "^/api/files/"}}, {"_id": 1, "supporting_files": 1}
+        ).to_list(1000)
+        for p in broken_prompts:
+            fixed = [
+                {**sf, "url": f"{backend_url}{sf['url']}"} if sf.get("url", "").startswith("/api/files/") else sf
+                for sf in p.get("supporting_files", [])
+            ]
+            await db.prompts.update_one({"_id": p["_id"]}, {"$set": {"supporting_files": fixed}})
+
+        if broken_files or broken_essays or broken_prompts:
+            logger.info(f"URLs corrigidas: {len(broken_files)} arquivos, {len(broken_essays)} redações, {len(broken_prompts)} propostas")
+
     # Iniciar schedulers em background
     asyncio.create_task(backup_scheduler())
     asyncio.create_task(keep_alive_scheduler())
