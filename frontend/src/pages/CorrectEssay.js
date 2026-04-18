@@ -1473,20 +1473,21 @@ export const CorrectEssay = () => {
                       </div>
                     )}
                   </div>
+                  <div style={{ position: 'relative', lineHeight: 0 }}>
                   <img
                     src={pdfImagePages[pdfPage - 1]}
                     alt={`Página ${pdfPage}`}
                     style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
-                    onLoad={() => {
+                    onLoad={(e) => {
                       const canvas = nativeCanvasRef.current;
-                      const container = canvasContainerRef.current;
-                      if (!canvas || !container) return;
-                      const w = container.offsetWidth;
-                      const h = container.offsetHeight;
+                      if (!canvas) return;
+                      // Use ACTUAL image dimensions — not container
+                      const w = e.target.offsetWidth || e.target.naturalWidth;
+                      const h = e.target.offsetHeight || e.target.naturalHeight;
                       if (w > 0 && h > 0) {
-                        canvas.width = w; canvas.height = h;
+                        canvas.width = w;
+                        canvas.height = h;
                         ctxRef.current = canvas.getContext('2d');
-                        // Restaurar anotações desta página
                         const saved = pdfAnnotationsRef.current[pdfPage];
                         if (saved) {
                           const img = new Image();
@@ -1498,6 +1499,28 @@ export const CorrectEssay = () => {
                       }
                     }}
                   />
+                  {/* Canvas de anotação diretamente sobre a imagem */}
+                  <canvas
+                    ref={nativeCanvasRef}
+                    style={{
+                      position: 'absolute',
+                      top: 0, left: 0,
+                      width: '100%', height: '100%',
+                      pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment'].includes(selectedTool) ? 'all' : 'none',
+                      zIndex: 10,
+                      cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
+                      touchAction: 'none',
+                      borderRadius: '8px',
+                    }}
+                    onMouseDown={handleCanvasMouseDown}
+                    onMouseMove={handleCanvasMouseMove}
+                    onMouseUp={handleCanvasMouseUp}
+                    onMouseLeave={handleCanvasMouseUp}
+                    onTouchStart={handleCanvasMouseDown}
+                    onTouchMove={handleCanvasMouseMove}
+                    onTouchEnd={handleCanvasMouseUp}
+                  />
+                  </div>
                 </div>
               )}
 
