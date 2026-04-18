@@ -138,6 +138,13 @@ export const SubmitEssay = () => {
     try {
       const { data } = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
       const selectedPrompt = data.find((p) => p.id === promptId);
+      // Corrigir URLs relativas nos supporting_files
+      if (selectedPrompt && selectedPrompt.supporting_files) {
+        selectedPrompt.supporting_files = selectedPrompt.supporting_files.map(f => ({
+          ...f,
+          url: f.url && f.url.startsWith('/api/') ? `${API_URL}${f.url}` : f.url
+        }));
+      }
       setPrompt(selectedPrompt);
     } catch (error) {
       console.error('Error fetching prompt:', error);
