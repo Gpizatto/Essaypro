@@ -14,6 +14,7 @@ import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSq
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
+
 const COLORS = [
   { name: 'Vermelho', value: '#E53935' },
   { name: 'Azul', value: '#1565C0' },
@@ -1425,7 +1426,7 @@ export const CorrectEssay = () => {
                     className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>
                     ↗ Abrir
                   </a>
-                  <a href={`${essay.file_url}?fl_attachment=true`}
+                  <a href={essay.file_url}
                     className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: '#7C1805', color: '#7C1805' }}>
                     ⬇ Baixar
                   </a>
@@ -1501,7 +1502,7 @@ export const CorrectEssay = () => {
                     {imageRotation !== 0 && <span className="text-xs" style={{ color: '#D66B27' }}>{imageRotation}°</span>}
                     <a href={essay.file_url} target="_blank" rel="noreferrer"
                       className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>↗ Abrir</a>
-                    <a href={`${essay.file_url}?fl_attachment=true`}
+                    <a href={essay.file_url}
                       className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: '#7C1805', color: '#7C1805' }}>⬇ Baixar</a>
                   </div>
                 </div>
@@ -1537,7 +1538,7 @@ export const CorrectEssay = () => {
                       style={{ backgroundColor: '#7C1805', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
                       ↗ Abrir PDF em nova aba
                     </a>
-                    <a href={`${pdfError}?fl_attachment=true`}
+                    <a href={pdfError}
                       style={{ border: '1px solid #7C1805', color: '#7C1805', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
                       ⬇ Baixar PDF
                     </a>
