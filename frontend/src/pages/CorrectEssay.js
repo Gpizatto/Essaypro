@@ -104,7 +104,15 @@ export const CorrectEssay = () => {
   const [selectionToolbar, setSelectionToolbar] = useState(null);
   const [imageRotation, setImageRotation] = useState(0);
   const [showClickCommentPopup, setShowClickCommentPopup] = useState(false);
-  const [clickCommentText, setClickCommentText] = useState(''); // {x, y} for visual cursor // { label, x, y }
+  const [clickCommentText, setClickCommentText] = useState('');
+  const [clickCommentCanvasPos, setClickCommentCanvasPos] = useState({ x: 0, y: 0 });
+  // Pan/Zoom para imagem PDF
+  const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
+  const [isPanning, setIsPanning] = useState(false);
+  const panStartRef = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
+  // Comentários com posição absoluta (arrastáveis)
+  const [draggingComment, setDraggingComment] = useState(null); // { id, startX, startY }
+  const dragStartPosRef = useRef({ x: 0, y: 0 }); // {x, y} for visual cursor // { label, x, y }
 
   const [scores, setScores] = useState({});
   const [scoreErrors, setScoreErrors] = useState({});
@@ -627,7 +635,9 @@ export const CorrectEssay = () => {
       ctx.fillStyle = 'white'; ctx.font = 'bold 11px sans-serif';
       ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
       ctx.fillText('!', pos.x, pos.y - 6); ctx.restore();
-      setClickCommentText(''); setShowClickCommentPopup(true);
+      setClickCommentText('');
+      setClickCommentCanvasPos({ x: pos.x, y: pos.y });
+      setShowClickCommentPopup(true);
       return;
     }
     if (!['pen','eraser','line','arrow','oval','rect'].includes(tool)) return;
@@ -1459,71 +1469,129 @@ export const CorrectEssay = () => {
               {/* PDF convertido em páginas de imagem (novo sistema) */}
               {pdfImagePages.length > 0 && (
                 <div>
-                  <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                     <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>
-                      📄 PDF do aluno — {pdfImagePages.length} página{pdfImagePages.length > 1 ? 's' : ''}
+                      📄 PDF — {pdfImagePages.length} pág.
                     </span>
-                    {pdfImagePages.length > 1 && (
-                      <div className="flex items-center gap-1">
-                        <button onClick={() => { if (pdfPage > 1) { setPdfPage(p => p-1); } }}
-                          disabled={pdfPage <= 1}
-                          className="px-2 py-1 rounded border text-xs font-bold"
-                          style={{ borderColor: '#E8DDD0', color: pdfPage <= 1 ? '#ccc' : '#7C1805' }}>←</button>
-                        <span className="text-xs" style={{ color: '#6B5B4E' }}>{pdfPage}/{pdfImagePages.length}</span>
-                        <button onClick={() => { if (pdfPage < pdfImagePages.length) { setPdfPage(p => p+1); } }}
-                          disabled={pdfPage >= pdfImagePages.length}
-                          className="px-2 py-1 rounded border text-xs font-bold"
-                          style={{ borderColor: '#E8DDD0', color: pdfPage >= pdfImagePages.length ? '#ccc' : '#7C1805' }}>→</button>
-                      </div>
-                    )}
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {/* Navegação */}
+                      {pdfImagePages.length > 1 && (
+                        <>
+                          <button onClick={() => { if (pdfPage > 1) { setImageRotation(0); setPdfPage(p => p-1); } }}
+                            disabled={pdfPage <= 1}
+                            className="px-2 py-1 rounded border text-xs font-bold"
+                            style={{ borderColor: '#E8DDD0', color: pdfPage <= 1 ? '#ccc' : '#7C1805' }}>←</button>
+                          <span className="text-xs" style={{ color: '#6B5B4E' }}>{pdfPage}/{pdfImagePages.length}</span>
+                          <button onClick={() => { if (pdfPage < pdfImagePages.length) { setImageRotation(0); setPdfPage(p => p+1); } }}
+                            disabled={pdfPage >= pdfImagePages.length}
+                            className="px-2 py-1 rounded border text-xs font-bold"
+                            style={{ borderColor: '#E8DDD0', color: pdfPage >= pdfImagePages.length ? '#ccc' : '#7C1805' }}>→</button>
+                          <div style={{ width: '1px', height: '16px', backgroundColor: '#E8DDD0', margin: '0 4px' }} />
+                        </>
+                      )}
+                      {/* Rotação */}
+                      <button onClick={() => setImageRotation(r => (r - 90 + 360) % 360)} title="Girar esquerda"
+                        className="px-2 py-1 rounded border text-xs font-bold" style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>↺</button>
+                      <button onClick={() => setImageRotation(r => (r + 90) % 360)} title="Girar direita"
+                        className="px-2 py-1 rounded border text-xs font-bold" style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>↻</button>
+                      {imageRotation !== 0 && (
+                        <span className="text-xs font-semibold" style={{ color: '#D66B27' }}>{imageRotation}°</span>
+                      )}
+                    </div>
                   </div>
-                  <div style={{ position: 'relative', lineHeight: 0 }}>
-                  <img
-                    src={pdfImagePages[pdfPage - 1]}
-                    alt={`Página ${pdfPage}`}
-                    style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
-                    onLoad={(e) => {
-                      const canvas = nativeCanvasRef.current;
-                      if (!canvas) return;
-                      // Use ACTUAL image dimensions — not container
-                      const w = e.target.offsetWidth || e.target.naturalWidth;
-                      const h = e.target.offsetHeight || e.target.naturalHeight;
-                      if (w > 0 && h > 0) {
-                        canvas.width = w;
-                        canvas.height = h;
-                        ctxRef.current = canvas.getContext('2d');
-                        const saved = pdfAnnotationsRef.current[pdfPage];
-                        if (saved) {
-                          const img = new Image();
-                          img.onload = () => ctxRef.current?.drawImage(img, 0, 0, w, h);
-                          img.src = saved;
-                        } else {
-                          ctxRef.current?.clearRect(0, 0, w, h);
-                        }
-                      }
-                    }}
-                  />
-                  {/* Canvas de anotação diretamente sobre a imagem */}
-                  <canvas
-                    ref={nativeCanvasRef}
-                    style={{
-                      position: 'absolute',
-                      top: 0, left: 0,
-                      width: '100%', height: '100%',
-                      pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment'].includes(selectedTool) ? 'all' : 'none',
-                      zIndex: 10,
-                      cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
-                      touchAction: 'none',
-                      borderRadius: '8px',
-                    }}
-                    onMouseDown={handleCanvasMouseDown}
-                    onMouseMove={handleCanvasMouseMove}
-                    onMouseUp={handleCanvasMouseUp}
-                    onMouseLeave={handleCanvasMouseUp}
-                    onTouchStart={handleCanvasMouseDown}
-                    onTouchMove={handleCanvasMouseMove}
-                    onTouchEnd={handleCanvasMouseUp}
-                  />
+                  {/* Container scrollável para pan+zoom */}
+                  <div style={{ overflow: 'auto', maxHeight: '80vh', borderRadius: '8px', border: '1px solid #E8DDD0', cursor: selectedTool === 'select' ? 'grab' : 'default' }}>
+                    <div style={{ position: 'relative', lineHeight: 0, display: 'inline-block', minWidth: '100%',
+                      transform: `scale(${zoom})`, transformOrigin: 'top left',
+                      width: zoom > 1 ? `${100 / zoom}%` : '100%',
+                    }}>
+                      <img
+                        src={pdfImagePages[pdfPage - 1]}
+                        alt={`Página ${pdfPage}`}
+                        style={{ width: '100%', display: 'block',
+                          transform: imageRotation !== 0 ? `rotate(${imageRotation}deg)` : undefined,
+                          transformOrigin: 'center center',
+                          transition: 'transform 0.2s ease',
+                        }}
+                        onLoad={(e) => {
+                          const canvas = nativeCanvasRef.current;
+                          if (!canvas) return;
+                          const w = e.target.offsetWidth || e.target.naturalWidth;
+                          const h = e.target.offsetHeight || e.target.naturalHeight;
+                          if (w > 0 && h > 0) {
+                            canvas.width = w; canvas.height = h;
+                            ctxRef.current = canvas.getContext('2d');
+                            const saved = pdfAnnotationsRef.current[pdfPage];
+                            if (saved) {
+                              const img2 = new Image();
+                              img2.onload = () => ctxRef.current?.drawImage(img2, 0, 0, w, h);
+                              img2.src = saved;
+                            } else {
+                              ctxRef.current?.clearRect(0, 0, w, h);
+                            }
+                          }
+                        }}
+                      />
+                      {/* Canvas de anotação */}
+                      <canvas
+                        ref={nativeCanvasRef}
+                        style={{
+                          position: 'absolute', top: 0, left: 0,
+                          width: '100%', height: '100%',
+                          pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment'].includes(selectedTool) ? 'all' : 'none',
+                          zIndex: 10,
+                          cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
+                          touchAction: 'none',
+                        }}
+                        onMouseDown={handleCanvasMouseDown}
+                        onMouseMove={handleCanvasMouseMove}
+                        onMouseUp={handleCanvasMouseUp}
+                        onMouseLeave={handleCanvasMouseUp}
+                        onTouchStart={handleCanvasMouseDown}
+                        onTouchMove={handleCanvasMouseMove}
+                        onTouchEnd={handleCanvasMouseUp}
+                      />
+                      {/* Comentários arrastáveis sobrepostos */}
+                      {inlineComments.filter(c => c.canvasX != null).map(c => (
+                        <div
+                          key={c.id}
+                          draggable
+                          onDragStart={(e) => {
+                            e.dataTransfer.setData('commentId', c.id);
+                            dragStartPosRef.current = { x: e.clientX, y: e.clientY, cx: c.canvasX, cy: c.canvasY };
+                          }}
+                          onDragEnd={(e) => {
+                            const canvas = nativeCanvasRef.current;
+                            if (!canvas) return;
+                            const rect = canvas.getBoundingClientRect();
+                            const scaleX = canvas.width / rect.width;
+                            const scaleY = canvas.height / rect.height;
+                            const newX = (e.clientX - rect.left) * scaleX;
+                            const newY = (e.clientY - rect.top) * scaleY;
+                            setInlineComments(prev => prev.map(cm =>
+                              cm.id === c.id ? { ...cm, canvasX: newX, canvasY: newY } : cm
+                            ));
+                          }}
+                          title={c.comment}
+                          style={{
+                            position: 'absolute',
+                            left: `${(c.canvasX / (nativeCanvasRef.current?.width || 1)) * 100}%`,
+                            top: `${(c.canvasY / (nativeCanvasRef.current?.height || 1)) * 100}%`,
+                            transform: 'translate(-50%, -100%)',
+                            backgroundColor: '#7C1805',
+                            color: 'white',
+                            borderRadius: '50% 50% 50% 0',
+                            width: '28px', height: '28px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '13px', fontWeight: 'bold',
+                            zIndex: 20, cursor: 'grab',
+                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                          }}
+                        >
+                          💬
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -1586,13 +1654,14 @@ export const CorrectEssay = () => {
 
               {/* Imagem — com zoom e rotação, canvas fica por cima */}
               {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
+                <div style={{ overflow: 'auto', maxHeight: '80vh', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
                 <img
                   src={essay.file_url}
                   alt="Redação do aluno"
                   style={{
                     width: '100%', display: 'block',
                     borderRadius: '8px', border: '1px solid #E8DDD0',
-                    transformOrigin: 'center center',
+                    transformOrigin: 'top left',
                     transform: `rotate(${imageRotation}deg) scale(${zoom})`,
                     transition: 'transform 0.2s ease',
                   }}
@@ -1611,6 +1680,7 @@ export const CorrectEssay = () => {
                     }
                   }}
                 />
+                </div>
               )}
 
               {/* Upload sem arquivo disponível */}
@@ -2087,6 +2157,8 @@ export const CorrectEssay = () => {
                       selected_text: '📍 Marcação na imagem',
                       comment: clickCommentText.trim(),
                       color: '#FEF3C7',
+                      canvasX: clickCommentCanvasPos.x,
+                      canvasY: clickCommentCanvasPos.y,
                     }]);
                     toast.success('Comentário adicionado!');
                   }
