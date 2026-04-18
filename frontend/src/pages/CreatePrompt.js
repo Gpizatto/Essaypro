@@ -47,8 +47,8 @@ export const CreatePrompt = () => {
           method: 'POST', body: fd, credentials: 'include',
         });
         if (!res.ok) {
-          const errData = await res.json().catch(() => ({}));
-          throw new Error(errData.detail || `Erro ${res.status}`);
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || `Erro ${res.status}`);
         }
         const data = await res.json();
         setFormData(prev => ({
