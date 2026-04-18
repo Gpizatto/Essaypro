@@ -393,7 +393,12 @@ export const CorrectEssay = () => {
   const fetchData = async () => {
     try {
       const essayRes = await axios.get(`${API_URL}/api/essays/${essayId}`, { withCredentials: true });
-      setEssay(essayRes.data);
+      // Corrigir file_url relativa (upload sem BACKEND_URL configurado)
+      const essayData = { ...essayRes.data };
+      if (essayData.file_url && essayData.file_url.startsWith('/api/')) {
+        essayData.file_url = `${API_URL}${essayData.file_url}`;
+      }
+      setEssay(essayData);
       // Para redações de upload: não mostrar "Conteúdo não disponível"
       const isUpload = essayRes.data.submission_method === 'upload';
       // Verificar se é PDF convertido em múltiplas páginas
@@ -402,7 +407,13 @@ export const CorrectEssay = () => {
       try {
         const parsed = JSON.parse(rawContent);
         if (parsed.type === 'pdf_pages' && Array.isArray(parsed.urls)) {
-          pdfPages = parsed.urls;
+          // Corrigir URLs relativas — adicionar domínio do backend se necessário
+          pdfPages = parsed.urls.map(url => {
+            if (url && url.startsWith('/api/files/')) {
+              return `${API_URL}${url}`;
+            }
+            return url;
+          });
         }
       } catch (e) {}
 
