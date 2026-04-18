@@ -259,11 +259,9 @@ export const SubmitEssay = () => {
                 const data = await res.json();
                 uploadedUrls.push(data.url);
               }
-              fileUrl = uploadedUrls[0]; // primeira página como URL principal
-              // Páginas extras salvas no content como JSON para o professor ver
-              if (uploadedUrls.length > 1) {
-                content = JSON.stringify({ type: 'pdf_pages', urls: uploadedUrls });
-              }
+              // Salvar TODAS as URLs como pdf_pages — incluindo PDFs de 1 página
+              content = JSON.stringify({ type: 'pdf_pages', urls: uploadedUrls });
+              fileUrl = uploadedUrls[0]; // primeira página como URL principal também
               setUploadProgress('');
             } catch (err) {
               setUploadProgress('');
