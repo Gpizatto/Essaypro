@@ -547,9 +547,12 @@ export const SubmitEssay = () => {
                     />
                   )}
                   {uploadFile.type === 'application/pdf' && (
-                    <p className="text-xs px-3 py-2 rounded" style={{ backgroundColor: '#FDF3E8', color: '#7C1805' }}>
-                      📄 PDF selecionado — será convertido automaticamente para imagem ao enviar, permitindo que o professor corrija diretamente.
-                    </p>
+                    <div className="mt-2">
+                      <p className="text-xs px-3 py-2 rounded mb-2" style={{ backgroundColor: '#FDF3E8', color: '#7C1805' }}>
+                        📄 PDF selecionado — pré-visualização abaixo. Será convertido para imagem ao enviar.
+                      </p>
+                      <PdfViewer url={URL.createObjectURL(uploadFile)} />
+                    </div>
                   )}
                   {uploadProgress && (
                     <p className="text-xs px-3 py-2 rounded mt-2" style={{ backgroundColor: '#E0F2FE', color: '#0369A1' }}>
