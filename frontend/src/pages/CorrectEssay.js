@@ -1508,7 +1508,7 @@ export const CorrectEssay = () => {
                 />
               )}
 
-              {/* Upload sem arquivo (Cloudinary não configurado na hora do envio) */}
+              {/* Upload sem arquivo disponível */}
               {essay?.submission_method === 'upload' && !essay?.file_url && (
                 <div className="bg-white rounded-lg p-12 text-center" style={{ border: '1px solid #E8DDD0', minHeight: '400px' }}>
                   <p style={{ color: '#6B5B4E', fontSize: '14px' }}>
