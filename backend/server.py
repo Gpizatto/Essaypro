@@ -1272,28 +1272,6 @@ async def serve_file(file_id: str):
         }
     )
 
-@api_router.get("/proxy-file")
-async def proxy_file(url: str, current_user: dict = Depends(get_current_user)):
-    """Proxy para arquivos externos — útil para redações antigas migradas."""
-    import httpx
-    from fastapi.responses import Response as FastResponse
-    try:
-        async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
-            resp = await client.get(url)
-            if resp.status_code == 401:
-                # Tentar com URL assinada
-                raise HTTPException(status_code=401, detail="Arquivo com acesso restrito")
-            if resp.status_code != 200:
-                raise HTTPException(status_code=resp.status_code, detail="Arquivo não acessível")
-            content_type = resp.headers.get("content-type", "application/octet-stream")
-            return FastResponse(
-                content=resp.content,
-                media_type=content_type,
-                headers={"Cache-Control": "public, max-age=3600"},
-            )
-    except httpx.RequestError as e:
-        raise HTTPException(status_code=502, detail=f"Erro: {str(e)}")
-
 @api_router.get("/users/quick-comments")
 async def get_quick_comments(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
