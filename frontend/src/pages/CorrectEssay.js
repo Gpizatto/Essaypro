@@ -73,7 +73,8 @@ export const CorrectEssay = () => {
   const pdfDocRef = useRef(null);
   const [pdfPage, setPdfPage] = useState(1);
   const [pdfTotalPages, setPdfTotalPages] = useState(0);
-  const [pdfPageImage, setPdfPageImage] = useState(null); // dataUrl da página atual renderizada
+  const [pdfPageImage, setPdfPageImage] = useState(null);
+  const [pdfError, setPdfError] = useState(null); // mensagem de erro ao carregar PDF
   const pdfAnnotationsRef = useRef({});
   const pdfPageRef = useRef(1);
 
@@ -359,12 +360,23 @@ export const CorrectEssay = () => {
     if (!essay?.file_url || !/\.pdf$/i.test(essay.file_url)) return;
     let cancelled = false;
     loadPdfJs().then(async (pdfjsLib) => {
-      const pdfDoc = await pdfjsLib.getDocument(essay.file_url).promise;
-      if (cancelled) return;
-      pdfDocRef.current = pdfDoc;
-      setPdfTotalPages(pdfDoc.numPages);
-      renderPdfPage(1);
-    }).catch(console.error);
+      try {
+        const pdfDoc = await pdfjsLib.getDocument({
+          url: essay.file_url,
+          withCredentials: false,
+        }).promise;
+        if (cancelled) return;
+        pdfDocRef.current = pdfDoc;
+        setPdfTotalPages(pdfDoc.numPages);
+        renderPdfPage(1);
+      } catch (err) {
+        if (cancelled) return;
+        console.error('PDF load error:', err);
+        setPdfError(essay.file_url);
+      }
+    }).catch(err => {
+      if (!cancelled) setPdfError(essay.file_url);
+    });
     return () => { cancelled = true; };
   }, [essay?.file_url]);
 
@@ -1443,9 +1455,27 @@ export const CorrectEssay = () => {
                   }}
                 />
               )}
-              {essay?.file_url && /\.pdf$/i.test(essay.file_url) && !pdfPageImage && (
-                <div style={{ minHeight: '600px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E8DDD0', borderRadius: '8px', backgroundColor: '#fff' }}>
-                  <p style={{ color: '#6B5B4E' }}>Carregando PDF...</p>
+              {essay?.file_url && /\.pdf$/i.test(essay.file_url) && !pdfPageImage && !pdfError && (
+                <div style={{ minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E8DDD0', borderRadius: '8px', backgroundColor: '#fff' }}>
+                  <p style={{ color: '#6B5B4E' }}>⏳ Carregando PDF...</p>
+                </div>
+              )}
+              {pdfError && (
+                <div style={{ minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', border: '1px solid #E8DDD0', borderRadius: '8px', backgroundColor: '#FDF3E8', padding: '32px' }}>
+                  <p style={{ color: '#7C1805', fontWeight: '600' }}>⚠️ Não foi possível visualizar o PDF inline</p>
+                  <p style={{ color: '#6B5B4E', fontSize: '13px', textAlign: 'center' }}>
+                    O arquivo pode estar com acesso restrito. Use os botões abaixo para abrir ou baixar.
+                  </p>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <a href={pdfError} target="_blank" rel="noreferrer"
+                      style={{ backgroundColor: '#7C1805', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+                      ↗ Abrir PDF em nova aba
+                    </a>
+                    <a href={`${pdfError}?fl_attachment=true`}
+                      style={{ border: '1px solid #7C1805', color: '#7C1805', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+                      ⬇ Baixar PDF
+                    </a>
+                  </div>
                 </div>
               )}
 
