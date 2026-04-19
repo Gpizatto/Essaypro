@@ -463,6 +463,34 @@ export const CorrectionView = () => {
                   style={{ width: '100%', display: 'block', marginTop: '8px', borderRadius: '8px' }} />
               )}
             </div>
+          ) : essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) ? (
+            // file_url é imagem (PDF convertido numa página) — mostrar com canvas por cima
+            <div style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}>
+              <img
+                src={essay.file_url}
+                alt="Redação do aluno"
+                style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+              />
+              {/* Mostrar anotações: preferir pdf_annotations[1], fallback para canvas_annotations */}
+              {(correction.pdf_annotations?.[1] || correction.canvas_annotations?.dataUrl) && (
+                <img
+                  src={correction.pdf_annotations?.[1] || correction.canvas_annotations?.dataUrl}
+                  alt="Anotações"
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', borderRadius: '8px' }}
+                />
+              )}
+              {/* Pins de comentários */}
+              {(correction.inline_comments || []).filter(c => c.canvasX != null).map(c => (
+                <div key={c.id} className="comment-pin"
+                  style={{ position: 'absolute', left: `${(c.canvasX / 800) * 100}%`, top: `${(c.canvasY / 1000) * 100}%`, transform: 'translate(-50%,-100%)', zIndex: 20 }}>
+                  <div style={{ backgroundColor: '#7C1805', color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>!</div>
+                  <div className="comment-tooltip" style={{ position: 'absolute', bottom: '28px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#2C1A0E', color: 'white', padding: '6px 10px', borderRadius: '8px', fontSize: '12px', maxWidth: '220px', wordBreak: 'break-word', opacity: 0, pointerEvents: 'none', transition: 'opacity 0.15s', zIndex: 30, whiteSpace: 'pre-wrap' }}>
+                    {c.comment}
+                    <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', border: '5px solid transparent', borderTopColor: '#2C1A0E' }} />
+                  </div>
+                </div>
+              ))}
+            </div>
           ) : (
           <div ref={canvasContainerRef} style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}>
             <div
