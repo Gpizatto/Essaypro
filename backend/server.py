@@ -1703,8 +1703,6 @@ async def get_ranking(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     try:
-        try:
-
         # Admin vê todos; professor filtra por turma
         teacher_course_ids = current_user.get("course_ids", [])
         if current_user["role"] == "teacher" and teacher_course_ids:
@@ -2060,7 +2058,6 @@ async def get_course_engagement(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     try:
-
         courses = await db.courses.find({"is_active": True}, {"_id": 0}).to_list(100)
         result = []
 
