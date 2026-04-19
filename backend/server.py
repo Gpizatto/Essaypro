@@ -749,6 +749,24 @@ async def approve_user(user_id: str, body: dict = None, current_user: dict = Dep
     )
     return {"ok": True}
 
+@api_router.post("/admin/force-approve")
+async def force_approve_by_email(body: dict, current_user: dict = Depends(get_current_user)):
+    """Aprovar usuário por email — útil quando o ID não aparece na lista"""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    email = body.get("email", "").lower().strip()
+    if not email:
+        raise HTTPException(status_code=400, detail="Email obrigatório")
+    result = await db.users.update_one(
+        {"email": email},
+        {"$set": {"is_approved": True, "is_active": True}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail=f"Usuário {email} não encontrado")
+    user = await db.users.find_one({"email": email}, {"_id": 0, "name": 1, "email": 1, "is_approved": 1, "is_active": 1})
+    logger.info(f"Force approved: {email}")
+    return {"ok": True, "user": user}
+
 @api_router.post("/admin/reject-user/{user_id}")
 async def reject_user(user_id: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
