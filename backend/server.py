@@ -262,7 +262,10 @@ async def login(login_data: UserLogin, response: Response):
     if not verify_password(login_data.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Email ou senha inválidos")
     
-    if not user.get("is_approved", True) or not user.get("is_active", True):
+    is_approved = user.get("is_approved", True)
+    is_active = user.get("is_active", True)
+    logger.info(f"Login attempt: {email}, is_approved={is_approved}, is_active={is_active}")
+    if not is_approved or not is_active:
         raise HTTPException(status_code=403, detail="Sua conta ainda não foi aprovada pelo administrador. Aguarde.")
     
     user_id = str(user["_id"])
@@ -708,14 +711,19 @@ async def get_pending_users(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     users = await db.users.find(
-        {"is_approved": False},
-        {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1}
+        {"$or": [{"is_approved": False}, {"is_active": False}]},
+        {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1, "is_approved": 1, "is_active": 1}
     ).sort("created_at", -1).to_list(100)
-    return [{"id": str(u["_id"]), "name": u["name"], "email": u["email"],
-             "role": u.get("role", "student"), "created_at": u["created_at"]} for u in users]
+    return [{
+        "id": str(u["_id"]), "name": u["name"], "email": u["email"],
+        "role": u.get("role", "student"), "created_at": u["created_at"],
+        "is_approved": u.get("is_approved", False), "is_active": u.get("is_active", False),
+    } for u in users]
 
 @api_router.post("/admin/approve-user/{user_id}")
-async def approve_user(user_id: str, body: dict = {}, current_user: dict = Depends(get_current_user)):
+async def approve_user(user_id: str, body: dict = None, current_user: dict = Depends(get_current_user)):
+    if body is None:
+        body = {}
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     role = body.get("role", "student")
@@ -727,6 +735,7 @@ async def approve_user(user_id: str, body: dict = {}, current_user: dict = Depen
     )
     if result.matched_count == 0:
         raise HTTPException(status_code=404, detail="User not found")
+    logger.info(f"User {user_id} approved as {role}, matched={result.matched_count}, modified={result.modified_count}")
     # Adicionar à turma se informado
     if course_id:
         await db.users.update_one({"_id": ObjectId(user_id)}, {"$addToSet": {"course_ids": course_id}})
