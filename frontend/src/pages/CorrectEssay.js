@@ -269,17 +269,16 @@ export const CorrectEssay = () => {
     ctxRef.current = ctx;
 
     const syncSize = () => {
+      // NÃO redimensionar quando há imagem ou PDF — o onLoad da imagem cuida disso
+      // Redimensionar canvas via syncSize só para redações de texto digitado
+      if (essay?.file_url || pdfImagePages.length > 0) return;
       if (!canvasContainerRef.current) return;
       const container = canvasContainerRef.current;
       const w = container.offsetWidth || 800;
-      // Para imagens: usar altura real do container (que inclui a img)
-      // Para texto: usar scrollHeight do textRef
-      const containerH = container.offsetHeight || 0;
       const textH = textRef.current?.scrollHeight || 0;
-      const h = Math.max(containerH, textH, 600);
-      if (w < 1 || h < 1) return; // evitar canvas com dimensão zero
+      const h = Math.max(textH, 600);
+      if (w < 1 || h < 1) return;
       if (canvas.width !== w || canvas.height !== h) {
-        // Salvar conteúdo antes de redimensionar
         let saved = null;
         try {
           if (canvas.width > 0 && canvas.height > 0) {
@@ -292,14 +291,15 @@ export const CorrectEssay = () => {
       }
     };
 
-    syncSize();
-
-    const ro = new ResizeObserver(syncSize);
-    if (canvasContainerRef.current) ro.observe(canvasContainerRef.current);
-    if (textRef.current) ro.observe(textRef.current);
-
-    return () => ro.disconnect();
-  }, [essay]);
+    // Só observar resize para redações de texto
+    if (!essay?.file_url && pdfImagePages.length === 0) {
+      syncSize();
+      const ro = new ResizeObserver(syncSize);
+      if (canvasContainerRef.current) ro.observe(canvasContainerRef.current);
+      if (textRef.current) ro.observe(textRef.current);
+      return () => ro.disconnect();
+    }
+  }, [essay, pdfImagePages]);
 
   // ── PDF.js: cada página renderizada como imagem ─────────
   const loadPdfJs = () => new Promise((resolve) => {
@@ -613,8 +613,8 @@ export const CorrectEssay = () => {
 
   const redoCanvas = () => {};  // simplificado — undo já cobre o fluxo principal
 
-  const zoomIn  = () => setZoom(p => Math.min(parseFloat((p + 0.1).toFixed(1)), 2.0));
-  const zoomOut = () => setZoom(p => Math.max(parseFloat((p - 0.1).toFixed(1)), 0.5));
+  const zoomIn  = () => setZoom(p => Math.min(parseFloat((p + 0.25).toFixed(2)), 3.0));
+  const zoomOut = () => setZoom(p => Math.max(parseFloat((p - 0.25).toFixed(2)), 0.25));
 
   // Eventos de desenho no canvas nativo
   const handleCanvasMouseDown = (e) => {
@@ -1516,11 +1516,12 @@ export const CorrectEssay = () => {
                   </div>
                   {/* Container scrollável para pan+zoom */}
                   <div style={{ overflow: 'auto', maxHeight: '80vh', borderRadius: '8px', border: '1px solid #E8DDD0', cursor: selectedTool === 'select' ? 'grab' : 'default' }}>
-                    <div style={{ position: 'relative', lineHeight: 0, display: 'inline-block', minWidth: '100%',
-                      transform: `rotate(${imageRotation}deg) scale(${zoom})`,
+                    <div style={{ position: 'relative', lineHeight: 0,
+                      transform: imageRotation !== 0 ? `rotate(${imageRotation}deg)` : undefined,
                       transformOrigin: 'center top',
                       transition: 'transform 0.2s ease',
-                      width: zoom > 1 ? `${100 / zoom}%` : '100%',
+                      width: `${zoom * 100}%`,
+                      minWidth: '100%',
                     }}>
                       <img
                         src={pdfImagePages[pdfPage - 1]}
@@ -1531,7 +1532,8 @@ export const CorrectEssay = () => {
                           if (!canvas) return;
                           const w = e.target.offsetWidth || e.target.naturalWidth;
                           const h = e.target.offsetHeight || e.target.naturalHeight;
-                          if (w > 0 && h > 0) {
+                          // Só redimensionar se dimensões mudaram (evita reset no zoom/rotação)
+                          if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
                             canvas.width = w; canvas.height = h;
                             ctxRef.current = canvas.getContext('2d');
                             const saved = pdfAnnotationsRef.current[pdfPage];
@@ -1670,9 +1672,10 @@ export const CorrectEssay = () => {
                 <div style={{ overflow: 'auto', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
                   <div style={{
                     position: 'relative', lineHeight: 0,
-                    transform: `rotate(${imageRotation}deg) scale(${zoom})`,
+                    transform: imageRotation !== 0 ? `rotate(${imageRotation}deg)` : undefined,
                     transformOrigin: 'center top',
                     transition: 'transform 0.2s ease',
+                    width: `${zoom * 100}%`,
                   }}>
                     <img
                       src={essay.file_url}
@@ -1683,10 +1686,22 @@ export const CorrectEssay = () => {
                         if (!canvas) return;
                         const w = e.target.offsetWidth;
                         const h = e.target.offsetHeight;
-                        if (w > 0 && h > 0) {
+                        // Só redimensionar se as dimensões realmente mudaram (evita reset no zoom)
+                        if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
+                          // Salvar anotações atuais antes de redimensionar
+                          let savedData = null;
+                          if (canvas.width > 0 && canvas.height > 0) {
+                            savedData = canvas.toDataURL('image/png');
+                          }
                           canvas.width = w;
                           canvas.height = h;
                           ctxRef.current = canvas.getContext('2d');
+                          // Restaurar escalando para novo tamanho
+                          if (savedData) {
+                            const img2 = new Image();
+                            img2.onload = () => ctxRef.current?.drawImage(img2, 0, 0, w, h);
+                            img2.src = savedData;
+                          }
                         }
                       }}
                     />
