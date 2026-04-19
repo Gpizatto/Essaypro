@@ -222,6 +222,8 @@ class CorrectionResponse(BaseModel):
     improvements: str
     inline_comments: Optional[List[dict]] = None
     canvas_annotations: Optional[dict] = None
+    pdf_annotations: Optional[dict] = None
+    correction_time_minutes: Optional[int] = None
     corrected_at: datetime
     teacher_comment: Optional[str] = None
     suggest_rewrite: bool = False
@@ -1700,75 +1702,91 @@ async def get_correction_history(essay_id: str, current_user: dict = Depends(get
 async def get_ranking(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
+    try:
+        try:
 
-    # Admin vê todos; professor filtra por turma
-    teacher_course_ids = current_user.get("course_ids", [])
-    if current_user["role"] == "teacher" and teacher_course_ids:
-        student_filter = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
-    else:
-        student_filter = {"role": "student"}
-    students = await db.users.find(student_filter, {"_id": 1, "name": 1, "created_at": 1}).to_list(1000)
-    result = []
+        # Admin vê todos; professor filtra por turma
+        teacher_course_ids = current_user.get("course_ids", [])
+        if current_user["role"] == "teacher" and teacher_course_ids:
+            student_filter = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
+        else:
+            student_filter = {"role": "student"}
+        students = await db.users.find(student_filter, {"_id": 1, "name": 1, "created_at": 1}).to_list(1000)
+        result = []
 
-    # Batch load all essays and corrections — evita N+1
-    all_student_ids = [str(s["_id"]) for s in students]
-    all_essays = await db.essays.find(
-        {"student_id": {"$in": all_student_ids}}, {"_id": 0}
-    ).to_list(50000)
-    essays_by_student = {}
-    for e in all_essays:
-        essays_by_student.setdefault(e["student_id"], []).append(e)
+        # Batch load all essays and corrections — evita N+1
+        all_student_ids = [str(s["_id"]) for s in students]
+        all_essays = await db.essays.find(
+            {"student_id": {"$in": all_student_ids}}, {"_id": 0}
+        ).to_list(50000)
+        essays_by_student = {}
+        for e in all_essays:
+            essays_by_student.setdefault(e["student_id"], []).append(e)
 
-    corrected_ids = [e["id"] for e in all_essays if e.get("status") == "corrected" and e.get("id")]
-    corrections_list = await db.corrections.find(
-        {"essay_id": {"$in": corrected_ids}}, {"_id": 0, "essay_id": 1, "total_score": 1, "corrected_at": 1}
-    ).to_list(len(corrected_ids)) if corrected_ids else []
-    corrections_by_essay = {c["essay_id"]: c for c in corrections_list}
+        corrected_ids = [e["id"] for e in all_essays if e.get("status") == "corrected" and e.get("id")]
+        corrections_list = await db.corrections.find(
+            {"essay_id": {"$in": corrected_ids}}, {"_id": 0, "essay_id": 1, "total_score": 1, "corrected_at": 1}
+        ).to_list(len(corrected_ids)) if corrected_ids else []
+        corrections_by_essay = {c["essay_id"]: c for c in corrections_list}
 
-    for student in students:
-        sid = str(student["_id"])
-        essays = essays_by_student.get(sid, [])
-        if not essays:
-            continue
+        for student in students:
+            sid = str(student["_id"])
+            essays = essays_by_student.get(sid, [])
+            if not essays:
+                continue
 
-        scores = []
-        submission_dates = []
-        for essay in essays:
-            if essay.get("submitted_at"):
-                submission_dates.append(essay["submitted_at"])
-            if essay.get("status") == "corrected" and essay.get("id"):
-                corr = corrections_by_essay.get(essay["id"])
-                if corr:
-                    scores.append({"score": corr["total_score"], "date": corr.get("corrected_at")})
+            scores = []
+            submission_dates = []
+            for essay in essays:
+                if essay.get("submitted_at"):
+                    submission_dates.append(essay["submitted_at"])
+                if essay.get("status") == "corrected" and essay.get("id"):
+                    corr = corrections_by_essay.get(essay["id"])
+                    if corr:
+                        scores.append({"score": corr["total_score"], "date": corr.get("corrected_at")})
 
-        scores.sort(key=lambda x: x["date"] if x["date"] else "")
-        avg = sum(s["score"] for s in scores) / len(scores) if scores else 0
-        best = max((s["score"] for s in scores), default=0)
+            scores.sort(key=lambda x: x["date"] if x["date"] else "")
+            avg = sum(s["score"] for s in scores) / len(scores) if scores else 0
+            best = max((s["score"] for s in scores), default=0)
 
-        # Evolução: diferença entre primeira e última nota
-        evolution = 0
-        if len(scores) >= 2:
-            evolution = scores[-1]["score"] - scores[0]["score"]
+            # Evolução: diferença entre primeira e última nota
+            evolution = 0
+            if len(scores) >= 2:
+                evolution = scores[-1]["score"] - scores[0]["score"]
 
-        # Frequência: essays por semana desde o cadastro
-        weeks_active = max(1, (datetime.now(timezone.utc) - student["created_at"]).days / 7)
-        frequency = round(len(essays) / weeks_active, 2)
+            # Frequência: essays por semana desde o cadastro
+            try:
+                created = student["created_at"]
+                if isinstance(created, str):
+                    created = datetime.fromisoformat(created.replace('Z', '+00:00'))
+                weeks_active = max(1, (datetime.now(timezone.utc) - created).days / 7)
+            except Exception:
+                weeks_active = 1
+            frequency = round(len(essays) / weeks_active, 2)
 
-        result.append({
-            "id": sid,
-            "name": student["name"],
-            "total_essays": len(essays),
-            "corrected": len([e for e in essays if e.get("status") == "corrected"]),
-            "rewrites": len([e for e in essays if e.get("is_rewrite")]),
-            "average_score": round(avg, 1),
-            "best_score": best,
-            "evolution": evolution,
-            "frequency_per_week": frequency,
-            "scores_history": [s["score"] for s in scores[-6:]],
-            "last_submission": max(submission_dates).isoformat() if submission_dates else None,
-        })
+            result.append({
+                "id": sid,
+                "name": student["name"],
+                "total_essays": len(essays),
+                "corrected": len([e for e in essays if e.get("status") == "corrected"]),
+                "rewrites": len([e for e in essays if e.get("is_rewrite")]),
+                "average_score": round(avg, 1),
+                "best_score": best,
+                "evolution": evolution,
+                "frequency_per_week": frequency,
+                "scores_history": [s["score"] for s in scores[-6:]],
+                "last_submission": max(submission_dates).isoformat() if submission_dates else None,
+            })
 
-    return sorted(result, key=lambda x: -x["average_score"])
+        try:
+            return sorted(result, key=lambda x: -x["average_score"])
+        except Exception as e:
+            logger.error(f"Ranking sort error: {e}")
+            return result
+
+    except Exception as e:
+        logger.error(f"Report error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @api_router.get("/admin/reports/prompts")
 async def get_prompt_stats(current_user: dict = Depends(get_current_user)):
@@ -2041,67 +2059,82 @@ async def get_student_evolution(current_user: dict = Depends(get_current_user)):
 async def get_course_engagement(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
+    try:
 
-    courses = await db.courses.find({"is_active": True}, {"_id": 0}).to_list(100)
-    result = []
+        courses = await db.courses.find({"is_active": True}, {"_id": 0}).to_list(100)
+        result = []
 
-    for course in courses:
-        cid = course["id"]
-        students = await db.users.find(
-            {"role": "student", "course_ids": cid},
-            {"_id": 1}
-        ).to_list(1000)
-        student_ids = [str(s["_id"]) for s in students]
+        for course in courses:
+            cid = course["id"]
+            students = await db.users.find(
+                {"role": "student", "course_ids": cid},
+                {"_id": 1}
+            ).to_list(1000)
+            student_ids = [str(s["_id"]) for s in students]
 
-        if not student_ids:
+            if not student_ids:
+                result.append({
+                    "course_id": cid,
+                    "course_name": course["name"],
+                    "total_students": 0,
+                    "active_students": 0,
+                    "total_essays": 0,
+                    "total_corrected": 0,
+                    "avg_score": 0,
+                    "engagement_rate": 0,
+                })
+                continue
+
+            # Essays nas últimas 4 semanas
+            four_weeks_ago = datetime.now(timezone.utc) - timedelta(weeks=4)
+            essays = await db.essays.find(
+                {"student_id": {"$in": student_ids}},
+                {"_id": 0, "student_id": 1, "status": 1, "submitted_at": 1}
+            ).to_list(10000)
+
+            def parse_dt_safe(v):
+                if not v: return None
+                if isinstance(v, str):
+                    try: return datetime.fromisoformat(v.replace('Z','+00:00'))
+                    except: return None
+                return v
+            recent = [e for e in essays if parse_dt_safe(e.get("submitted_at")) and parse_dt_safe(e.get("submitted_at")) >= four_weeks_ago]
+            active_students = len(set(e["student_id"] for e in recent))
+            corrected = [e for e in essays if e.get("status") == "corrected"]
+
+            scores = []
+            for essay in corrected[:50]:  # limitar para performance
+                corr = await db.corrections.find_one(
+                    {"essay_id": essay.get("id", "")}, {"_id": 0, "total_score": 1}
+                )
+                if corr:
+                    scores.append(corr["total_score"])
+
             result.append({
                 "course_id": cid,
                 "course_name": course["name"],
-                "total_students": 0,
-                "active_students": 0,
-                "total_essays": 0,
-                "total_corrected": 0,
-                "avg_score": 0,
-                "engagement_rate": 0,
+                "modality": course.get("modality", ""),
+                "total_students": len(student_ids),
+                "active_students": active_students,
+                "total_essays": len(essays),
+                "total_corrected": len(corrected),
+                "avg_score": round(sum(scores) / len(scores), 1) if scores else 0,
+                "engagement_rate": round(active_students / len(student_ids) * 100, 1) if student_ids else 0,
             })
-            continue
 
-        # Essays nas últimas 4 semanas
-        four_weeks_ago = datetime.now(timezone.utc) - timedelta(weeks=4)
-        essays = await db.essays.find(
-            {"student_id": {"$in": student_ids}},
-            {"_id": 0, "student_id": 1, "status": 1, "submitted_at": 1}
-        ).to_list(10000)
+        try:
+            return sorted(result, key=lambda x: -x["engagement_rate"])
+        except Exception as e:
+            logger.error(f"Engagement sort error: {e}")
+            return result
 
-        recent = [e for e in essays if e.get("submitted_at") and e["submitted_at"] >= four_weeks_ago]
-        active_students = len(set(e["student_id"] for e in recent))
-        corrected = [e for e in essays if e.get("status") == "corrected"]
+    # ============================================================
+    # CORREÇÃO EM LOTE (Batch Comments)
+    # ============================================================
 
-        scores = []
-        for essay in corrected[:50]:  # limitar para performance
-            corr = await db.corrections.find_one(
-                {"essay_id": essay.get("id", "")}, {"_id": 0, "total_score": 1}
-            )
-            if corr:
-                scores.append(corr["total_score"])
-
-        result.append({
-            "course_id": cid,
-            "course_name": course["name"],
-            "modality": course.get("modality", ""),
-            "total_students": len(student_ids),
-            "active_students": active_students,
-            "total_essays": len(essays),
-            "total_corrected": len(corrected),
-            "avg_score": round(sum(scores) / len(scores), 1) if scores else 0,
-            "engagement_rate": round(active_students / len(student_ids) * 100, 1) if student_ids else 0,
-        })
-
-    return sorted(result, key=lambda x: -x["engagement_rate"])
-
-# ============================================================
-# CORREÇÃO EM LOTE (Batch Comments)
-# ============================================================
+    except Exception as e:
+        logger.error(f"Report error: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @api_router.post("/corrections/batch-comment")
 async def batch_comment(body: dict, current_user: dict = Depends(get_current_user)):
