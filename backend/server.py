@@ -671,7 +671,9 @@ async def get_correction(essay_id: str, current_user: dict = Depends(get_current
         raise HTTPException(status_code=404, detail="Correction not found")
     
     essay = await db.essays.find_one({"id": essay_id})
-    if current_user["role"] == "student" and essay["student_id"] != current_user["_id"]:
+    if not essay:
+        raise HTTPException(status_code=404, detail="Essay not found")
+    if current_user["role"] == "student" and str(essay["student_id"]) != str(current_user["_id"]):
         raise HTTPException(status_code=403, detail="Access denied")
     
     teacher = await db.users.find_one({"_id": ObjectId(correction["teacher_id"])}, {"_id": 0})
