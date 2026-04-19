@@ -80,7 +80,7 @@ export const CorrectionView = () => {
         }
       } catch (e) {}
 
-      // Fallback: file_url é imagem (PDF de 1 página antigo)
+      // Fallback: qualquer file_url de imagem
       if (pages.length === 0 && essayData.file_url &&
           /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url)) {
         pages = [essayData.file_url];
@@ -393,12 +393,12 @@ export const CorrectionView = () => {
                     alt={`Página ${i + 1}`}
                     style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
                   />
-                  {/* Canvas de anotações do professor */}
-                  {correction.pdf_annotations?.[i + 1] && (
+                  {/* Anotações do professor: pdf_annotations por página ou canvas_annotations geral */}
+                  {(correction.pdf_annotations?.[i + 1] || (i === 0 && correction.canvas_annotations?.dataUrl)) && (
                     <img
-                      src={correction.pdf_annotations[i + 1]}
+                      src={correction.pdf_annotations?.[i + 1] || correction.canvas_annotations?.dataUrl}
                       alt={`Anotações página ${i + 1}`}
-                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', borderRadius: '8px' }}
+                      style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', borderRadius: '8px', objectFit: 'fill' }}
                     />
                   )}
                   {/* Pins de comentários nesta página — hover mostra texto */}
