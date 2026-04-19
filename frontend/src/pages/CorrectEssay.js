@@ -428,8 +428,8 @@ export const CorrectEssay = () => {
       if (pdfPages.length > 0) {
         setPdfImagePages(pdfPages);
         setEssayHtml('');
-      } else if (isUpload && essayData.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url)) {
-        // PDF de 1 página convertido — file_url é a imagem, tratar como pdf_pages
+      } else if (essayData.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url)) {
+        // Qualquer redação com file_url de imagem — mostrar como página única
         setPdfImagePages([essayData.file_url]);
         setEssayHtml('');
       } else {
@@ -772,7 +772,7 @@ export const CorrectEssay = () => {
 
       // Salvar anotação da página atual do PDF antes de enviar
       const annoCanvas = nativeCanvasRef.current;
-      if (pdfDocRef.current && annoCanvas && annoCanvas.width > 0) {
+      if ((pdfDocRef.current || pdfImagePages.length > 0) && annoCanvas && annoCanvas.width > 0) {
         pdfAnnotationsRef.current[pdfPageRef.current] = annoCanvas.toDataURL('image/png');
       }
 
@@ -783,7 +783,7 @@ export const CorrectEssay = () => {
         inlineComments,
         canvasDataUrl: canvasDraft,
         textAnnotations,
-        pdfAnnotations: pdfDocRef.current ? pdfAnnotationsRef.current : undefined,
+        pdfAnnotations: (pdfDocRef.current || pdfImagePages.length > 0) ? pdfAnnotationsRef.current : undefined,
       }, { withCredentials: true });
       setDraftSaved(true);
       toast.success('Rascunho salvo!');
@@ -1113,7 +1113,7 @@ export const CorrectEssay = () => {
       }
       
       // Salvar anotação da página atual do PDF antes de publicar
-      if (pdfDocRef.current && nativeCanvasRef.current && nativeCanvasRef.current.width > 0) {
+      if ((pdfDocRef.current || pdfImagePages.length > 0) && nativeCanvasRef.current && nativeCanvasRef.current.width > 0) {
         pdfAnnotationsRef.current[pdfPageRef.current] = nativeCanvasRef.current.toDataURL('image/png');
       }
 
@@ -1126,7 +1126,7 @@ export const CorrectEssay = () => {
           ...feedback,
           inline_comments: inlineComments,
           canvas_annotations: canvasData,
-          pdf_annotations: pdfDocRef.current ? pdfAnnotationsRef.current : undefined,
+          pdf_annotations: (pdfDocRef.current || pdfImagePages.length > 0) ? pdfAnnotationsRef.current : undefined,
           correction_time_minutes: Math.round((Date.now() - correctionStartTime.current) / 60000),
         },
         { withCredentials: true }
@@ -1477,12 +1477,27 @@ export const CorrectEssay = () => {
                       {/* Navegação */}
                       {pdfImagePages.length > 1 && (
                         <>
-                          <button onClick={() => { if (pdfPage > 1) { setImageRotation(0); setPdfPage(p => p-1); } }}
+                          <button onClick={() => {
+                          if (pdfPage > 1) {
+                            // Salvar anotação da página atual antes de trocar
+                            if (nativeCanvasRef.current && nativeCanvasRef.current.width > 0) {
+                              pdfAnnotationsRef.current[pdfPage] = nativeCanvasRef.current.toDataURL('image/png');
+                            }
+                            setImageRotation(0); setPdfPage(p => p-1);
+                          }
+                        }}
                             disabled={pdfPage <= 1}
                             className="px-2 py-1 rounded border text-xs font-bold"
                             style={{ borderColor: '#E8DDD0', color: pdfPage <= 1 ? '#ccc' : '#7C1805' }}>←</button>
                           <span className="text-xs" style={{ color: '#6B5B4E' }}>{pdfPage}/{pdfImagePages.length}</span>
-                          <button onClick={() => { if (pdfPage < pdfImagePages.length) { setImageRotation(0); setPdfPage(p => p+1); } }}
+                          <button onClick={() => {
+                          if (pdfPage < pdfImagePages.length) {
+                            if (nativeCanvasRef.current && nativeCanvasRef.current.width > 0) {
+                              pdfAnnotationsRef.current[pdfPage] = nativeCanvasRef.current.toDataURL('image/png');
+                            }
+                            setImageRotation(0); setPdfPage(p => p+1);
+                          }
+                        }}
                             disabled={pdfPage >= pdfImagePages.length}
                             className="px-2 py-1 rounded border text-xs font-bold"
                             style={{ borderColor: '#E8DDD0', color: pdfPage >= pdfImagePages.length ? '#ccc' : '#7C1805' }}>→</button>
@@ -1502,17 +1517,15 @@ export const CorrectEssay = () => {
                   {/* Container scrollável para pan+zoom */}
                   <div style={{ overflow: 'auto', maxHeight: '80vh', borderRadius: '8px', border: '1px solid #E8DDD0', cursor: selectedTool === 'select' ? 'grab' : 'default' }}>
                     <div style={{ position: 'relative', lineHeight: 0, display: 'inline-block', minWidth: '100%',
-                      transform: `scale(${zoom})`, transformOrigin: 'top left',
+                      transform: `rotate(${imageRotation}deg) scale(${zoom})`,
+                      transformOrigin: 'center top',
+                      transition: 'transform 0.2s ease',
                       width: zoom > 1 ? `${100 / zoom}%` : '100%',
                     }}>
                       <img
                         src={pdfImagePages[pdfPage - 1]}
                         alt={`Página ${pdfPage}`}
-                        style={{ width: '100%', display: 'block',
-                          transform: imageRotation !== 0 ? `rotate(${imageRotation}deg)` : undefined,
-                          transformOrigin: 'center center',
-                          transition: 'transform 0.2s ease',
-                        }}
+                        style={{ width: '100%', display: 'block' }}
                         onLoad={(e) => {
                           const canvas = nativeCanvasRef.current;
                           if (!canvas) return;
@@ -1652,34 +1665,31 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              {/* Imagem — com zoom e rotação, canvas fica por cima */}
+              {/* Imagem — zoom e rotação aplicados no container pai que inclui canvas */}
               {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
                 <div style={{ overflow: 'auto', maxHeight: '80vh', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
-                <img
-                  src={essay.file_url}
-                  alt="Redação do aluno"
-                  style={{
-                    width: '100%', display: 'block',
-                    borderRadius: '8px', border: '1px solid #E8DDD0',
-                    transformOrigin: 'top left',
+                  <div style={{
+                    position: 'relative', lineHeight: 0, display: 'inline-block', width: '100%',
                     transform: `rotate(${imageRotation}deg) scale(${zoom})`,
+                    transformOrigin: 'center top',
                     transition: 'transform 0.2s ease',
-                  }}
-                  onLoad={() => {
-                    const canvas = nativeCanvasRef.current;
-                    const container = canvasContainerRef.current;
-                    if (!canvas || !container) return;
-                    const w = container.offsetWidth;
-                    const h = container.offsetHeight;
-                    if (w > 0 && h > 0 && (canvas.width !== w || canvas.height !== h)) {
-                      const ctx = canvas.getContext('2d');
-                      let saved = null;
-                      try { if (canvas.width > 0 && canvas.height > 0) saved = ctx.getImageData(0, 0, canvas.width, canvas.height); } catch(e) {}
-                      canvas.width = w; canvas.height = h;
-                      if (saved) ctx.putImageData(saved, 0, 0);
-                    }
-                  }}
-                />
+                  }}>
+                    <img
+                      src={essay.file_url}
+                      alt="Redação do aluno"
+                      style={{ width: '100%', display: 'block' }}
+                      onLoad={(e) => {
+                        const canvas = nativeCanvasRef.current;
+                        if (!canvas) return;
+                        const w = e.target.offsetWidth;
+                        const h = e.target.offsetHeight;
+                        if (w > 0 && h > 0) {
+                          canvas.width = w; canvas.height = h;
+                          ctxRef.current = canvas.getContext('2d');
+                        }
+                      }}
+                    />
+                  </div>
                 </div>
               )}
 
