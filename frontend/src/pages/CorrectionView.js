@@ -280,6 +280,10 @@ export const CorrectionView = () => {
 
   return (
     <Layout>
+      <style>{`
+        .comment-pin:hover .comment-tooltip { opacity: 1 !important; pointer-events: auto !important; }
+        .comment-pin { position: absolute; z-index: 20; cursor: pointer; }
+      `}</style>
       <div className="space-y-8">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
@@ -377,18 +381,19 @@ export const CorrectionView = () => {
           {pdfPages.length > 0 ? (
             <div style={{ maxWidth: '800px', margin: '0 auto' }}>
               {pdfPages.map((src, i) => (
-                <div key={i} style={{ position: 'relative', marginBottom: '16px' }}>
+                <div key={i} style={{ position: 'relative', marginBottom: '24px' }}>
                   {pdfPages.length > 1 && (
                     <p className="text-xs mb-1" style={{ color: '#6B5B4E' }}>
                       Página {i + 1} de {pdfPages.length}
                     </p>
                   )}
+                  {/* Imagem da página */}
                   <img
                     src={src}
                     alt={`Página ${i + 1}`}
                     style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
                   />
-                  {/* Anotações do professor desta página */}
+                  {/* Canvas de anotações do professor */}
                   {correction.pdf_annotations?.[i + 1] && (
                     <img
                       src={correction.pdf_annotations[i + 1]}
@@ -396,9 +401,63 @@ export const CorrectionView = () => {
                       style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', borderRadius: '8px' }}
                     />
                   )}
+                  {/* Pins de comentários nesta página — hover mostra texto */}
+                  {(correction.inline_comments || [])
+                    .filter(c => c.canvasX != null && (!c.page || c.page === i + 1))
+                    .map(c => {
+                      const canvas = correction.pdf_annotations?.[i + 1];
+                      const imgEl = document.querySelector(`img[alt="Página ${i + 1}"]`);
+                      const imgW = imgEl?.offsetWidth || 800;
+                      const imgH = imgEl?.offsetHeight || 1000;
+                      const canvasW = 800; // canvas width used during correction
+                      const canvasH = 1000;
+                      const leftPct = (c.canvasX / canvasW) * 100;
+                      const topPct = (c.canvasY / canvasH) * 100;
+                      return (
+                        <div key={c.id}
+                          className="comment-pin"
+                          style={{
+                            position: 'absolute',
+                            left: `${leftPct}%`,
+                            top: `${topPct}%`,
+                            transform: 'translate(-50%, -100%)',
+                          }}
+                        >
+                          <div style={{
+                            backgroundColor: '#7C1805', color: 'white',
+                            borderRadius: '50%', width: '24px', height: '24px',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: '12px', fontWeight: 'bold', boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                          }}>!</div>
+                          {/* Tooltip ao hover */}
+                          <div style={{
+                            position: 'absolute', bottom: '28px', left: '50%',
+                            transform: 'translateX(-50%)',
+                            backgroundColor: '#2C1A0E', color: 'white',
+                            padding: '6px 10px', borderRadius: '8px',
+                            fontSize: '12px', whiteSpace: 'nowrap', maxWidth: '220px',
+                            whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+                            opacity: 0, pointerEvents: 'none',
+                            transition: 'opacity 0.15s',
+                            zIndex: 30,
+                          }}
+                          className="comment-tooltip"
+                          >
+                            {c.comment}
+                            <div style={{
+                              position: 'absolute', top: '100%', left: '50%',
+                              transform: 'translateX(-50%)',
+                              border: '5px solid transparent',
+                              borderTopColor: '#2C1A0E',
+                            }} />
+                          </div>
+                        </div>
+                      );
+                    })
+                  }
                 </div>
               ))}
-              {/* Anotações gerais do canvas */}
+              {/* Anotações gerais do canvas (para redações de texto com upload) */}
               {correction.canvas_annotations?.dataUrl && (
                 <img src={correction.canvas_annotations.dataUrl} alt="Anotações"
                   style={{ width: '100%', display: 'block', marginTop: '8px', borderRadius: '8px' }} />
