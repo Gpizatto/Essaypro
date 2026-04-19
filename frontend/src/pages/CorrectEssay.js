@@ -1665,11 +1665,11 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              {/* Imagem — zoom e rotação aplicados no container pai que inclui canvas */}
-              {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
-                <div style={{ overflow: 'auto', maxHeight: '80vh', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
+              {/* Imagem — canvas dentro do mesmo wrapper transformado */}
+              {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && !(pdfImagePages.length > 0) && (
+                <div style={{ overflow: 'auto', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
                   <div style={{
-                    position: 'relative', lineHeight: 0, display: 'inline-block', width: '100%',
+                    position: 'relative', lineHeight: 0,
                     transform: `rotate(${imageRotation}deg) scale(${zoom})`,
                     transformOrigin: 'center top',
                     transition: 'transform 0.2s ease',
@@ -1684,10 +1684,30 @@ export const CorrectEssay = () => {
                         const w = e.target.offsetWidth;
                         const h = e.target.offsetHeight;
                         if (w > 0 && h > 0) {
-                          canvas.width = w; canvas.height = h;
+                          canvas.width = w;
+                          canvas.height = h;
                           ctxRef.current = canvas.getContext('2d');
                         }
                       }}
+                    />
+                    {/* Canvas de anotação — irmão da imagem, mesmo transform */}
+                    <canvas
+                      ref={nativeCanvasRef}
+                      style={{
+                        position: 'absolute', top: 0, left: 0,
+                        width: '100%', height: '100%',
+                        pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment'].includes(selectedTool) ? 'all' : 'none',
+                        zIndex: 10,
+                        cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
+                        touchAction: 'none',
+                      }}
+                      onMouseDown={handleCanvasMouseDown}
+                      onMouseMove={handleCanvasMouseMove}
+                      onMouseUp={handleCanvasMouseUp}
+                      onMouseLeave={handleCanvasMouseUp}
+                      onTouchStart={handleCanvasMouseDown}
+                      onTouchMove={handleCanvasMouseMove}
+                      onTouchEnd={handleCanvasMouseUp}
                     />
                   </div>
                 </div>
@@ -1748,28 +1768,29 @@ export const CorrectEssay = () => {
                 }}
                 data-testid="essay-text"
               ></div>
-              <canvas
-                ref={nativeCanvasRef}
-                style={{
-                  position: 'absolute',
-                  top: 0,
-                  left: 0,
-                  width: '100%',
-                  height: '100%',
-                  pointerEvents: ['pen','eraser','line','arrow','oval','rect'].includes(selectedTool) ? 'all' : 'none',
-                  zIndex: 15,
-                  cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
-                  touchAction: 'none',
-                  display: 'block',
-                }}
-                onMouseDown={handleCanvasMouseDown}
-                onMouseMove={handleCanvasMouseMove}
-                onMouseUp={handleCanvasMouseUp}
-                onMouseLeave={handleCanvasMouseUp}
-                onTouchStart={handleCanvasMouseDown}
-                onTouchMove={handleCanvasMouseMove}
-                onTouchEnd={handleCanvasMouseUp}
-              />
+              {/* Canvas para redações de texto digitado — não usar quando há imagem/PDF */}
+              {!essay?.file_url && pdfImagePages.length === 0 && (
+                <canvas
+                  ref={nativeCanvasRef}
+                  style={{
+                    position: 'absolute',
+                    top: 0, left: 0,
+                    width: '100%', height: '100%',
+                    pointerEvents: ['pen','eraser','line','arrow','oval','rect'].includes(selectedTool) ? 'all' : 'none',
+                    zIndex: 15,
+                    cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
+                    touchAction: 'none',
+                    display: 'block',
+                  }}
+                  onMouseDown={handleCanvasMouseDown}
+                  onMouseMove={handleCanvasMouseMove}
+                  onMouseUp={handleCanvasMouseUp}
+                  onMouseLeave={handleCanvasMouseUp}
+                  onTouchStart={handleCanvasMouseDown}
+                  onTouchMove={handleCanvasMouseMove}
+                  onTouchEnd={handleCanvasMouseUp}
+                />
+              )}
             </div>
           </div>
         </div>
