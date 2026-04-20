@@ -1307,7 +1307,21 @@ async def serve_file(file_id: str, request: Request):
             logger.error(f"File {file_id} has no data field")
             raise HTTPException(status_code=404, detail="Dados ausentes")
 
-        file_bytes = bytes(raw)
+        # Converter BSON Binary para bytes — compatível com Python 3.14 + PyMongo 4.x
+        if isinstance(raw, (bytes, bytearray)):
+            file_bytes = bytes(raw)
+        elif hasattr(raw, 'raw'):
+            file_bytes = bytes(raw.raw)
+        else:
+            # Último recurso: converter via memoryview
+            try:
+                file_bytes = bytes(raw)
+            except Exception as conv_err:
+                logger.error(f"Cannot convert data type {type(raw)}: {conv_err}")
+                # Tentar via bson
+                import bson
+                file_bytes = bytes(bson.Binary(raw))
+        
         mime = doc.get("mime_type") or "image/jpeg"
         filename = doc.get("filename") or f"{file_id}.jpg"
 
@@ -1329,6 +1343,16 @@ async def serve_file(file_id: str, request: Request):
     except Exception as e:
         logger.error(f"serve_file {file_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
+
+@api_router.get("/files-debug/{file_id}")
+async def debug_file(file_id: str):
+    """Debug — verifica se arquivo existe e seu tamanho."""
+    doc = await db.uploaded_files.find_one({"file_id": file_id}, {"_id": 0, "file_id": 1, "filename": 1, "mime_type": 1, "size": 1})
+    if not doc:
+        # Listar alguns arquivos para diagnóstico
+        recent = await db.uploaded_files.find({}, {"_id": 0, "file_id": 1, "filename": 1, "size": 1}).sort("created_at", -1).to_list(5)
+        return {"found": False, "file_id": file_id, "recent_files": recent}
+    return {"found": True, **doc}
 
 @api_router.get("/users/quick-comments")
 async def get_quick_comments(current_user: dict = Depends(get_current_user)):
