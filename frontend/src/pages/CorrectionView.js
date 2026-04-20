@@ -457,11 +457,7 @@ export const CorrectionView = () => {
                   }
                 </div>
               ))}
-              {/* Anotações gerais do canvas (para redações de texto com upload) */}
-              {correction.canvas_annotations?.dataUrl && (
-                <img src={correction.canvas_annotations.dataUrl} alt="Anotações"
-                  style={{ width: '100%', display: 'block', marginTop: '8px', borderRadius: '8px' }} />
-              )}
+
             </div>
           ) : essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) ? (
             // file_url é imagem (PDF convertido numa página) — mostrar com canvas por cima
@@ -520,28 +516,7 @@ export const CorrectionView = () => {
           </div>
           )}
 
-            {/* Anotações do professor em PDF — mostra página por página */}
-            {correction.pdf_annotations && Object.keys(correction.pdf_annotations).length > 0 && (
-              <div className="mt-6">
-                <h3 className="font-semibold mb-3" style={{ color: '#7C1805' }}>
-                  Anotações do professor por página
-                </h3>
-                <div className="space-y-4">
-                  {Object.entries(correction.pdf_annotations)
-                    .sort(([a], [b]) => Number(a) - Number(b))
-                    .map(([page, dataUrl]) => (
-                      <div key={page}>
-                        <p className="text-xs font-semibold mb-1" style={{ color: '#6B5B4E' }}>
-                          Página {page}
-                        </p>
-                        <img src={dataUrl} alt={`Página ${page} anotada`}
-                          style={{ width: '100%', borderRadius: '8px', border: '1px solid #E8DDD0' }} />
-                      </div>
-                    ))
-                  }
-                </div>
-              </div>
-            )}
+
         </Card>
 
         <div>
