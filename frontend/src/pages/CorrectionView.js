@@ -459,7 +459,7 @@ export const CorrectionView = () => {
               ))}
 
             </div>
-          ) : essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) ? (
+          ) : essay?.file_url && (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) ? (
             // file_url é imagem (PDF convertido numa página) — mostrar com canvas por cima
             <div style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}>
               <img
