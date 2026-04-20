@@ -1683,6 +1683,22 @@ export const CorrectEssay = () => {
                       src={essay.file_url}
                       alt="Redação do aluno"
                       style={{ width: '100%', display: 'block' }}
+                      onError={(e) => {
+                        console.error('Imagem falhou ao carregar:', essay.file_url);
+                        // Tentar carregar via fetch com credenciais
+                        if (essay.file_url && !e.target.dataset.retried) {
+                          e.target.dataset.retried = '1';
+                          fetch(essay.file_url, { credentials: 'include' })
+                            .then(r => {
+                              console.log('Fetch status:', r.status, r.headers.get('content-type'));
+                              return r.blob();
+                            })
+                            .then(blob => {
+                              e.target.src = URL.createObjectURL(blob);
+                            })
+                            .catch(err => console.error('Fetch falhou:', err));
+                        }
+                      }}
                       onLoad={(e) => {
                         const canvas = nativeCanvasRef.current;
                         if (!canvas) return;
