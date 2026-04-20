@@ -28,6 +28,7 @@ export const CorrectionView = () => {
   const { user } = useAuth();
   const [essay, setEssay] = useState(null);
   const [pdfPages, setPdfPages] = useState([]);
+  const [imageBlobUrl, setImageBlobUrl] = useState(null);
   const [correction, setCorrection] = useState(null);
   const [loading, setLoading] = useState(true);
   const textRef = useRef(null);
@@ -89,6 +90,15 @@ export const CorrectionView = () => {
       setPdfPages(pages);
       setEssay(essayData);
       setCorrection(correctionRes.data);
+      
+      // Carregar imagem via fetch para evitar problemas de CORS
+      if (essayData.file_url && pages.length === 0 &&
+          (essayData.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url))) {
+        fetch(essayData.file_url, { credentials: 'include' })
+          .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+          .then(blob => setImageBlobUrl(URL.createObjectURL(blob)))
+          .catch(() => setImageBlobUrl(essayData.file_url));
+      }
 
       // Buscar proposta para o modal
       const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
@@ -463,7 +473,7 @@ export const CorrectionView = () => {
             // file_url é imagem (PDF convertido numa página) — mostrar com canvas por cima
             <div style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}>
               <img
-                src={essay.file_url}
+                src={imageBlobUrl || essay.file_url}
                 alt="Redação do aluno"
                 style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
               />
