@@ -426,11 +426,11 @@ export const CorrectEssay = () => {
       } catch (e) {}
 
       if (pdfPages.length > 0) {
+        // PDF convertido em múltiplas páginas
         setPdfImagePages(pdfPages);
         setEssayHtml('');
-      } else if (essayData.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url)) {
-        // Qualquer redação com file_url de imagem — mostrar como página única
-        setPdfImagePages([essayData.file_url]);
+      } else if (essayData.file_url) {
+        // Arquivo direto (JPG/PNG/PDF) — manter no essay.file_url, não em pdfImagePages
         setEssayHtml('');
       } else {
         setEssayHtml(
@@ -1667,8 +1667,8 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              {/* Imagem — canvas dentro do mesmo wrapper transformado */}
-              {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && !(pdfImagePages.length > 0) && (
+              {/* Imagem direta (JPG/PNG enviado pelo aluno) */}
+              {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && pdfImagePages.length === 0 && (
                 <div style={{ overflow: 'auto', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
                   <div style={{
                     position: 'relative', lineHeight: 0,
