@@ -1612,7 +1612,8 @@ export const CorrectEssay = () => {
               )}
 
               {/* Cabeçalho da imagem — rotação */}
-              {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && (
+              {essay?.file_url && pdfImagePages.length === 0 &&
+               (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) && (
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
                   <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>🖼️ Imagem do aluno</span>
                   <div className="flex gap-1 items-center">
@@ -1668,7 +1669,8 @@ export const CorrectEssay = () => {
               )}
 
               {/* Imagem direta (JPG/PNG enviado pelo aluno) */}
-              {essay?.file_url && /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url) && pdfImagePages.length === 0 && (
+              {essay?.file_url && pdfImagePages.length === 0 &&
+               (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) && (
                 <div style={{ overflow: 'auto', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
                   <div style={{
                     position: 'relative', lineHeight: 0,
