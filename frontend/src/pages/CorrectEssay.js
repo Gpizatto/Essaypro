@@ -103,6 +103,7 @@ export const CorrectEssay = () => {
   const [eraserCursor, setEraserCursor] = useState(null);
   const [selectionToolbar, setSelectionToolbar] = useState(null);
   const [imageRotation, setImageRotation] = useState(0);
+  const [imageBlobUrl, setImageBlobUrl] = useState(null); // URL local para evitar CORS
   const [showClickCommentPopup, setShowClickCommentPopup] = useState(false);
   const [clickCommentText, setClickCommentText] = useState('');
   const [clickCommentCanvasPos, setClickCommentCanvasPos] = useState({ x: 0, y: 0 });
@@ -300,6 +301,30 @@ export const CorrectEssay = () => {
       return () => ro.disconnect();
     }
   }, [essay, pdfImagePages]);
+
+  // ── Carregar imagem via fetch para evitar CORS ────────────
+  useEffect(() => {
+    if (!essay?.file_url || pdfImagePages.length > 0) return;
+    if (essay.submission_method !== 'upload' && !/\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) return;
+    
+    let objectUrl = null;
+    fetch(essay.file_url, { credentials: 'include' })
+      .then(r => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.blob();
+      })
+      .then(blob => {
+        objectUrl = URL.createObjectURL(blob);
+        setImageBlobUrl(objectUrl);
+      })
+      .catch(err => {
+        console.error('Erro ao carregar imagem:', err);
+        // Fallback: tentar src direto
+        setImageBlobUrl(essay.file_url);
+      });
+    
+    return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
+  }, [essay?.file_url, pdfImagePages.length]);
 
   // ── PDF.js: cada página renderizada como imagem ─────────
   const loadPdfJs = () => new Promise((resolve) => {
@@ -1679,26 +1704,15 @@ export const CorrectEssay = () => {
                     transition: 'transform 0.2s ease',
                     width: `${zoom * 100}%`,
                   }}>
+                    {!imageBlobUrl && (
+                      <div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDF3E8' }}>
+                        <p style={{ color: '#6B5B4E', fontSize: '14px' }}>⏳ Carregando imagem...</p>
+                      </div>
+                    )}
                     <img
-                      src={essay.file_url}
+                      src={imageBlobUrl || ''}
                       alt="Redação do aluno"
-                      style={{ width: '100%', display: 'block' }}
-                      onError={(e) => {
-                        console.error('Imagem falhou ao carregar:', essay.file_url);
-                        // Tentar carregar via fetch com credenciais
-                        if (essay.file_url && !e.target.dataset.retried) {
-                          e.target.dataset.retried = '1';
-                          fetch(essay.file_url, { credentials: 'include' })
-                            .then(r => {
-                              console.log('Fetch status:', r.status, r.headers.get('content-type'));
-                              return r.blob();
-                            })
-                            .then(blob => {
-                              e.target.src = URL.createObjectURL(blob);
-                            })
-                            .catch(err => console.error('Fetch falhou:', err));
-                        }
-                      }}
+                      style={{ width: '100%', display: imageBlobUrl ? 'block' : 'none' }}
                       onLoad={(e) => {
                         const canvas = nativeCanvasRef.current;
                         if (!canvas) return;
