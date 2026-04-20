@@ -1293,21 +1293,42 @@ async def upload_file(
     }
 
 @api_router.get("/files/{file_id}")
-async def serve_file(file_id: str):
-    """Serve o arquivo pelo ID — sem autenticação para facilitar visualização."""
+async def serve_file(file_id: str, request: Request):
+    """Serve o arquivo pelo ID — sem autenticação."""
     from fastapi.responses import Response
-    doc = await db.uploaded_files.find_one({"file_id": file_id}, {"_id": 0})
-    if not doc:
-        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
-    return Response(
-        content=bytes(doc["data"]),
-        media_type=doc["mime_type"],
-        headers={
-            "Content-Disposition": f'inline; filename="{doc["filename"]}"',
-            "Cache-Control": "public, max-age=86400",
-            "Content-Length": str(doc["size"]),
-        }
-    )
+    try:
+        doc = await db.uploaded_files.find_one({"file_id": file_id})
+        if not doc:
+            logger.warning(f"File not found: {file_id}")
+            raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+        raw = doc.get("data")
+        if raw is None:
+            logger.error(f"File {file_id} has no data field")
+            raise HTTPException(status_code=404, detail="Dados ausentes")
+
+        file_bytes = bytes(raw)
+        mime = doc.get("mime_type") or "image/jpeg"
+        filename = doc.get("filename") or f"{file_id}.jpg"
+
+        # CORS explícito — necessário para <img> cross-origin
+        origin = request.headers.get("origin", "*")
+        return Response(
+            content=file_bytes,
+            media_type=mime,
+            headers={
+                "Content-Disposition": f'inline; filename="{filename}"',
+                "Cache-Control": "public, max-age=3600",
+                "Content-Length": str(len(file_bytes)),
+                "Access-Control-Allow-Origin": origin,
+                "Access-Control-Allow-Credentials": "true",
+            }
+        )
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"serve_file {file_id}: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=str(e))
 
 @api_router.get("/users/quick-comments")
 async def get_quick_comments(current_user: dict = Depends(get_current_user)):
