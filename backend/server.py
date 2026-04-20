@@ -1269,11 +1269,14 @@ async def upload_file(
     file_id = str(uuid.uuid4())
     mime = file.content_type or "application/octet-stream"
 
+    import base64
+    data_b64 = base64.b64encode(data).decode('utf-8')
+    
     await db.uploaded_files.insert_one({
         "file_id": file_id,
         "filename": file.filename,
         "mime_type": mime,
-        "data": data,
+        "data_b64": data_b64,
         "size": len(data),
         "uploaded_by": current_user["_id"],
         "created_at": datetime.now(timezone.utc),
@@ -1302,25 +1305,22 @@ async def serve_file(file_id: str, request: Request):
             logger.warning(f"File not found: {file_id}")
             raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-        raw = doc.get("data")
-        if raw is None:
-            logger.error(f"File {file_id} has no data field")
-            raise HTTPException(status_code=404, detail="Dados ausentes")
-
-        # Converter BSON Binary para bytes — compatível com Python 3.14 + PyMongo 4.x
-        if isinstance(raw, (bytes, bytearray)):
-            file_bytes = bytes(raw)
-        elif hasattr(raw, 'raw'):
-            file_bytes = bytes(raw.raw)
+        import base64
+        
+        # Tentar data_b64 primeiro (novo formato), depois data (legado)
+        data_b64 = doc.get("data_b64")
+        if data_b64:
+            file_bytes = base64.b64decode(data_b64)
         else:
-            # Último recurso: converter via memoryview
+            raw = doc.get("data")
+            if raw is None:
+                logger.error(f"File {file_id} has no data")
+                raise HTTPException(status_code=404, detail="Dados ausentes")
             try:
                 file_bytes = bytes(raw)
-            except Exception as conv_err:
-                logger.error(f"Cannot convert data type {type(raw)}: {conv_err}")
-                # Tentar via bson
-                import bson
-                file_bytes = bytes(bson.Binary(raw))
+            except Exception as e:
+                logger.error(f"Cannot read file {file_id}: {e}")
+                raise HTTPException(status_code=500, detail="Erro ao ler arquivo")
         
         mime = doc.get("mime_type") or "image/jpeg"
         filename = doc.get("filename") or f"{file_id}.jpg"
