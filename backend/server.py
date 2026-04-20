@@ -1267,7 +1267,14 @@ async def upload_file(
 
     import uuid
     file_id = str(uuid.uuid4())
-    mime = file.content_type or "application/octet-stream"
+    # Deduzir mime type pelo nome do arquivo (content_type pode vir None ou errado)
+    ext = (file.filename or '').lower().rsplit('.', 1)[-1] if '.' in (file.filename or '') else ''
+    ext_to_mime = {
+        'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+        'gif': 'image/gif', 'webp': 'image/webp', 'bmp': 'image/bmp',
+        'pdf': 'application/pdf',
+    }
+    mime = ext_to_mime.get(ext) or file.content_type or 'application/octet-stream'
 
     import base64
     data_b64 = base64.b64encode(data).decode('utf-8')
@@ -1322,8 +1329,15 @@ async def serve_file(file_id: str, request: Request):
                 logger.error(f"Cannot read file {file_id}: {e}")
                 raise HTTPException(status_code=500, detail="Erro ao ler arquivo")
         
-        mime = doc.get("mime_type") or "image/jpeg"
         filename = doc.get("filename") or f"{file_id}.jpg"
+        mime = doc.get("mime_type") or "application/octet-stream"
+        # Se mime está errado, tentar deduzir pelo filename
+        if mime in ('application/octet-stream', None, ''):
+            ext = filename.lower().rsplit('.', 1)[-1] if '.' in filename else ''
+            mime = {
+                'jpg': 'image/jpeg', 'jpeg': 'image/jpeg', 'png': 'image/png',
+                'gif': 'image/gif', 'webp': 'image/webp', 'pdf': 'application/pdf',
+            }.get(ext, 'image/jpeg')
 
         # CORS explícito — necessário para <img> cross-origin
         origin = request.headers.get("origin", "*")
