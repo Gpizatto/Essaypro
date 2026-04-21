@@ -13,7 +13,9 @@ const PdfViewer = ({ url }) => {
       const pdfjs = window.pdfjsLib;
       pdfjs.GlobalWorkerOptions.workerSrc =
         'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-      pdfjs.getDocument(url).promise
+      // Se for data URL, converter para Uint8Array para PDF.js
+      const pdfSource = url.startsWith('data:') ? {url} : url;
+      pdfjs.getDocument(pdfSource).promise
         .then(async (doc) => {
           const imgs = [];
           for (let i = 1; i <= doc.numPages; i++) {
