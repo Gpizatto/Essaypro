@@ -88,7 +88,12 @@ export const ManagePrompts = () => {
 
   const deletePrompt = async (promptId) => {
     try {
-      await axios.delete(`${API_URL}/api/prompts/${promptId}`, { withCredentials: true });
+      // Tentar admin endpoint (força delete), fallback para endpoint normal
+      try {
+        await axios.delete(`${API_URL}/api/admin/prompts/${promptId}`, { withCredentials: true });
+      } catch {
+        await axios.delete(`${API_URL}/api/prompts/${promptId}`, { withCredentials: true });
+      }
       toast.success('Proposta apagada!');
       setConfirmDelete(null);
       fetchPrompts();
