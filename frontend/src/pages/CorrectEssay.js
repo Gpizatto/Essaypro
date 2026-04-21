@@ -302,29 +302,27 @@ export const CorrectEssay = () => {
     }
   }, [essay, pdfImagePages]);
 
-  // ── Carregar imagem via fetch para evitar CORS ────────────
+  // ── Carregar imagem ─────────────────────────────────────
   useEffect(() => {
     if (!essay?.file_url || pdfImagePages.length > 0) return;
-    if (essay.submission_method !== 'upload' && !/\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) return;
-    
+    const isUpload = essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url);
+    if (!isUpload) return;
+
+    // data URL — usar direto, sem HTTP request
+    if (essay.file_url.startsWith('data:')) {
+      setImageBlobUrl(essay.file_url);
+      return;
+    }
+
+    // URL HTTP — carregar via fetch com credentials e converter para blob
     let objectUrl = null;
     fetch(essay.file_url, { credentials: 'include' })
-      .then(r => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.blob();
-      })
-      .then(blob => {
-        objectUrl = URL.createObjectURL(blob);
-        setImageBlobUrl(objectUrl);
-      })
-      .catch(err => {
-        console.error('Erro ao carregar imagem:', err);
-        // Fallback: tentar src direto
-        setImageBlobUrl(essay.file_url);
-      });
-    
+      .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+      .then(blob => { objectUrl = URL.createObjectURL(blob); setImageBlobUrl(objectUrl); })
+      .catch(() => setImageBlobUrl(essay.file_url)); // fallback: src direto
+
     return () => { if (objectUrl) URL.revokeObjectURL(objectUrl); };
-  }, [essay?.file_url, pdfImagePages.length]);
+  }, [essay?.file_url]);
 
   // ── PDF.js: cada página renderizada como imagem ─────────
   const loadPdfJs = () => new Promise((resolve) => {
