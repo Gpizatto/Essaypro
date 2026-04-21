@@ -1278,7 +1278,9 @@ async def upload_file(
 
     import base64
     data_b64 = base64.b64encode(data).decode('utf-8')
+    data_url = f"data:{mime};base64,{data_b64}"
     
+    # Salvar no MongoDB como backup
     await db.uploaded_files.insert_one({
         "file_id": file_id,
         "filename": file.filename,
@@ -1289,16 +1291,10 @@ async def upload_file(
         "created_at": datetime.now(timezone.utc),
     })
 
-    # Usar BACKEND_URL do env, ou fallback para a URL da requisição atual
-    backend_url = os.getenv("BACKEND_URL", "").rstrip("/")
-    if not backend_url:
-        # Derivar da URL da requisição atual
-        base = str(request.base_url).rstrip("/")
-        backend_url = base
     return {
         "file_id": file_id,
         "filename": file.filename,
-        "url": f"{backend_url}/api/files/{file_id}",
+        "url": data_url,  # data URL — funciona direto no <img src> sem HTTP request
         "size": len(data),
     }
 
