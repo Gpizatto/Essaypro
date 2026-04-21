@@ -117,6 +117,20 @@ export const AdminDashboard = () => {
     }
   };
 
+  const editUserEmail = async (userId, currentEmail) => {
+    const newEmail = window.prompt(`Corrigir email de "${currentEmail}" para:`, currentEmail);
+    if (!newEmail || newEmail === currentEmail) return;
+    try {
+      await axios.patch(`${API_URL}/api/admin/users/${userId}/email`,
+        { email: newEmail.toLowerCase().trim() },
+        { withCredentials: true });
+      toast.success(`Email atualizado para ${newEmail}`);
+      fetchData();
+    } catch (e) {
+      toast.error('Erro: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
   const forceApproveByEmail = async (email) => {
     const emailInput = window.prompt('Email do usuário para aprovar:', email || '');
     if (!emailInput) return;
@@ -287,7 +301,12 @@ export const AdminDashboard = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
-                      <p className="text-xs mb-2" style={{ color: '#6B5B4E' }}>{u.email}</p>
+                      <p className="text-xs mb-2" style={{ color: '#6B5B4E' }}>
+                        {u.email}
+                        <button onClick={() => editUserEmail(u.id, u.email)}
+                          className="ml-2" style={{ color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px' }}
+                          title="Corrigir email">✏️ corrigir</button>
+                      </p>
                       <div className="flex gap-2 flex-wrap">
                         <select
                           value={pendingSelections[u.id]?.role || 'student'}
@@ -379,7 +398,12 @@ export const AdminDashboard = () => {
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex-1">
                       <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
-                      <p className="text-xs mb-2" style={{ color: '#6B5B4E' }}>{u.email}</p>
+                      <p className="text-xs mb-2" style={{ color: '#6B5B4E' }}>
+                        {u.email}
+                        <button onClick={() => editUserEmail(u.id, u.email)}
+                          className="ml-2" style={{ color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px' }}
+                          title="Corrigir email">✏️ corrigir</button>
+                      </p>
                       <div className="flex gap-2 flex-wrap">
                         <select
                           value={pendingSelections[u.id]?.role || 'student'}
