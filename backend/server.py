@@ -266,9 +266,11 @@ async def login(login_data: UserLogin, response: Response):
     
     is_approved = user.get("is_approved", True)
     is_active = user.get("is_active", True)
-    logger.info(f"Login attempt: {email}, is_approved={is_approved}, is_active={is_active}")
-    if not is_approved or not is_active:
+    logger.info(f"Login attempt: {email}, is_approved={is_approved}, is_active={is_active}, role={user.get('role')}")
+    if not is_approved:
         raise HTTPException(status_code=403, detail="Sua conta ainda não foi aprovada pelo administrador. Aguarde.")
+    if not is_active:
+        raise HTTPException(status_code=403, detail="Sua conta foi desativada. Entre em contato com o administrador.")
     
     user_id = str(user["_id"])
     access_token = create_access_token(user_id, email)
@@ -749,7 +751,9 @@ async def approve_user(user_id: str, body: dict = None, current_user: dict = Dep
         entity_id=user_id,
         detail=f"Aprovado como {role}" + (f" na turma {course_id}" if course_id else "")
     )
-    return {"ok": True}
+    # Retornar estado atual do usuário para confirmação no frontend
+    updated = await db.users.find_one({"_id": ObjectId(user_id)}, {"_id": 0, "name": 1, "email": 1, "is_approved": 1, "is_active": 1, "role": 1})
+    return {"ok": True, "user": updated, "matched": result.matched_count, "modified": result.modified_count}
 
 @api_router.post("/admin/force-approve")
 async def force_approve_by_email(body: dict, current_user: dict = Depends(get_current_user)):
