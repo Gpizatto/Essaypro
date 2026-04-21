@@ -117,6 +117,25 @@ export const AdminDashboard = () => {
     }
   };
 
+  const forceApproveByEmail = async (email) => {
+    const emailInput = window.prompt('Email do usuário para aprovar:', email || '');
+    if (!emailInput) return;
+    try {
+      const res = await axios.post(`${API_URL}/api/admin/force-approve`,
+        { email: emailInput.toLowerCase().trim() },
+        { withCredentials: true });
+      const { user } = res.data || {};
+      if (user?.is_approved) {
+        toast.success(`✅ ${user.email} aprovado! Pode fazer login agora.`);
+        fetchData();
+      } else {
+        toast.error('Aprovação falhou — usuário não encontrado?');
+      }
+    } catch (e) {
+      toast.error('Erro: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
   const rejectUser = async (userId) => {
     if (!window.confirm('Rejeitar e excluir este cadastro?')) return;
     try {
@@ -245,11 +264,21 @@ export const AdminDashboard = () => {
         {/* APROVAÇÃO DE USUÁRIOS PENDENTES */}
         {pendingUsers.length > 0 && (
           <Card className="p-5 bg-white border shadow-sm" style={{ borderColor: '#DAB257' }}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D66B27' }} />
-              <h2 className="font-semibold text-sm" style={{ color: '#7C1805' }}>
-                Aguardando aprovação ({pendingUsers.length})
-              </h2>
+            <div className="flex items-center justify-between gap-2 mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D66B27' }} />
+                <h2 className="font-semibold text-sm" style={{ color: '#7C1805' }}>
+                  Aguardando aprovação ({pendingUsers.length})
+                </h2>
+              </div>
+              <button
+                onClick={() => forceApproveByEmail('')}
+                className="text-xs px-2 py-1 rounded border font-semibold"
+                style={{ borderColor: '#7C1805', color: '#7C1805' }}
+                title="Aprovar por email (caso o botão normal falhe)"
+              >
+                ✉️ Aprovar por email
+              </button>
             </div>
             <div className="space-y-2">
               {pendingUsers.map(u => (
