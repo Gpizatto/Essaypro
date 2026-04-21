@@ -1,11 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
+import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
 import { Badge } from '../components/ui/badge';
-import { FileText, Clock, User, Search, AlertCircle, CheckCircle2, Edit3, History } from 'lucide-react';
+import { FileText, Clock, User, Search, AlertCircle, CheckCircle2, Edit3, History , Trash2 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -35,6 +37,7 @@ const STATUS_TABS = [
 const METHOD_LABEL = { editor: 'Editor', paste: 'Colado', upload: 'Upload' };
 
 export const CorrectionQueue = () => {
+  const { user } = useAuth();
   const [allEssays, setAllEssays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
@@ -49,6 +52,17 @@ export const CorrectionQueue = () => {
   const [search, setSearch] = useState('');
   const [filterPrompt, setFilterPrompt] = useState('all');
   const navigate = useNavigate();
+
+  const deleteEssay = async (essayId, studentName) => {
+    if (!window.confirm(`Deletar permanentemente a redação de "${studentName}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await axios.delete(`${API_URL}/api/admin/essays/${essayId}`, { withCredentials: true });
+      setAllEssays(prev => prev.filter(e => e.id !== essayId));
+      toast.success('Redação deletada.');
+    } catch (e) {
+      toast.error('Erro: ' + (e.response?.data?.detail || e.message));
+    }
+  };
 
   useEffect(() => {
     fetchAll();
@@ -289,6 +303,14 @@ export const CorrectionQueue = () => {
                           data-testid={`correct-button-${essay.id}`}>
                           <Edit3 size={14} className="mr-1" />
                           {essay.status === 'in_progress' ? 'Continuar' : 'Corrigir'}
+                        </Button>
+                      )}
+                      {user?.role === 'admin' && (
+                        <Button variant="ghost" size="sm"
+                          onClick={() => deleteEssay(essay.id, essay.student_name || 'aluno')}
+                          title="Deletar redação"
+                          style={{ color: '#DC2626', padding: '4px 8px' }}>
+                          <Trash2 size={14} />
                         </Button>
                       )}
                     </div>
