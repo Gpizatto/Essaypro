@@ -246,7 +246,7 @@ async def register(user_data: UserRegister):
         "email": email,
         "password_hash": hashed_pw,
         "role": "student",
-        "is_active": False,
+        "is_active": True,
         "is_approved": False,
         "phone": getattr(user_data, 'phone', None) or "",
         "created_at": datetime.now(timezone.utc)
@@ -269,7 +269,8 @@ async def login(login_data: UserLogin, response: Response):
     logger.info(f"Login attempt: {email}, is_approved={is_approved}, is_active={is_active}, role={user.get('role')}")
     if not is_approved:
         raise HTTPException(status_code=403, detail="Sua conta ainda não foi aprovada pelo administrador. Aguarde.")
-    if not is_active:
+    # is_active=False só bloqueia se explicitamente desativado pelo admin (não para novos cadastros)
+    if is_active == False and is_approved:
         raise HTTPException(status_code=403, detail="Sua conta foi desativada. Entre em contato com o administrador.")
     
     user_id = str(user["_id"])
@@ -837,7 +838,11 @@ async def toggle_user_active(user_id: str, current_user: dict = Depends(get_curr
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
     new_status = not user.get("is_active", True)
-    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"is_active": new_status}})
+    update_fields = {"is_active": new_status}
+    # Se reativando, garantir que is_approved também está True
+    if new_status:
+        update_fields["is_approved"] = True
+    await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": update_fields})
     return {"is_active": new_status}
 
 # ============================================================
@@ -2453,6 +2458,15 @@ async def startup_event():
     await db.prompts.create_index("course_ids")
 
     logger.info("Índices MongoDB criados/verificados")
+    
+    # Migração: usuários com is_active=True mas is_approved=False → aprovar automaticamente
+    # Esses usuários foram "ativados" pelo toggle mas não aprovados pelo fluxo correto
+    fixed = await db.users.update_many(
+        {"is_active": True, "is_approved": False},
+        {"$set": {"is_approved": True}}
+    )
+    if fixed.modified_count > 0:
+        logger.info(f"Migração: {fixed.modified_count} usuário(s) aprovado(s) automaticamente (is_active=True, is_approved=False)")
 
     # Corrigir URLs de arquivos que foram salvas sem domínio
     backend_url = os.getenv("BACKEND_URL", "").rstrip("/")
