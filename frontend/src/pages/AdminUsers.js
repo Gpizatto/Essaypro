@@ -63,6 +63,17 @@ export const AdminUsers = () => {
     }
   };
 
+  const deleteUser = async (userId, userName) => {
+    if (!window.confirm(`Deletar permanentemente "${userName}"? Esta ação não pode ser desfeita.`)) return;
+    try {
+      await axios.delete(`${API_URL}/api/admin/users/${userId}`, { withCredentials: true });
+      setUsers(prev => prev.filter(u => u.id !== userId));
+      toast.success('Usuário deletado.');
+    } catch (e) {
+      toast.error('Erro: ' + (e.response?.data?.detail || e.message));
+    }
+  };
+
   const filtered = useMemo(() => users.filter(u => {
     const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) ||
       u.email.toLowerCase().includes(search.toLowerCase());
