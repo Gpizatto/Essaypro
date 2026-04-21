@@ -4,7 +4,7 @@ import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { Users, Search, UserCheck, UserX, ChevronDown } from 'lucide-react';
+import { Users, Search, UserCheck, UserX, ChevronDown, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -215,10 +215,16 @@ export const AdminUsers = () => {
                             title={isInactive ? 'Reativar usuário' : 'Desativar usuário'}
                             style={{ color: isInactive ? '#36555A' : '#7C1805' }}
                           >
-                            {isInactive
-                              ? <UserCheck size={16} />
-                              : <UserX size={16} />
-                            }
+                            {isInactive ? <UserCheck size={16} /> : <UserX size={16} />}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => deleteUser(user.id, user.name)}
+                            title="Deletar permanentemente"
+                            style={{ color: '#DC2626' }}
+                          >
+                            <Trash2 size={16} />
                           </Button>
                         </td>
                       </tr>
