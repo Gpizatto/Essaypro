@@ -790,6 +790,21 @@ async def get_all_users(current_user: dict = Depends(get_current_user)):
             is_active=u.get("is_active", True), course_ids=u.get("course_ids", []),
             created_at=u["created_at"]) for u in users]
 
+@api_router.patch("/admin/users/{user_id}/email")
+async def update_user_email(user_id: str, body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    new_email = body.get("email", "").lower().strip()
+    if not new_email or "@" not in new_email:
+        raise HTTPException(status_code=400, detail="Email inválido")
+    existing = await db.users.find_one({"email": new_email, "_id": {"$ne": ObjectId(user_id)}})
+    if existing:
+        raise HTTPException(status_code=400, detail="Email já em uso por outro usuário")
+    result = await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": {"email": new_email}})
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    return {"ok": True, "email": new_email}
+
 @api_router.patch("/admin/users/{user_id}/role")
 async def update_user_role(user_id: str, body: dict, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
