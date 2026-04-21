@@ -95,13 +95,26 @@ export const AdminDashboard = () => {
   const approveUser = async (userId) => {
     const sel = pendingSelections[userId] || {};
     try {
-      await axios.post(`${API_URL}/api/admin/approve-user/${userId}`,
+      const res = await axios.post(`${API_URL}/api/admin/approve-user/${userId}`,
         { role: sel.role || 'student', course_id: sel.course_id || null },
         { withCredentials: true });
+      
+      const { user, modified } = res.data || {};
+      if (modified === 0) {
+        toast.warning('Usuário já estava aprovado ou não foi encontrado.');
+      } else if (user && user.is_approved && user.is_active) {
+        toast.success(`✅ ${user.name || 'Usuário'} aprovado como ${user.role}!`);
+      } else {
+        toast.error('Aprovação pode ter falhado — verifique o banco.');
+      }
+      
       setPendingUsers(prev => prev.filter(u => u.id !== userId));
       setPendingSelections(prev => { const n = {...prev}; delete n[userId]; return n; });
-      toast.success('Usuário aprovado!');
-    } catch (e) { toast.error('Erro ao aprovar'); }
+    } catch (e) {
+      const detail = e.response?.data?.detail || 'Erro desconhecido';
+      toast.error('Erro ao aprovar: ' + detail);
+      console.error('approveUser error:', e.response?.data);
+    }
   };
 
   const rejectUser = async (userId) => {
