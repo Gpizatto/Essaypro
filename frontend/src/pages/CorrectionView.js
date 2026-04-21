@@ -91,13 +91,17 @@ export const CorrectionView = () => {
       setEssay(essayData);
       setCorrection(correctionRes.data);
       
-      // Carregar imagem via fetch para evitar problemas de CORS
+      // Carregar imagem
       if (essayData.file_url && pages.length === 0 &&
           (essayData.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url))) {
-        fetch(essayData.file_url, { credentials: 'include' })
-          .then(r => r.ok ? r.blob() : Promise.reject(r.status))
-          .then(blob => setImageBlobUrl(URL.createObjectURL(blob)))
-          .catch(() => setImageBlobUrl(essayData.file_url));
+        if (essayData.file_url.startsWith('data:')) {
+          setImageBlobUrl(essayData.file_url); // data URL — usar direto
+        } else {
+          fetch(essayData.file_url, { credentials: 'include' })
+            .then(r => r.ok ? r.blob() : Promise.reject(r.status))
+            .then(blob => setImageBlobUrl(URL.createObjectURL(blob)))
+            .catch(() => setImageBlobUrl(essayData.file_url));
+        }
       }
 
       // Buscar proposta para o modal
