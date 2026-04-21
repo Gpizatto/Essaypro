@@ -845,6 +845,42 @@ async def toggle_user_active(user_id: str, current_user: dict = Depends(get_curr
     await db.users.update_one({"_id": ObjectId(user_id)}, {"$set": update_fields})
     return {"is_active": new_status}
 
+@api_router.delete("/admin/users/{user_id}")
+async def admin_delete_user(user_id: str, current_user: dict = Depends(get_current_user)):
+    """Deletar usuário permanentemente (admin only)."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    if user_id == current_user["_id"]:
+        raise HTTPException(status_code=400, detail="Não é possível deletar sua própria conta")
+    result = await db.users.delete_one({"_id": ObjectId(user_id)})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+    # Deletar redações do usuário também
+    await db.essays.delete_many({"student_id": user_id})
+    return {"ok": True}
+
+@api_router.delete("/admin/essays/{essay_id}")
+async def admin_delete_essay(essay_id: str, current_user: dict = Depends(get_current_user)):
+    """Deletar redação permanentemente (admin only)."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    result = await db.essays.delete_one({"id": essay_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Redação não encontrada")
+    # Deletar correção vinculada
+    await db.corrections.delete_one({"essay_id": essay_id})
+    return {"ok": True}
+
+@api_router.delete("/admin/prompts/{prompt_id}")
+async def admin_delete_prompt(prompt_id: str, current_user: dict = Depends(get_current_user)):
+    """Deletar proposta permanentemente (admin only) — ignora redações vinculadas."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Admin only")
+    result = await db.prompts.delete_one({"id": prompt_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Proposta não encontrada")
+    return {"ok": True}
+
 # ============================================================
 # SISTEMA DE NOTIFICAÇÕES
 # ============================================================
