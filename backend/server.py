@@ -1144,6 +1144,22 @@ async def save_teacher_intervention(essay_id: str, body: dict, current_user: dic
         {"essay_id": essay_id},
         {"$set": update}
     )
+
+    # Se professor solicitou reescrita → notificar aluno
+    if update.get("suggest_rewrite"):
+        essay_doc = await db.essays.find_one({"id": essay_id}, {"_id": 0})
+        if essay_doc:
+            prompt_doc = await db.prompts.find_one({"id": essay_doc.get("prompt_id")}, {"_id": 0, "title": 1})
+            prompt_title = prompt_doc["title"] if prompt_doc else "sua redação"
+            teacher_name = current_user.get("name", "O professor")
+            await create_notification(
+                user_id=essay_doc["student_id"],
+                title="Reescrita solicitada ✏️",
+                message=f"{teacher_name} solicitou que você reescreva sua redação sobre '{prompt_title}'. Acesse Minhas Redações para enviar a nova versão.",
+                type="warning",
+                link=f"/essay/{essay_id}/correction"
+            )
+
     return {"message": "Intervenção salva", **update}
 
 @api_router.get("/corrections/{essay_id}/intervention")
@@ -1158,6 +1174,34 @@ async def get_teacher_intervention(essay_id: str, current_user: dict = Depends(g
         "extra_material": correction.get("extra_material", ""),
         "intervention_at": correction.get("intervention_at"),
     }
+
+@api_router.get("/essays/{essay_id}/rewrite")
+async def get_essay_rewrite(essay_id: str, current_user: dict = Depends(get_current_user)):
+    """Retorna a reescrita de uma redação, se existir"""
+    rewrite = await db.essays.find_one({"parent_essay_id": essay_id, "is_rewrite": True}, {"_id": 0})
+    if not rewrite:
+        raise HTTPException(status_code=404, detail="No rewrite found")
+    rewrite["id"] = rewrite.get("id", str(rewrite.get("_id", "")))
+    # Buscar correção da reescrita, se existir
+    rewrite_correction = await db.corrections.find_one({"essay_id": rewrite["id"]}, {"_id": 0})
+    return {
+        "rewrite": rewrite,
+        "rewrite_correction": rewrite_correction,
+    }
+
+@api_router.get("/essays/{essay_id}/parent-correction")
+async def get_parent_correction(essay_id: str, current_user: dict = Depends(get_current_user)):
+    """Para uma reescrita, retorna a correção da redação original"""
+    essay = await db.essays.find_one({"id": essay_id}, {"_id": 0})
+    if not essay or not essay.get("parent_essay_id"):
+        raise HTTPException(status_code=404, detail="Not a rewrite or parent not found")
+    parent_correction = await db.corrections.find_one({"essay_id": essay["parent_essay_id"]}, {"_id": 0})
+    if not parent_correction:
+        raise HTTPException(status_code=404, detail="Parent correction not found")
+    # Serializar ObjectId
+    if "_id" in parent_correction:
+        del parent_correction["_id"]
+    return {"parent_essay_id": essay["parent_essay_id"], "parent_correction": parent_correction}
 
 @api_router.get("/teacher/students")
 async def get_teacher_students(current_user: dict = Depends(get_current_user)):
