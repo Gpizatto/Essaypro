@@ -111,9 +111,11 @@ export const CorrectEssay = () => {
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
   const panStartRef = useRef({ x: 0, y: 0, ox: 0, oy: 0 });
-  // Comentários com posição absoluta (arrastáveis)
-  const [draggingComment, setDraggingComment] = useState(null); // { id, startX, startY }
-  const dragStartPosRef = useRef({ x: 0, y: 0 }); // {x, y} for visual cursor // { label, x, y }
+  // Comentários arrastáveis — mouse events (mais estável que HTML5 drag API)
+  const [draggingComment, setDraggingComment] = useState(null); // { id, offsetX, offsetY }
+  const dragStartPosRef = useRef({ x: 0, y: 0 });
+  // Hover de comentário — com delay para não piscar
+  const hoverTimerRef = useRef(null);
 
   const [scores, setScores] = useState({});
   const [scoreErrors, setScoreErrors] = useState({});
@@ -226,6 +228,30 @@ export const CorrectEssay = () => {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  // ── Drag de comentários em imagem/PDF via mouse events globais ─────────────
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!draggingComment) return;
+      const canvas = nativeCanvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const newX = (e.clientX - rect.left) * scaleX - draggingComment.offsetX;
+      const newY = (e.clientY - rect.top) * scaleY - draggingComment.offsetY;
+      setInlineComments(prev => prev.map(c =>
+        c.id === draggingComment.id ? { ...c, canvasX: newX, canvasY: newY } : c
+      ));
+    };
+    const handleMouseUp = () => setDraggingComment(null);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingComment]);
 
   // 5.4 — Auto-save a cada 30 segundos
   const autoSaveTimerRef = useRef(null);
@@ -941,7 +967,32 @@ export const CorrectEssay = () => {
       setShowCommentPopup(false);
       setCommentText('');
       setSelectedTextRange(null);
-      toast.success('Comentário adicionado');
+
+      // ── Auto-salvar modelo de texto ────────────────────────────────────────
+      // Se o comentário digitado não existir ainda no banco, salva automaticamente
+      const trimmed = newComment.comment;
+      const allSaved = [
+        ...quickComments,
+        ...sharedComments,
+      ];
+      const alreadyExists = allSaved.some(
+        qc => qc.text.trim().toLowerCase() === trimmed.toLowerCase()
+      );
+      if (!alreadyExists && trimmed.length >= 3) {
+        const autoEntry = {
+          id: `qc_auto_${Date.now()}`,
+          text: trimmed,
+          use_count: 1,
+          last_used_at: new Date().toISOString(),
+          created_at: new Date().toISOString(),
+          category: 'geral',
+        };
+        const updated = [...quickComments, autoEntry];
+        saveQuickComments(updated);
+        toast.success('Comentário adicionado e salvo no banco de modelos ✓', { duration: 3000 });
+      } else {
+        toast.success('Comentário adicionado');
+      }
     }
   };
 
@@ -1591,42 +1642,71 @@ export const CorrectEssay = () => {
                       />
                       {/* Comentários arrastáveis sobrepostos */}
                       {inlineComments.filter(c => c.canvasX != null).map(c => (
-                        <div
-                          key={c.id}
-                          draggable
-                          onDragStart={(e) => {
-                            e.dataTransfer.setData('commentId', c.id);
-                            dragStartPosRef.current = { x: e.clientX, y: e.clientY, cx: c.canvasX, cy: c.canvasY };
-                          }}
-                          onDragEnd={(e) => {
-                            const canvas = nativeCanvasRef.current;
-                            if (!canvas) return;
-                            const rect = canvas.getBoundingClientRect();
-                            const scaleX = canvas.width / rect.width;
-                            const scaleY = canvas.height / rect.height;
-                            const newX = (e.clientX - rect.left) * scaleX;
-                            const newY = (e.clientY - rect.top) * scaleY;
-                            setInlineComments(prev => prev.map(cm =>
-                              cm.id === c.id ? { ...cm, canvasX: newX, canvasY: newY } : cm
-                            ));
-                          }}
-                          title={c.comment}
-                          style={{
-                            position: 'absolute',
-                            left: `${(c.canvasX / (nativeCanvasRef.current?.width || 1)) * 100}%`,
-                            top: `${(c.canvasY / (nativeCanvasRef.current?.height || 1)) * 100}%`,
-                            transform: 'translate(-50%, -100%)',
-                            backgroundColor: '#7C1805',
-                            color: 'white',
-                            borderRadius: '50% 50% 50% 0',
-                            width: '28px', height: '28px',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center',
-                            fontSize: '13px', fontWeight: 'bold',
-                            zIndex: 20, cursor: 'grab',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
-                          }}
-                        >
-                          💬
+                        <div key={c.id} style={{ position: 'absolute', zIndex: 20,
+                          left: `${(c.canvasX / (nativeCanvasRef.current?.width || 1)) * 100}%`,
+                          top: `${(c.canvasY / (nativeCanvasRef.current?.height || 1)) * 100}%`,
+                          transform: 'translate(-50%, -100%)',
+                        }}>
+                          {/* Pin arrastável */}
+                          <div
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                              const canvas = nativeCanvasRef.current;
+                              if (!canvas) return;
+                              const rect = canvas.getBoundingClientRect();
+                              const scaleX = canvas.width / rect.width;
+                              const scaleY = canvas.height / rect.height;
+                              const offsetX = (e.clientX - rect.left) * scaleX - c.canvasX;
+                              const offsetY = (e.clientY - rect.top) * scaleY - c.canvasY;
+                              setDraggingComment({ id: c.id, offsetX, offsetY });
+                            }}
+                            onMouseEnter={() => {
+                              if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+                              setHoveredCommentId(c.id);
+                            }}
+                            onMouseLeave={() => {
+                              hoverTimerRef.current = setTimeout(() => setHoveredCommentId(null), 200);
+                            }}
+                            style={{
+                              backgroundColor: draggingComment?.id === c.id ? '#5a1003' : '#7C1805',
+                              color: 'white',
+                              borderRadius: '50% 50% 50% 0',
+                              width: '28px', height: '28px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: '13px', fontWeight: 'bold',
+                              cursor: draggingComment?.id === c.id ? 'grabbing' : 'grab',
+                              boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
+                              userSelect: 'none',
+                              transition: 'background-color 0.1s',
+                            }}
+                          >
+                            💬
+                          </div>
+                          {/* Tooltip hover */}
+                          {hoveredCommentId === c.id && (
+                            <div
+                              onMouseEnter={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
+                              onMouseLeave={() => { hoverTimerRef.current = setTimeout(() => setHoveredCommentId(null), 200); }}
+                              style={{
+                                position: 'absolute', bottom: '36px', left: '50%',
+                                transform: 'translateX(-50%)',
+                                backgroundColor: 'white', border: '1px solid #E8DDD0',
+                                borderRadius: '8px', padding: '8px 12px',
+                                boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                minWidth: '180px', maxWidth: '260px',
+                                zIndex: 30, pointerEvents: 'auto',
+                              }}
+                            >
+                              <p className="text-xs font-semibold mb-1" style={{ color: '#7C1805' }}>#{c.id}</p>
+                              <p style={{ fontSize: '12px', color: '#2C1A0E', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{c.comment}</p>
+                              <button onClick={() => {
+                                setInlineComments(prev => prev.filter(cm => cm.id !== c.id));
+                                setHoveredCommentId(null);
+                              }} style={{ marginTop: '6px', fontSize: '11px', color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                                ✕ Remover
+                              </button>
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1787,13 +1867,21 @@ export const CorrectEssay = () => {
                 onDoubleClick={() => setSelectedTool('comment')}
                 onContextMenu={(e) => { e.preventDefault(); setSelectedTool('pen'); }}
                 onMouseMove={(e) => {
+                  setTooltipPosition({ x: e.clientX, y: e.clientY });
+                }}
+                onMouseOver={(e) => {
                   const target = e.target.closest('[data-comment-id]');
                   if (target) {
                     const commentId = parseInt(target.getAttribute('data-comment-id'));
+                    if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
                     setHoveredCommentId(commentId);
                     setTooltipPosition({ x: e.clientX, y: e.clientY });
-                  } else {
-                    setHoveredCommentId(null);
+                  }
+                }}
+                onMouseOut={(e) => {
+                  const target = e.target.closest('[data-comment-id]');
+                  if (target) {
+                    hoverTimerRef.current = setTimeout(() => setHoveredCommentId(null), 200);
                   }
                 }}
                 className="bg-white shadow-sm rounded-lg p-12 relative z-10"
@@ -2240,7 +2328,26 @@ export const CorrectEssay = () => {
                       canvasX: clickCommentCanvasPos.x,
                       canvasY: clickCommentCanvasPos.y,
                     }]);
-                    toast.success('Comentário adicionado!');
+                    // Auto-salvar modelo de texto se não existir ainda
+                    const trimmedClick = clickCommentText.trim();
+                    const allSavedClick = [...quickComments, ...sharedComments];
+                    const existsClick = allSavedClick.some(
+                      qc => qc.text.trim().toLowerCase() === trimmedClick.toLowerCase()
+                    );
+                    if (!existsClick && trimmedClick.length >= 3) {
+                      const autoEntry = {
+                        id: `qc_auto_${Date.now()}`,
+                        text: trimmedClick,
+                        use_count: 1,
+                        last_used_at: new Date().toISOString(),
+                        created_at: new Date().toISOString(),
+                        category: 'geral',
+                      };
+                      saveQuickComments([...quickComments, autoEntry]);
+                      toast.success('Comentário adicionado e salvo no banco de modelos ✓', { duration: 3000 });
+                    } else {
+                      toast.success('Comentário adicionado!');
+                    }
                   }
                   setShowClickCommentPopup(false);
                   setClickCommentText('');
@@ -2412,25 +2519,30 @@ export const CorrectEssay = () => {
       {/* MODAL CONFIRMAR PUBLICAÇÃO */}
 
 
-      {/* TOOLTIP HOVER DE COMENTÁRIO */}
-      {hoveredCommentId && (
+      {/* TOOLTIP HOVER DE COMENTÁRIO — aparece no hover, não fecha ao mover para o tooltip */}
+      {hoveredCommentId && inlineComments.find(c => c.id === hoveredCommentId && c.canvasX == null) && (
         <div
           className="fixed bg-white border shadow-lg rounded-lg p-3 z-50"
           style={{
-            left: `${tooltipPosition.x + 10}px`,
-            top: `${tooltipPosition.y - 60}px`,
-            maxWidth: '300px'
+            left: `${Math.min(tooltipPosition.x + 12, window.innerWidth - 320)}px`,
+            top: `${tooltipPosition.y - 80}px`,
+            maxWidth: '300px',
+            pointerEvents: 'auto',
           }}
+          onMouseEnter={() => { if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current); }}
+          onMouseLeave={() => { hoverTimerRef.current = setTimeout(() => setHoveredCommentId(null), 150); }}
         >
           <div className="flex justify-between items-start gap-2">
             <div className="flex-1">
-              <p className="text-xs font-semibold mb-1" style={{ color: '#92400E' }}>#{hoveredCommentId}</p>
-              <p className="text-sm">{inlineComments.find(c => c.id === hoveredCommentId)?.comment}</p>
+              <p className="text-xs font-semibold mb-1" style={{ color: '#92400E' }}>Comentário #{hoveredCommentId}</p>
+              <p className="text-sm" style={{ whiteSpace: 'pre-wrap', lineHeight: '1.5' }}>
+                {inlineComments.find(c => c.id === hoveredCommentId)?.comment}
+              </p>
             </div>
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => handleDeleteComment(hoveredCommentId)}
+              onClick={() => { handleDeleteComment(hoveredCommentId); setHoveredCommentId(null); }}
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
             >
               <X size={14} />
