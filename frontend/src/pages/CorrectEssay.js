@@ -226,6 +226,7 @@ export const CorrectEssay = () => {
         'h': 'highlight',
         'x': 'strikethrough',
         'm': 'comment',
+        't': 'textbox',
       };
       if (map[e.key]) setSelectedTool(map[e.key]);
     };
@@ -670,8 +671,43 @@ export const CorrectEssay = () => {
   const zoomOut = () => setZoom(p => Math.max(parseFloat((p - 0.25).toFixed(2)), 0.25));
 
   // Eventos de desenho no canvas nativo
+  // Confirmar texto digitado e renderizar no canvas
+  const commitTextbox = (text, canvasX, canvasY, color, fontSize) => {
+    if (!text.trim()) return;
+    const ctx = ensureCtx();
+    if (!ctx) return;
+    saveHistory();
+    ctx.save();
+    ctx.font = `${fontSize}px Arial, sans-serif`;
+    ctx.fillStyle = color;
+    ctx.textBaseline = 'top';
+    // Suporte a múltiplas linhas
+    const lines = text.split('\n');
+    const lineHeight = fontSize * 1.4;
+    lines.forEach((line, i) => {
+      ctx.fillText(line, canvasX, canvasY + i * lineHeight);
+    });
+    ctx.restore();
+  };
+
   const handleCanvasMouseDown = (e) => {
     const tool = selectedToolRef.current;
+
+    // Caixa de texto — clique abre input flutuante no ponto clicado
+    if (tool === 'textbox') {
+      if (!nativeCanvasRef.current) return;
+      e.preventDefault();
+      const pos = getPos(e);
+      const canvas = nativeCanvasRef.current;
+      const rect = canvas.getBoundingClientRect();
+      // Posição na tela (para o input flutuante)
+      const screenX = e.clientX !== undefined ? e.clientX : rect.left + (pos.x / canvas.width) * rect.width;
+      const screenY = e.clientY !== undefined ? e.clientY : rect.top + (pos.y / canvas.height) * rect.height;
+      setTextboxInput({ visible: true, x: screenX, y: screenY, canvasX: pos.x, canvasY: pos.y, text: '', fontSize: 16 });
+      setTimeout(() => textboxInputRef.current?.focus(), 50);
+      return;
+    }
+
     // Comentário por clique em imagem/PDF (sem precisar selecionar texto)
     if (tool === 'comment' && essay?.file_url) {
       if (!ensureCtx()) return;
@@ -1630,9 +1666,9 @@ export const CorrectEssay = () => {
                         style={{
                           position: 'absolute', top: 0, left: 0,
                           width: '100%', height: '100%',
-                          pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment'].includes(selectedTool) ? 'all' : 'none',
+                          pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment','textbox'].includes(selectedTool) ? 'all' : 'none',
                           zIndex: 10,
-                          cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
+                          cursor: selectedTool === 'eraser' ? 'none' : selectedTool === 'textbox' ? 'text' : 'crosshair',
                           touchAction: 'none',
                         }}
                         onMouseDown={handleCanvasMouseDown}
@@ -1824,9 +1860,9 @@ export const CorrectEssay = () => {
                       style={{
                         position: 'absolute', top: 0, left: 0,
                         width: '100%', height: '100%',
-                        pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment'].includes(selectedTool) ? 'all' : 'none',
+                        pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment','textbox'].includes(selectedTool) ? 'all' : 'none',
                         zIndex: 10,
-                        cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
+                        cursor: selectedTool === 'eraser' ? 'none' : selectedTool === 'textbox' ? 'text' : 'crosshair',
                         touchAction: 'none',
                       }}
                       onMouseDown={handleCanvasMouseDown}
@@ -1912,9 +1948,9 @@ export const CorrectEssay = () => {
                     position: 'absolute',
                     top: 0, left: 0,
                     width: '100%', height: '100%',
-                    pointerEvents: ['pen','eraser','line','arrow','oval','rect'].includes(selectedTool) ? 'all' : 'none',
+                    pointerEvents: ['pen','eraser','line','arrow','oval','rect','textbox'].includes(selectedTool) ? 'all' : 'none',
                     zIndex: 15,
-                    cursor: selectedTool === 'eraser' ? 'none' : 'crosshair',
+                    cursor: selectedTool === 'eraser' ? 'none' : selectedTool === 'textbox' ? 'text' : 'crosshair',
                     touchAction: 'none',
                     display: 'block',
                   }}
@@ -2253,6 +2289,113 @@ export const CorrectEssay = () => {
           </div>
         </div>
       </div>
+
+      {/* CAIXA DE TEXTO FLUTUANTE NO CANVAS (#9) */}
+      {textboxInput.visible && (
+        <div style={{
+          position: 'fixed',
+          left: textboxInput.x,
+          top: textboxInput.y,
+          zIndex: 9999,
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '6px',
+          backgroundColor: 'white',
+          border: '2px solid #7C1805',
+          borderRadius: '8px',
+          padding: '8px',
+          boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
+          minWidth: '220px',
+        }}>
+          {/* Controles de cor e tamanho */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+            <span style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: 600 }}>Cor:</span>
+            {COLORS.map(c => (
+              <button key={c.value} onClick={() => setTextboxInput(prev => ({ ...prev, color: c.value }))}
+                style={{
+                  width: '18px', height: '18px', borderRadius: '50%',
+                  backgroundColor: c.value,
+                  border: (textboxInput.color || selectedColor) === c.value ? '2px solid #2C1A0E' : '1px solid #ccc',
+                  cursor: 'pointer', flexShrink: 0,
+                }} title={c.name} />
+            ))}
+            <span style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: 600, marginLeft: '4px' }}>Tam:</span>
+            <select
+              value={textboxInput.fontSize}
+              onChange={e => setTextboxInput(prev => ({ ...prev, fontSize: parseInt(e.target.value) }))}
+              style={{ fontSize: '11px', padding: '1px 4px', borderRadius: '4px', border: '1px solid #E8DDD0', color: '#2C1A0E' }}
+            >
+              {[10, 12, 14, 16, 18, 20, 24, 28, 32].map(s => (
+                <option key={s} value={s}>{s}px</option>
+              ))}
+            </select>
+          </div>
+          {/* Textarea */}
+          <textarea
+            ref={textboxInputRef}
+            value={textboxInput.text}
+            onChange={e => setTextboxInput(prev => ({ ...prev, text: e.target.value }))}
+            onKeyDown={e => {
+              if (e.key === 'Escape') {
+                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
+              }
+              // Ctrl+Enter confirma
+              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                commitTextbox(
+                  textboxInput.text,
+                  textboxInput.canvasX,
+                  textboxInput.canvasY,
+                  textboxInput.color || selectedColor,
+                  textboxInput.fontSize,
+                );
+                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
+              }
+            }}
+            placeholder="Digite o texto... (Ctrl+Enter para confirmar)"
+            rows={3}
+            style={{
+              width: '100%',
+              padding: '6px 8px',
+              borderRadius: '6px',
+              border: '1px solid #E8DDD0',
+              fontSize: `${textboxInput.fontSize}px`,
+              fontFamily: 'Arial, sans-serif',
+              color: textboxInput.color || selectedColor,
+              resize: 'both',
+              outline: 'none',
+              boxSizing: 'border-box',
+            }}
+          />
+          {/* Botões */}
+          <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
+            <button onClick={() => setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 })}
+              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#6B5B4E', cursor: 'pointer', background: 'white' }}>
+              Cancelar
+            </button>
+            <button
+              onClick={() => {
+                commitTextbox(
+                  textboxInput.text,
+                  textboxInput.canvasX,
+                  textboxInput.canvasY,
+                  textboxInput.color || selectedColor,
+                  textboxInput.fontSize,
+                );
+                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
+              }}
+              disabled={!textboxInput.text.trim()}
+              style={{
+                fontSize: '12px', padding: '4px 10px', borderRadius: '6px',
+                backgroundColor: '#7C1805', color: 'white', border: 'none',
+                cursor: textboxInput.text.trim() ? 'pointer' : 'not-allowed',
+                opacity: textboxInput.text.trim() ? 1 : 0.5, fontWeight: 600,
+              }}>
+              ✓ Inserir texto
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* MODAL CONFIRMAÇÃO PUBLICAR */}
       {showConfirmPublish && (
