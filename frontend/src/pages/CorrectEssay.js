@@ -1574,10 +1574,10 @@ export const CorrectEssay = () => {
           )}
 
           {/* IMAGEM + TEXTO: canvas fica por cima de tudo */}
-          <div className="p-8">
+          <div className="p-4">
             <div
               ref={canvasContainerRef}
-              style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}
+              style={{ position: 'relative', maxWidth: '1100px', margin: '0 auto' }}
             >
               {/* PDF convertido em páginas de imagem (novo sistema) */}
               {pdfImagePages.length > 0 && (
@@ -1628,13 +1628,25 @@ export const CorrectEssay = () => {
                     </div>
                   </div>
                   {/* Container scrollável para pan+zoom */}
-                  <div style={{ overflow: 'auto', maxHeight: '80vh', borderRadius: '8px', border: '1px solid #E8DDD0', cursor: selectedTool === 'select' ? 'grab' : 'default' }}>
-                    <div style={{ position: 'relative', lineHeight: 0,
-                      transform: imageRotation !== 0 ? `rotate(${imageRotation}deg)` : undefined,
-                      transformOrigin: 'center top',
-                      transition: 'transform 0.2s ease',
-                      width: `${zoom * 100}%`,
-                      minWidth: '100%',
+                  <div style={{ overflow: 'auto', maxHeight: '92vh', borderRadius: '8px', border: '1px solid #E8DDD0', cursor: selectedTool === 'select' ? 'grab' : 'default' }}>
+                    <div style={{
+                      position: 'relative', lineHeight: 0,
+                      // Rotação sem cortes: ao girar 90/270°, troca largura/altura via padding
+                      ...(imageRotation === 90 || imageRotation === 270 ? {
+                        transform: `rotate(${imageRotation}deg)`,
+                        transformOrigin: 'center center',
+                        transition: 'transform 0.2s ease',
+                        width: `${zoom * 100}%`,
+                        minWidth: '100%',
+                        marginTop: 'calc((100% - 100vw * 0.3) / 2)',
+                        marginBottom: 'calc((100% - 100vw * 0.3) / 2)',
+                      } : {
+                        transform: imageRotation !== 0 ? `rotate(${imageRotation}deg)` : undefined,
+                        transformOrigin: 'center center',
+                        transition: 'transform 0.2s ease',
+                        width: `${zoom * 100}%`,
+                        minWidth: '100%',
+                      }),
                     }}>
                       <img
                         src={pdfImagePages[pdfPage - 1]}
@@ -1813,13 +1825,22 @@ export const CorrectEssay = () => {
               {/* Imagem direta (JPG/PNG enviado pelo aluno) */}
               {essay?.file_url && pdfImagePages.length === 0 &&
                (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) && (
-                <div style={{ overflow: 'auto', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
+                <div style={{ overflow: 'auto', maxHeight: '92vh', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
                   <div style={{
                     position: 'relative', lineHeight: 0,
-                    transform: imageRotation !== 0 ? `rotate(${imageRotation}deg)` : undefined,
-                    transformOrigin: 'center top',
                     transition: 'transform 0.2s ease',
                     width: `${zoom * 100}%`,
+                    minWidth: '100%',
+                    // Rotação sem cortes: ao girar 90/270° adiciona margem para acomodar a altura virada
+                    ...(imageRotation === 90 || imageRotation === 270 ? {
+                      transform: `rotate(${imageRotation}deg)`,
+                      transformOrigin: 'center center',
+                      marginTop: '10%',
+                      marginBottom: '10%',
+                    } : imageRotation !== 0 ? {
+                      transform: `rotate(${imageRotation}deg)`,
+                      transformOrigin: 'center center',
+                    } : {}),
                   }}>
                     {!imageBlobUrl && (
                       <div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDF3E8' }}>
