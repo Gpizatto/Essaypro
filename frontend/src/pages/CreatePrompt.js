@@ -154,14 +154,12 @@ export const CreatePrompt = () => {
       if (i !== index) return c; // preserva os demais critérios intactos
       const next = { ...c, [field]: value };
       if (field === 'peso_maximo' && !isNaN(value) && value > 0) {
+        // Preserva TODOS os níveis existentes — apenas limita pontuações que ultrapassam o novo máximo
         const existing = c.level_descriptions || [];
-        const step = value <= 10 ? 1 : value <= 50 ? 5 : 40;
-        const newLevels = [];
-        for (let v = 0; v <= value; v += step) {
-          const rounded = Math.round(v * 100) / 100;
-          const prev = existing.find(l => Math.abs(parseFloat(l.pontuacao) - rounded) < 0.01);
-          newLevels.push(prev || { pontuacao: rounded, proficiencia: '', descricao: '' });
-        }
+        const newLevels = existing.map(l => ({
+          ...l,
+          pontuacao: parseFloat(l.pontuacao) > value ? value : l.pontuacao,
+        }));
         next.level_descriptions = newLevels;
       }
       return next;
