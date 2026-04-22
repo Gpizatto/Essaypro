@@ -201,15 +201,20 @@ export const CorrectEssay = () => {
   useEffect(() => { penWidthRef.current = penWidth; }, [penWidth]);
   useEffect(() => { eraserWidthRef.current = eraserWidth; }, [eraserWidth]);
 
-  // 5.2 — Atalhos de teclado
+  // 5.2 — Atalhos de teclado (refs para evitar closure stale)
+  const undoRef = useRef(null);
+  const redoRef = useRef(null);
+  useEffect(() => { undoRef.current = undoCanvas; });
+  useEffect(() => { redoRef.current = redoCanvas; });
+
   useEffect(() => {
     const handler = (e) => {
       const tag = document.activeElement?.tagName;
       if (['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
 
       if (e.ctrlKey || e.metaKey) {
-        if (e.key === 'z') { e.preventDefault(); undoCanvas(); }
-        if (e.key === 'y') { e.preventDefault(); redoCanvas(); }
+        if (e.key === 'z') { e.preventDefault(); undoRef.current?.(); }
+        if (e.key === 'y') { e.preventDefault(); redoRef.current?.(); }
         if (e.key === 's') { e.preventDefault(); saveDraft(); }
         return;
       }
@@ -629,7 +634,7 @@ export const CorrectEssay = () => {
     if (canvas.width < 1 || canvas.height < 1) return;
     try {
       const snap = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      historyRef.current = [...historyRef.current.slice(-29), snap];
+      historyRef.current = [...historyRef.current.slice(-49), snap];
     } catch(e) {}
   };
 
@@ -645,7 +650,7 @@ export const CorrectEssay = () => {
 
   const saveDomHistory = () => {
     if (textRef.current) {
-      domHistoryRef.current = [...domHistoryRef.current.slice(-29), textRef.current.innerHTML];
+      domHistoryRef.current = [...domHistoryRef.current.slice(-49), textRef.current.innerHTML];
     }
   };
 
