@@ -275,78 +275,7 @@ export const AdminDashboard = () => {
           <StatCard label="MÉDIA GERAL" value={Math.round(stats?.average_score || 0)} icon={Award} color="#A03217" />
         </div>
 
-        {/* APROVAÇÃO DE USUÁRIOS PENDENTES */}
-        {pendingUsers.length > 0 && (
-          <Card className="p-5 bg-white border shadow-sm" style={{ borderColor: '#DAB257' }}>
-            <div className="flex items-center justify-between gap-2 mb-3">
-              <div className="flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D66B27' }} />
-                <h2 className="font-semibold text-sm" style={{ color: '#7C1805' }}>
-                  Aguardando aprovação ({pendingUsers.length})
-                </h2>
-              </div>
-              <button
-                onClick={() => forceApproveByEmail('')}
-                className="text-xs px-2 py-1 rounded border font-semibold"
-                style={{ borderColor: '#7C1805', color: '#7C1805' }}
-                title="Aprovar por email (caso o botão normal falhe)"
-              >
-                ✉️ Aprovar por email
-              </button>
-            </div>
-            <div className="space-y-2">
-              {pendingUsers.map(u => (
-                <div key={u.id} className="p-3 rounded-lg"
-                  style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
-                      <p className="text-xs mb-2" style={{ color: '#6B5B4E' }}>
-                        {u.email}
-                        <button onClick={() => editUserEmail(u.id, u.email)}
-                          className="ml-2" style={{ color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px' }}
-                          title="Corrigir email">✏️ corrigir</button>
-                      </p>
-                      <div className="flex gap-2 flex-wrap">
-                        <select
-                          value={pendingSelections[u.id]?.role || 'student'}
-                          onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], role: e.target.value }}))}
-                          style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}>
-                          <option value="student">Aluno</option>
-                          <option value="teacher">Professor</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                        {courses.length > 0 && (
-                          <select
-                            value={pendingSelections[u.id]?.course_id || ''}
-                            onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], course_id: e.target.value }}))}
-                            style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}>
-                            <option value="">Sem turma</option>
-                            {courses.filter(c => c.is_active).map(c => (
-                              <option key={c.id} value={c.id}>{c.name}</option>
-                            ))}
-                          </select>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex flex-col gap-1">
-                      <button onClick={() => approveUser(u.id)}
-                        className="px-3 py-1 rounded text-xs font-semibold text-white"
-                        style={{ backgroundColor: '#36555A' }}>
-                        ✓ Aprovar
-                      </button>
-                      <button onClick={() => rejectUser(u.id)}
-                        className="px-3 py-1 rounded text-xs font-semibold"
-                        style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
-                        ✕ Rejeitar
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
+        
 
         {/* FREQUÊNCIA DE ENVIO */}
         <div className="grid grid-cols-2 gap-4">
