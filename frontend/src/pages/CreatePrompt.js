@@ -8,7 +8,7 @@ import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
-import { Plus, Trash2, Upload } from 'lucide-react';
+import { Plus, Trash2, Upload, Save, BookMarked, X } from 'lucide-react';
 import { CRITERIA_MODELS } from '../utils/criteriaModels';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -75,6 +75,16 @@ export const CreatePrompt = () => {
     }));
   };
   const [selectedModel, setSelectedModel] = useState('enem');
+  const [savedModels, setSavedModels] = useState([]);
+  const [showSaveModelModal, setShowSaveModelModal] = useState(false);
+  const [newModelName, setNewModelName] = useState('');
+  const [savingModel, setSavingModel] = useState(false);
+
+  useEffect(() => {
+    axios.get(`${API_URL}/api/users/criteria-models`, { withCredentials: true })
+      .then(r => setSavedModels(r.data.criteria_models || []))
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     axios.get(`${process.env.REACT_APP_BACKEND_URL}/api/courses`, { withCredentials: true })
@@ -99,6 +109,43 @@ export const CreatePrompt = () => {
     }));
   });
   const [showLevels, setShowLevels] = useState({});
+
+  const handleSaveCustomModel = async () => {
+    if (!newModelName.trim()) { toast.error('Digite um nome para o modelo'); return; }
+    setSavingModel(true);
+    try {
+      const res = await axios.post(`${API_URL}/api/users/criteria-models`,
+        { name: newModelName.trim(), criteria },
+        { withCredentials: true }
+      );
+      setSavedModels(prev => [...prev, res.data.model]);
+      setNewModelName('');
+      setShowSaveModelModal(false);
+      toast.success(`Modelo "${newModelName.trim()}" salvo com sucesso!`);
+    } catch {
+      toast.error('Erro ao salvar modelo');
+    } finally {
+      setSavingModel(false);
+    }
+  };
+
+  const handleDeleteSavedModel = async (modelId, modelName) => {
+    if (!window.confirm(`Remover o modelo "${modelName}"?`)) return;
+    try {
+      await axios.delete(`${API_URL}/api/users/criteria-models/${modelId}`, { withCredentials: true });
+      setSavedModels(prev => prev.filter(m => m.id !== modelId));
+      toast.success('Modelo removido');
+    } catch {
+      toast.error('Erro ao remover modelo');
+    }
+  };
+
+  const handleLoadSavedModel = (model) => {
+    setSelectedModel(`saved_${model.id}`);
+    const loaded = JSON.parse(JSON.stringify(model.criteria));
+    loaded.forEach(c => { if (!c.level_descriptions) c.level_descriptions = buildEmptyLevels(c.peso_maximo); });
+    setCriteria(loaded);
+  };
 
   const handleModelChange = (modelKey) => {
     setSelectedModel(modelKey);
@@ -423,20 +470,74 @@ export const CreatePrompt = () => {
                   </button>
                 ))}
               </div>
+
+              {/* Modelos personalizados salvos */}
+              {savedModels.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs font-semibold mb-2 flex items-center gap-1" style={{ color: '#6B5B4E' }}>
+                    <BookMarked size={12} /> Meus Modelos Salvos
+                  </p>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+                    {savedModels.map(model => (
+                      <div key={model.id} className="relative group flex items-center gap-1">
+                        <button
+                          type="button"
+                          onClick={() => handleLoadSavedModel(model)}
+                          style={{
+                            flex: 1,
+                            padding: '10px 12px',
+                            borderRadius: '8px',
+                            border: selectedModel === `saved_${model.id}` ? '2px solid #36555A' : '1px solid #D0E8E4',
+                            backgroundColor: selectedModel === `saved_${model.id}` ? '#36555A' : '#F0F7F6',
+                            color: selectedModel === `saved_${model.id}` ? '#FDF3E8' : '#2C1A0E',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                          }}
+                        >
+                          <p className="text-sm font-semibold">{model.name}</p>
+                          <p className="text-xs mt-0.5" style={{ color: selectedModel === `saved_${model.id}` ? 'rgba(253,243,232,0.7)' : '#6B5B4E' }}>
+                            {model.criteria?.length || 0} critério(s)
+                          </p>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleDeleteSavedModel(model.id, model.name)}
+                          className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs"
+                          style={{ backgroundColor: '#7C1805' }}
+                          title="Remover modelo"
+                        >×</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between mb-4">
               <h3 className="font-semibold text-lg" style={{ color: '#7C1805' }}>Critérios de Avaliação</h3>
-              <Button
-                type="button"
-                onClick={handleAddCriterion}
-                variant="outline"
-                size="sm"
-                data-testid="add-criterion-button"
-              >
-                <Plus size={16} className="mr-2" />
-                Adicionar Critério
-              </Button>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  onClick={() => { setNewModelName(''); setShowSaveModelModal(true); }}
+                  variant="outline"
+                  size="sm"
+                  style={{ borderColor: '#36555A', color: '#36555A' }}
+                  title="Salvar critérios atuais como modelo reutilizável"
+                >
+                  <Save size={14} className="mr-1" /> Salvar como modelo
+                </Button>
+                <Button
+                  type="button"
+                  onClick={handleAddCriterion}
+                  variant="outline"
+                  size="sm"
+                  data-testid="add-criterion-button"
+                >
+                  <Plus size={16} className="mr-2" />
+                  Adicionar Critério
+                </Button>
+              </div>
             </div>
 
             <div className="space-y-6">
@@ -584,6 +685,45 @@ export const CreatePrompt = () => {
           </div>
         </form>
       </div>
+
+      {/* MODAL: Salvar como modelo */}
+      {showSaveModelModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px]">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-semibold text-lg" style={{ color: '#7C1805' }}>
+                <BookMarked size={18} className="inline mr-2" />Salvar como Modelo
+              </h3>
+              <button onClick={() => setShowSaveModelModal(false)} style={{ color: '#6B5B4E', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>×</button>
+            </div>
+            <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>
+              Os {criteria.length} critério(s) configurados serão salvos como um modelo reutilizável nas próximas propostas.
+            </p>
+            <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>Nome do modelo</label>
+            <input
+              autoFocus
+              value={newModelName}
+              onChange={e => setNewModelName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleSaveCustomModel()}
+              placeholder="Ex: Grade Redação Vestibular 2025"
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E8DDD0', fontSize: '14px', marginBottom: '16px', boxSizing: 'border-box' }}
+            />
+            <div className="flex gap-3">
+              <button
+                onClick={() => setShowSaveModelModal(false)}
+                className="flex-1 py-2 rounded-lg border text-sm font-medium"
+                style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}
+              >Cancelar</button>
+              <button
+                onClick={handleSaveCustomModel}
+                disabled={savingModel || !newModelName.trim()}
+                className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
+                style={{ backgroundColor: '#36555A', opacity: (!newModelName.trim() || savingModel) ? 0.5 : 1 }}
+              >{savingModel ? 'Salvando...' : '✓ Salvar modelo'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 };
