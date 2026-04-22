@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useTheme } from '../contexts/ThemeContext';
@@ -6,6 +6,17 @@ import { useBranding } from '../contexts/BrandingContext';
 import { Button } from './ui/button';
 import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Moon, Sun, Palette, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
+import axios from 'axios';
+
+const API_URL = process.env.REACT_APP_BACKEND_URL;
+
+// Cache de notificações — persiste entre trocas de rota sem re-fetch
+const notifCache = {
+  data: [],
+  unread: 0,
+  lastFetch: 0,
+  TTL: 60000, // só busca novamente após 60s
+};
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
@@ -18,12 +29,33 @@ export const Layout = ({ children }) => {
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef(null);
 
+  const fetchNotifications = useCallback(async (force = false) => {
+    const now = Date.now();
+    // Usar cache se dentro do TTL e não forçado
+    if (!force && now - notifCache.lastFetch < notifCache.TTL) {
+      setNotifications(notifCache.data);
+      setUnread(notifCache.unread);
+      return;
+    }
+    try {
+      const { data } = await axios.get(`${API_URL}/api/notifications`, { withCredentials: true });
+      notifCache.data = data.notifications || [];
+      notifCache.unread = data.unread || 0;
+      notifCache.lastFetch = Date.now();
+      setNotifications(notifCache.data);
+      setUnread(notifCache.unread);
+    } catch (e) { /* silencioso */ }
+  }, []);
+
   useEffect(() => {
     if (!user) return;
     fetchNotifications();
-    const interval = setInterval(fetchNotifications, 60000); // poll a cada 60s
+    // Poll a cada 60s mas só quando a aba está visível
+    const interval = setInterval(() => {
+      if (!document.hidden) fetchNotifications(true);
+    }, 60000);
     return () => clearInterval(interval);
-  }, [user]);
+  }, [user, fetchNotifications]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -35,26 +67,26 @@ export const Layout = ({ children }) => {
     return () => document.removeEventListener('mousedown', handler);
   }, []);
 
-  const fetchNotifications = async () => {
-    try {
-      const { data } = await axios.get(`${API_URL}/api/notifications`, { withCredentials: true });
-      setNotifications(data.notifications || []);
-      setUnread(data.unread || 0);
-    } catch (e) { /* silencioso */ }
-  };
+
 
   const markRead = async (id) => {
     try {
       await axios.patch(`${API_URL}/api/notifications/${id}/read`, {}, { withCredentials: true });
-      setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
-      setUnread(prev => Math.max(0, prev - 1));
+      const updated = notifCache.data.map(n => n.id === id ? { ...n, read: true } : n);
+      notifCache.data = updated;
+      notifCache.unread = Math.max(0, notifCache.unread - 1);
+      setNotifications(updated);
+      setUnread(notifCache.unread);
     } catch (e) {}
   };
 
   const markAllRead = async () => {
     try {
       await axios.patch(`${API_URL}/api/notifications/read-all`, {}, { withCredentials: true });
-      setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+      const updated = notifCache.data.map(n => ({ ...n, read: true }));
+      notifCache.data = updated;
+      notifCache.unread = 0;
+      setNotifications(updated);
       setUnread(0);
     } catch (e) {}
   };
