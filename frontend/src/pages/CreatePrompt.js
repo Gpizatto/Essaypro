@@ -159,6 +159,25 @@ export const CreatePrompt = () => {
     setCriteria(updated);
   };
 
+  const handleAddLevel = (criterionIndex) => {
+    const updated = [...criteria];
+    const levels = [...(updated[criterionIndex].level_descriptions || [])];
+    const lastPts = levels.length > 0 ? levels[levels.length - 1].pontuacao : 0;
+    const nextPts = Math.min(lastPts + 40, updated[criterionIndex].peso_maximo);
+    levels.push({ pontuacao: nextPts, proficiencia: '', descricao: '' });
+    updated[criterionIndex] = { ...updated[criterionIndex], level_descriptions: levels };
+    setCriteria(updated);
+  };
+
+  const handleRemoveLevel = (criterionIndex, levelIndex) => {
+    const updated = [...criteria];
+    const levels = [...(updated[criterionIndex].level_descriptions || [])];
+    if (levels.length <= 1) { toast.error('Deve haver pelo menos um nível'); return; }
+    levels.splice(levelIndex, 1);
+    updated[criterionIndex] = { ...updated[criterionIndex], level_descriptions: levels };
+    setCriteria(updated);
+  };
+
   const handleLevelChange = (criterionIndex, levelIndex, field, value) => {
     const updated = [...criteria];
     const levels = [...(updated[criterionIndex].level_descriptions || [])];
@@ -507,21 +526,36 @@ export const CreatePrompt = () => {
 
                       {showLevels[index] && (
                         <div className="mt-2 space-y-3">
-                          <p className="text-xs" style={{ color: '#6B5B4E' }}>
-                            Preencha o nome e a descrição de cada nível de pontuação. Serão exibidos para o corretor durante a avaliação.
-                          </p>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-xs" style={{ color: '#6B5B4E' }}>
+                              Defina os níveis de pontuação e suas descrições.
+                            </p>
+                            <button type="button"
+                              onClick={() => handleAddLevel(index)}
+                              className="text-xs px-2 py-1 rounded border font-semibold"
+                              style={{ borderColor: '#36555A', color: '#36555A', background: 'none', cursor: 'pointer' }}>
+                              + Nível
+                            </button>
+                          </div>
                           {(criterion.level_descriptions || []).map((level, li) => (
                             <div key={li} className="p-3 rounded-lg border" style={{ backgroundColor: '#FFF', borderColor: '#E8DDD0' }}>
                               <div className="flex items-center gap-2 mb-2">
-                                <span className="text-xs font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: '#7C1805', color: '#FFF' }}>
-                                  {level.pontuacao} pts
-                                </span>
+                                <input type="number" min="0"
+                                  value={level.pontuacao}
+                                  onChange={(e) => handleLevelChange(index, li, 'pontuacao', Number(e.target.value))}
+                                  style={{ width: '64px', padding: '2px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px' }}
+                                />
+                                <span className="text-xs" style={{ color: '#6B5B4E' }}>pts</span>
                                 <Input
                                   value={level.proficiencia}
                                   onChange={(e) => handleLevelChange(index, li, 'proficiencia', e.target.value)}
                                   placeholder={`Ex: Nível ${li} — Bom domínio`}
                                   className="flex-1 h-7 text-xs"
                                 />
+                                <button type="button"
+                                  onClick={() => handleRemoveLevel(index, li)}
+                                  style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '0 2px' }}
+                                  title="Remover nível">×</button>
                               </div>
                               <Textarea
                                 value={level.descricao}
