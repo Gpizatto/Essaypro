@@ -201,8 +201,8 @@ class CorrectionSubmit(BaseModel):
     criteria_scores: List[CriteriaScore]
     total_score: float = Field(..., ge=0)
     general_feedback: str
-    strengths: str
-    improvements: str
+    strengths: Optional[str] = ""
+    improvements: Optional[str] = ""
     inline_comments: Optional[List[InlineComment]] = None
     canvas_annotations: Optional[dict] = None
     pdf_annotations: Optional[dict] = None  # {page_num: dataUrl}
@@ -2425,9 +2425,17 @@ DEFAULT_BRANDING = {
     "platform_name": "redação com nicolle",
     "logo_url": "",
     "favicon_url": "",
+    # Cores de destaque
     "primary_color": "#7C1805",
     "secondary_color": "#D66B27",
     "accent_color": "#36555A",
+    # Cores de fundo e texto
+    "bg_color": "#FDF3E8",
+    "bg_card_color": "#FFFFFF",
+    "text_color": "#2C1A0E",
+    "text_soft_color": "#6B5B4E",
+    "border_color": "#E8DDD0",
+    # Nomes de perfis
     "role_student": "Aluno",
     "role_teacher": "Professor",
     "role_admin": "Admin",
