@@ -6,24 +6,12 @@ import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Textarea } from '../components/ui/textarea';
 import { toast } from 'sonner';
-import { useBranding } from '../contexts/BrandingContext';
+import { useBranding, BRANDING_DEFAULTS } from '../contexts/BrandingContext';
 import { Palette, Save, RotateCcw, Eye } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const DEFAULTS = {
-  platform_name: 'redação com nicolle',
-  logo_url: '',
-  favicon_url: '',
-  primary_color: '#7C1805',
-  secondary_color: '#D66B27',
-  accent_color: '#36555A',
-  role_student: 'Aluno',
-  role_teacher: 'Professor',
-  role_admin: 'Admin',
-  welcome_message: '',
-  footer_text: '',
-};
+const DEFAULTS = BRANDING_DEFAULTS;
 
 const Field = ({ label, description, children }) => (
   <div className="py-3" style={{ borderBottom: '1px solid #F0EBE3' }}>
@@ -154,23 +142,48 @@ export const BrandingSettings = () => {
         <Card className="p-5 bg-white border shadow-sm">
           <p className="text-xs font-bold mb-1" style={{ color: '#D66B27' }}>CORES</p>
           <p className="text-xs mb-3" style={{ color: '#6B5B4E' }}>
-            As cores são aplicadas imediatamente após salvar.
+            As cores são aplicadas em toda a plataforma imediatamente após salvar.
           </p>
 
+          {/* Grupo: Cores de destaque */}
+          <p className="text-xs font-semibold mt-2 mb-1" style={{ color: '#6B5B4E' }}>Cores de destaque</p>
           {[
-            { key: 'primary_color', label: 'Cor primária', desc: 'Sidebar, títulos, botões principais' },
-            { key: 'secondary_color', label: 'Cor secundária', desc: 'Destaques, badges, ícones' },
-            { key: 'accent_color', label: 'Cor de acento', desc: 'Botões de confirmação, status corrigida' },
+            { key: 'primary_color',   label: 'Cor primária',   desc: 'Sidebar, títulos, botões principais, bordas de ênfase' },
+            { key: 'secondary_color', label: 'Cor secundária', desc: 'Destaques, badges, ícones, scrollbar' },
+            { key: 'accent_color',    label: 'Cor de acento',  desc: 'Botões de confirmação, status "corrigida", links' },
           ].map(({ key, label, desc }) => (
             <Field key={key} label={label} description={desc}>
               <div className="flex items-center gap-3 mt-1">
-                <input type="color" value={form[key]}
+                <input type="color" value={form[key] || '#000000'}
                   onChange={e => update(key, e.target.value)}
                   style={{ width: '48px', height: '36px', border: '1px solid #E8DDD0', borderRadius: '6px', cursor: 'pointer', padding: '2px' }}
                 />
                 <Input value={form[key]} onChange={e => update(key, e.target.value)}
                   style={{ width: '120px', fontFamily: 'monospace', fontSize: '13px' }}
                   placeholder="#7C1805" />
+                <div className="w-8 h-8 rounded-full border" style={{ backgroundColor: form[key], borderColor: '#E8DDD0' }} />
+              </div>
+            </Field>
+          ))}
+
+          {/* Grupo: Cores de fundo e texto */}
+          <p className="text-xs font-semibold mt-4 mb-1" style={{ color: '#6B5B4E' }}>Fundo e texto</p>
+          {[
+            { key: 'bg_color',       label: 'Cor de fundo',        desc: 'Fundo geral da plataforma (área principal)' },
+            { key: 'bg_card_color',  label: 'Cor dos cards',       desc: 'Fundo dos cards, modais e painéis' },
+            { key: 'text_color',     label: 'Cor do texto',        desc: 'Texto principal em toda a plataforma' },
+            { key: 'text_soft_color',label: 'Cor do texto suave',  desc: 'Textos secundários, labels, descrições' },
+            { key: 'border_color',   label: 'Cor das bordas',      desc: 'Bordas de cards, inputs e separadores' },
+          ].map(({ key, label, desc }) => (
+            <Field key={key} label={label} description={desc}>
+              <div className="flex items-center gap-3 mt-1">
+                <input type="color" value={form[key] || '#000000'}
+                  onChange={e => update(key, e.target.value)}
+                  style={{ width: '48px', height: '36px', border: '1px solid #E8DDD0', borderRadius: '6px', cursor: 'pointer', padding: '2px' }}
+                />
+                <Input value={form[key]} onChange={e => update(key, e.target.value)}
+                  style={{ width: '120px', fontFamily: 'monospace', fontSize: '13px' }}
+                  placeholder="#FDF3E8" />
                 <div className="w-8 h-8 rounded-full border" style={{ backgroundColor: form[key], borderColor: '#E8DDD0' }} />
               </div>
             </Field>
@@ -201,34 +214,31 @@ export const BrandingSettings = () => {
         <Card className="p-5 bg-white border shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <Eye size={16} style={{ color: '#7C1805' }} />
-            <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>Preview</p>
+            <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>Preview em tempo real</p>
           </div>
-          <div className="p-4 rounded-lg" style={{ backgroundColor: form.primary_color }}>
-            <p className="font-bold text-white text-lg" style={{ fontFamily: 'Calligraffitti, cursive' }}>
-              {form.platform_name || 'nome da plataforma'}
-            </p>
-          </div>
-          <div className="flex gap-2 mt-3">
-            <button className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
-              style={{ backgroundColor: form.primary_color }}>
-              Botão primário
-            </button>
-            <button className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
-              style={{ backgroundColor: form.secondary_color }}>
-              Secundário
-            </button>
-            <button className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
-              style={{ backgroundColor: form.accent_color }}>
-              Acento
-            </button>
-          </div>
-          <div className="flex gap-2 mt-2">
-            {['role_student', 'role_teacher', 'role_admin'].map(k => (
-              <span key={k} className="text-xs px-2 py-1 rounded-full font-semibold text-white"
-                style={{ backgroundColor: form.primary_color }}>
-                {form[k]}
-              </span>
-            ))}
+          {/* Simulação da sidebar */}
+          <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${form.border_color || '#E8DDD0'}`, minHeight: '140px' }}>
+            <div className="w-32 p-3 flex flex-col gap-2" style={{ backgroundColor: form.primary_color || '#7C1805' }}>
+              <p className="text-xs font-bold text-white opacity-90" style={{ fontFamily: 'Calligraffitti, cursive' }}>
+                {form.platform_name || 'Plataforma'}
+              </p>
+              {['Dashboard', 'Redações', 'Correções'].map(item => (
+                <div key={item} className="text-xs px-2 py-1 rounded" style={{ color: 'rgba(255,255,255,0.8)' }}>{item}</div>
+              ))}
+            </div>
+            {/* Simulação do conteúdo */}
+            <div className="flex-1 p-3" style={{ backgroundColor: form.bg_color || '#FDF3E8' }}>
+              <p className="text-xs font-bold mb-2" style={{ color: form.text_color || '#2C1A0E' }}>Título da página</p>
+              <p className="text-xs mb-2" style={{ color: form.text_soft_color || '#6B5B4E' }}>Texto descritivo da página com cor suave.</p>
+              <div className="p-2 rounded" style={{ backgroundColor: form.bg_card_color || '#FFFFFF', border: `1px solid ${form.border_color || '#E8DDD0'}` }}>
+                <p className="text-xs" style={{ color: form.text_color || '#2C1A0E' }}>Card de conteúdo</p>
+              </div>
+              <div className="flex gap-1 mt-2">
+                <button className="px-2 py-1 rounded text-xs font-semibold text-white" style={{ backgroundColor: form.primary_color }}>Primário</button>
+                <button className="px-2 py-1 rounded text-xs font-semibold text-white" style={{ backgroundColor: form.secondary_color }}>Secundário</button>
+                <button className="px-2 py-1 rounded text-xs font-semibold text-white" style={{ backgroundColor: form.accent_color }}>Acento</button>
+              </div>
+            </div>
           </div>
         </Card>
       </div>
