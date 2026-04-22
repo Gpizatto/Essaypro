@@ -35,6 +35,7 @@ const TOOLS = [
   { id: 'arrow',         icon: MoveRight,    label: 'Seta (A)',       group: 'draw' },
   { id: 'oval',          icon: Circle,       label: 'Oval (O)',       group: 'draw' },
   { id: 'rect',          icon: Square,       label: 'Retângulo (R)',  group: 'draw' },
+  { id: 'textbox',       icon: Type,         label: 'Texto (T)',      group: 'draw' },
   { id: 'eraser',        icon: Eraser,       label: 'Borracha (E)',   group: 'draw' },
 ];
 
@@ -107,6 +108,9 @@ export const CorrectEssay = () => {
   const [showClickCommentPopup, setShowClickCommentPopup] = useState(false);
   const [clickCommentText, setClickCommentText] = useState('');
   const [clickCommentCanvasPos, setClickCommentCanvasPos] = useState({ x: 0, y: 0 });
+  // Caixa de texto no canvas (#9)
+  const [textboxInput, setTextboxInput] = useState({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
+  const textboxInputRef = useRef(null);
   // Pan/Zoom para imagem PDF
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -1420,23 +1424,22 @@ export const CorrectEssay = () => {
               ))}
             </div>
 
-            {selectedTool === 'pen' && (
-              <>
-                <Separator orientation="vertical" className="h-6" />
-                <div className="flex items-center gap-2">
-                  <span className="text-xs" style={{ color: '#6B5B4E' }}>Esp:</span>
-                  <input
-                    type="range"
-                    min="0.5" max="20" step="0.5"
-                    value={penWidth}
-                    onChange={e => setPenWidth(parseFloat(e.target.value))}
-                    style={{ width: '80px', accentColor: '#7C1805' }}
-                    title={`Espessura: ${penWidth}px`}
-                  />
-                  <span className="text-xs font-mono" style={{ color: '#7C1805', minWidth: '32px' }}>{penWidth}px</span>
-                </div>
-              </>
-            )}
+            {/* Espessura do traço — sempre visível */}
+            <>
+              <Separator orientation="vertical" className="h-6" />
+              <div className="flex items-center gap-2">
+                <span className="text-xs" style={{ color: '#6B5B4E' }}>Esp:</span>
+                <input
+                  type="range"
+                  min="0.5" max="20" step="0.5"
+                  value={penWidth}
+                  onChange={e => setPenWidth(parseFloat(e.target.value))}
+                  style={{ width: '80px', accentColor: '#7C1805' }}
+                  title={`Espessura: ${penWidth}px`}
+                />
+                <span className="text-xs font-mono" style={{ color: '#7C1805', minWidth: '32px' }}>{penWidth}px</span>
+              </div>
+            </>
 
             {selectedTool === 'eraser' && (
               <>
