@@ -556,52 +556,7 @@ export const CorrectionView = () => {
           </div>
         </div>
 
-        {/* EVOLUÇÃO POR COMPETÊNCIA */}
-        {evolutionData.length > 1 && correction?.criteria_scores?.length > 0 && (
-          <div>
-            <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#7C1805' }}>
-              Sua Evolução
-            </h2>
-            <Card className="p-5 bg-white border">
-              <p className="text-xs mb-3" style={{ color: '#6B5B4E' }}>
-                Comparação das últimas {Math.min(evolutionData.length, 5)} correções por competência
-              </p>
-              <div className="space-y-3">
-                {correction.criteria_scores.map((cs) => {
-                  const history = evolutionData.slice(-5).map(d => {
-                    const match = d.criteria_scores?.find(c => c.nome === cs.nome);
-                    return match ? match.score : null;
-                  }).filter(v => v !== null);
-                  if (history.length < 2) return null;
-                  const first = history[0];
-                  const last = history[history.length - 1];
-                  const diff = last - first;
-                  return (
-                    <div key={cs.criteria_id}>
-                      <div className="flex justify-between mb-1">
-                        <span className="text-xs font-medium" style={{ color: '#2C1A0E' }}>
-                          {cs.nome.length > 30 ? cs.nome.substring(0, 30) + '…' : cs.nome}
-                        </span>
-                        <span className="text-xs font-bold" style={{ color: diff > 0 ? '#36555A' : diff < 0 ? '#7C1805' : '#6B5B4E' }}>
-                          {diff > 0 ? `▲ +${diff}` : diff < 0 ? `▼ ${diff}` : '→ igual'}
-                        </span>
-                      </div>
-                      <div className="flex gap-1 items-end" style={{ height: '32px' }}>
-                        {history.map((val, i) => {
-                          const pct = cs.max > 0 ? (val / cs.max) * 100 : 0;
-                          const isLast = i === history.length - 1;
-                          return (
-                            <div key={i} style={{ flex: 1, height: `${Math.max(10, pct * 0.32)}px`, backgroundColor: isLast ? '#7C1805' : '#E8DDD0', borderRadius: '2px 2px 0 0', minWidth: '8px' }} title={`${val} pts`} />
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </Card>
-          </div>
-        )}
+        
 
         <div className="grid md:grid-cols-3 gap-6">
           <Card className="p-6 bg-white border" data-testid="general-feedback-card">
