@@ -94,6 +94,24 @@ export const ManagePrompts = () => {
     setEditForm({ ...editForm, criteria: c });
   };
 
+  const addLevelToEdit = (ci) => {
+    const c = [...(editForm.criteria || [])];
+    const levels = [...(c[ci].level_descriptions || [])];
+    const lastPts = levels.length > 0 ? levels[levels.length - 1].pontuacao : 0;
+    levels.push({ pontuacao: lastPts + 40, proficiencia: '', descricao: '' });
+    c[ci] = { ...c[ci], level_descriptions: levels };
+    setEditForm({ ...editForm, criteria: c });
+  };
+
+  const removeLevelFromEdit = (ci, li) => {
+    const c = [...(editForm.criteria || [])];
+    const levels = [...(c[ci].level_descriptions || [])];
+    if (levels.length <= 1) return;
+    levels.splice(li, 1);
+    c[ci] = { ...c[ci], level_descriptions: levels };
+    setEditForm({ ...editForm, criteria: c });
+  };
+
   const saveEdit = async (promptId) => {
     setSaving(true);
     try {
@@ -465,7 +483,13 @@ export const ManagePrompts = () => {
                           </div>
                           {/* Níveis */}
                           <div className="space-y-1 mt-2">
-                            <p style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: '600' }}>Níveis:</p>
+                            <div className="flex items-center justify-between">
+                              <p style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: '600' }}>Níveis:</p>
+                              <button onClick={() => addLevelToEdit(ci)}
+                                style={{ fontSize: '11px', color: '#36555A', background: 'none', border: '1px solid #36555A', borderRadius: '4px', padding: '1px 6px', cursor: 'pointer' }}>
+                                + Nível
+                              </button>
+                            </div>
                             {(crit.level_descriptions || []).map((lv, li) => (
                               <div key={li} className="flex gap-2 items-center">
                                 <input type="number" min="0"
@@ -475,11 +499,19 @@ export const ManagePrompts = () => {
                                   placeholder="Pts"
                                 />
                                 <input
+                                  value={lv.proficiencia || ''}
+                                  onChange={e => updateLevel(ci, li, 'proficiencia', e.target.value)}
+                                  style={{ width: '90px', padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '11px' }}
+                                  placeholder="Nome nível"
+                                />
+                                <input
                                   value={lv.descricao || ''}
                                   onChange={e => updateLevel(ci, li, 'descricao', e.target.value)}
                                   style={{ flex: 1, padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '11px' }}
                                   placeholder="Descrição do nível"
                                 />
+                                <button onClick={() => removeLevelFromEdit(ci, li)}
+                                  style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px' }}>×</button>
                               </div>
                             ))}
                           </div>
