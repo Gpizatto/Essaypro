@@ -1533,6 +1533,50 @@ async def use_quick_comment(comment_id: str, current_user: dict = Depends(get_cu
     
     return {"message": "Quick comment usage recorded"}
 
+# ── Modelos de critérios personalizados ──────────────────────────────────────
+
+@api_router.get("/users/criteria-models")
+async def get_criteria_models(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can access criteria models")
+    user = await db.users.find_one({"_id": ObjectId(current_user["_id"])}, {"_id": 0, "criteria_models": 1})
+    return {"criteria_models": user.get("criteria_models", [])}
+
+@api_router.post("/users/criteria-models")
+async def save_criteria_model(body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can save criteria models")
+    name = body.get("name", "").strip()
+    criteria = body.get("criteria", [])
+    if not name:
+        raise HTTPException(status_code=400, detail="Model name is required")
+    user = await db.users.find_one({"_id": ObjectId(current_user["_id"])})
+    models = user.get("criteria_models", [])
+    new_model = {
+        "id": f"cm_{int(datetime.now(timezone.utc).timestamp() * 1000)}",
+        "name": name,
+        "criteria": criteria,
+        "created_at": datetime.now(timezone.utc).isoformat(),
+    }
+    models.append(new_model)
+    await db.users.update_one(
+        {"_id": ObjectId(current_user["_id"])},
+        {"$set": {"criteria_models": models}}
+    )
+    return {"message": "Model saved", "model": new_model}
+
+@api_router.delete("/users/criteria-models/{model_id}")
+async def delete_criteria_model(model_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can delete criteria models")
+    user = await db.users.find_one({"_id": ObjectId(current_user["_id"])})
+    models = [m for m in user.get("criteria_models", []) if m.get("id") != model_id]
+    await db.users.update_one(
+        {"_id": ObjectId(current_user["_id"])},
+        {"$set": {"criteria_models": models}}
+    )
+    return {"message": "Model deleted"}
+
 class AIAnalysisRequest(BaseModel):
     essay_id: str
     content: str
