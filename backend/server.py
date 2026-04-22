@@ -133,16 +133,15 @@ class Criterion(BaseModel):
     level_descriptions: Optional[List[LevelDescription]] = []
 
 class PromptCreate(BaseModel):
-    title: str
-    theme: str
+    title: Optional[str] = ""
+    theme: Optional[str] = ""
     supporting_texts: Optional[str] = ""
-    instructions: str
+    instructions: Optional[str] = ""
     criteria: Optional[List[Criterion]] = None
     course_ids: Optional[List[str]] = []
     start_date: Optional[str] = None
     end_date: Optional[str] = None
     supporting_files: Optional[List[dict]] = []
-    supporting_files: Optional[List[dict]] = []  # [{name, url, type}]
 
 class PromptResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -325,6 +324,38 @@ async def get_prompts(current_user: dict = Depends(get_current_user)):
             p["criteria"] = default_criteria
     
     return [PromptResponse(**p) for p in prompts]
+
+# ── Rascunho de proposta ──────────────────────────────────────────────────────
+
+@api_router.post("/prompts/draft")
+async def save_prompt_draft(body: dict, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can save drafts")
+    draft_data = {
+        "teacher_id": current_user["_id"],
+        "saved_at": datetime.now(timezone.utc),
+        **{k: v for k, v in body.items()},
+    }
+    await db.prompt_drafts.update_one(
+        {"teacher_id": current_user["_id"]},
+        {"$set": draft_data},
+        upsert=True,
+    )
+    return {"message": "Draft saved"}
+
+@api_router.get("/prompts/draft")
+async def get_prompt_draft(current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ["teacher", "admin"]:
+        raise HTTPException(status_code=403, detail="Only teachers can access drafts")
+    draft = await db.prompt_drafts.find_one({"teacher_id": current_user["_id"]}, {"_id": 0})
+    if not draft:
+        raise HTTPException(status_code=404, detail="No draft found")
+    return draft
+
+@api_router.delete("/prompts/draft")
+async def delete_prompt_draft(current_user: dict = Depends(get_current_user)):
+    await db.prompt_drafts.delete_one({"teacher_id": current_user["_id"]})
+    return {"message": "Draft deleted"}
 
 @api_router.post("/prompts", response_model=PromptResponse)
 async def create_prompt(prompt_data: PromptCreate, current_user: dict = Depends(get_current_user)):
