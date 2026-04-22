@@ -149,6 +149,8 @@ export const CorrectEssay = () => {
   const [showConfirmPublish, setShowConfirmPublish] = useState(false);
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
   const pendingDraftRef = useRef(null);
+  const [requestingRewrite, setRequestingRewrite] = useState(false);
+  const [rewriteRequested, setRewriteRequested] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -268,7 +270,7 @@ export const CorrectEssay = () => {
     if (!essay) return;
     const hasContent =
       Object.values(scores).some(v => v > 0) ||
-      feedback.general_feedback.trim() ||
+      feedback.general_feedback.trim();
 
     if (!hasContent) return;
 
@@ -1258,6 +1260,56 @@ export const CorrectEssay = () => {
     }
   };
 
+  // Solicitar reescrita — envia a correção e notifica o aluno
+  const handleRequestRewrite = async () => {
+    if (!feedback.general_feedback.trim()) {
+      toast.error('Preencha o feedback geral antes de solicitar reescrita');
+      return;
+    }
+    setRequestingRewrite(true);
+    try {
+      // 1. Finalizar a correção normalmente
+      const criteria_scores = prompt.criteria.map(c => ({
+        criteria_id: c.id, nome: c.nome,
+        score: scores[c.id] || 0, max: c.peso_maximo
+      }));
+      const totalScore = criteria_scores.reduce((sum, cs) => sum + cs.score, 0);
+      let canvasData = null;
+      if (nativeCanvasRef.current) {
+        const c = nativeCanvasRef.current;
+        if (c.width > 0 && c.height > 0) canvasData = { dataUrl: c.toDataURL('image/png') };
+      }
+      if ((pdfDocRef.current || pdfImagePages.length > 0) && nativeCanvasRef.current?.width > 0) {
+        pdfAnnotationsRef.current[pdfPageRef.current] = nativeCanvasRef.current.toDataURL('image/png');
+      }
+      await axios.post(`${API_URL}/api/corrections`, {
+        essay_id: essayId,
+        criteria_scores,
+        total_score: totalScore,
+        ...feedback,
+        inline_comments: inlineComments,
+        canvas_annotations: canvasData,
+        pdf_annotations: (pdfDocRef.current || pdfImagePages.length > 0) ? pdfAnnotationsRef.current : undefined,
+        correction_time_minutes: Math.round((Date.now() - correctionStartTime.current) / 60000),
+      }, { withCredentials: true });
+
+      // 2. Marcar suggest_rewrite = true (envia notificação ao aluno via backend)
+      await axios.post(`${API_URL}/api/corrections/${essayId}/intervention`,
+        { suggest_rewrite: true },
+        { withCredentials: true }
+      );
+
+      setRewriteRequested(true);
+      toast.success('Correção enviada e reescrita solicitada ao aluno!');
+      setTimeout(() => navigate('/correction-queue'), 1500);
+    } catch (error) {
+      console.error('Rewrite request error:', error);
+      toast.error('Erro ao solicitar reescrita');
+    } finally {
+      setRequestingRewrite(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -1358,6 +1410,19 @@ export const CorrectEssay = () => {
           {autoSaveStatus === 'saved' && (
             <span className="text-xs" style={{ color: '#36555A' }}>✓ auto-salvo</span>
           )}
+          <Button
+            onClick={handleRequestRewrite}
+            disabled={requestingRewrite || submitting || rewriteRequested}
+            size="lg"
+            variant="outline"
+            style={{
+              borderColor: rewriteRequested ? '#36555A' : '#D66B27',
+              color: rewriteRequested ? '#36555A' : '#D66B27',
+            }}
+            title="Envia a correção e solicita que o aluno reescreva"
+          >
+            {requestingRewrite ? 'Enviando...' : rewriteRequested ? '✓ Reescrita solicitada' : '✏️ Solicitar Reescrita'}
+          </Button>
           <Button
             onClick={() => confirmBeforePublish ? setShowConfirmPublish(true) : handleSubmit()}
             disabled={submitting}
