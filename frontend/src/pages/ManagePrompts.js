@@ -58,7 +58,40 @@ export const ManagePrompts = () => {
       start_date: prompt.start_date || '',
       end_date: prompt.end_date || '',
       supporting_files: prompt.supporting_files || [],
+      criteria: JSON.parse(JSON.stringify(prompt.criteria || [])),
     });
+  };
+
+  const updateCriterion = (idx, field, value) => {
+    const c = [...(editForm.criteria || [])];
+    c[idx] = { ...c[idx], [field]: value };
+    setEditForm({ ...editForm, criteria: c });
+  };
+
+  const updateLevel = (ci, li, field, value) => {
+    const c = [...(editForm.criteria || [])];
+    const levels = [...(c[ci].level_descriptions || [])];
+    levels[li] = { ...levels[li], [field]: value };
+    c[ci] = { ...c[ci], level_descriptions: levels };
+    setEditForm({ ...editForm, criteria: c });
+  };
+
+  const addCriterion = () => {
+    const c = [...(editForm.criteria || [])];
+    c.push({ id: `c${Date.now()}`, nome: '', descricao: '', max: 100,
+      level_descriptions: [
+        { pontuacao: 0, descricao: '' },
+        { pontuacao: 50, descricao: '' },
+        { pontuacao: 100, descricao: '' },
+      ]
+    });
+    setEditForm({ ...editForm, criteria: c });
+  };
+
+  const removeCriterion = (idx) => {
+    const c = [...(editForm.criteria || [])];
+    c.splice(idx, 1);
+    setEditForm({ ...editForm, criteria: c });
   };
 
   const saveEdit = async (promptId) => {
@@ -391,6 +424,68 @@ export const ManagePrompts = () => {
                         </div>
                       </div>
                     )}
+
+                    {/* Grade de Correção */}
+                    <div>
+                      <div className="flex items-center justify-between mb-2">
+                        <label style={labelStyle}>Grade de Correção</label>
+                        <button onClick={addCriterion}
+                          style={{ fontSize: '11px', color: '#7C1805', background: 'none', border: '1px solid #7C1805', borderRadius: '6px', padding: '2px 8px', cursor: 'pointer' }}>
+                          + Critério
+                        </button>
+                      </div>
+                      {(editForm.criteria || []).map((crit, ci) => (
+                        <div key={ci} className="mb-4 p-3 rounded-lg" style={{ border: '1px solid #E8DDD0', backgroundColor: '#FFFBF5' }}>
+                          <div className="flex items-start gap-2 mb-2">
+                            <div className="flex-1">
+                              <input
+                                placeholder="Nome do critério"
+                                value={crit.nome}
+                                onChange={e => updateCriterion(ci, 'nome', e.target.value)}
+                                style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', marginBottom: '4px' }}
+                              />
+                              <input
+                                placeholder="Descrição"
+                                value={crit.descricao}
+                                onChange={e => updateCriterion(ci, 'descricao', e.target.value)}
+                                style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', marginBottom: '4px' }}
+                              />
+                              <div className="flex items-center gap-2">
+                                <span style={{ fontSize: '11px', color: '#6B5B4E' }}>Pontuação máx:</span>
+                                <input type="number" min="1"
+                                  value={crit.max}
+                                  onChange={e => updateCriterion(ci, 'max', Number(e.target.value))}
+                                  style={{ width: '70px', padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px' }}
+                                />
+                              </div>
+                            </div>
+                            <button onClick={() => removeCriterion(ci)}
+                              style={{ color: '#DC2626', background: 'none', border: 'none', cursor: 'pointer', fontSize: '16px', padding: '0 4px' }}
+                              title="Remover critério">×</button>
+                          </div>
+                          {/* Níveis */}
+                          <div className="space-y-1 mt-2">
+                            <p style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: '600' }}>Níveis:</p>
+                            {(crit.level_descriptions || []).map((lv, li) => (
+                              <div key={li} className="flex gap-2 items-center">
+                                <input type="number" min="0"
+                                  value={lv.pontuacao}
+                                  onChange={e => updateLevel(ci, li, 'pontuacao', Number(e.target.value))}
+                                  style={{ width: '60px', padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '11px' }}
+                                  placeholder="Pts"
+                                />
+                                <input
+                                  value={lv.descricao || ''}
+                                  onChange={e => updateLevel(ci, li, 'descricao', e.target.value)}
+                                  style={{ flex: 1, padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '11px' }}
+                                  placeholder="Descrição do nível"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
                     <div className="flex gap-2 flex-wrap">
                       <Button size="sm" disabled={saving} onClick={() => saveEdit(prompt.id)}>
