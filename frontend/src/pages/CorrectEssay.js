@@ -1976,7 +1976,11 @@ export const CorrectEssay = () => {
                           <button
                             key={val}
                             onClick={() => handleScoreChange(criterion.id, val, criterion.peso_maximo)}
-                            title={`${val} pontos${val === 0 ? ' — Não atendeu' : val === criterion.peso_maximo ? ' — Atendeu plenamente' : ''}`}
+                            title={(() => {
+                              const lv = criterion.level_descriptions?.find(l => Math.abs(parseFloat(l.pontuacao) - val) < 0.01);
+                              const label = lv?.proficiencia ? ` — ${lv.proficiencia}` : val === 0 ? ' — Não atendeu' : val === criterion.peso_maximo ? ' — Atendeu plenamente' : '';
+                              return `${val} pts${label}`;
+                            })()}
                             style={{
                               flex: 1,
                               padding: '6px 2px',
