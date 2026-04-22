@@ -245,19 +245,7 @@ export const CreatePrompt = () => {
                 />
               </div>
 
-              /*<div>
-                <Label htmlFor="theme">Tema Central</Label>
-                <Textarea
-                  id="theme"
-                  value={formData.theme}
-                  onChange={(e) => setFormData({ ...formData, theme: e.target.value })}
-                  required
-                  rows={3}
-                  placeholder="Descreva o tema central da redação..."
-                  className="mt-1"
-                  data-testid="theme-input"
-                />
-              </div>*/
+             
 
               {/* Restringir por turma */}
               {availableCourses.length > 0 && (
