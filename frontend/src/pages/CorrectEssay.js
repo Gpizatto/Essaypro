@@ -111,6 +111,9 @@ export const CorrectEssay = () => {
   // Caixa de texto no canvas (#9)
   const [textboxInput, setTextboxInput] = useState({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
   const textboxInputRef = useRef(null);
+  // Caixas de texto arrastáveis — guardadas como objetos, não queimadas no canvas
+  const [canvasTextboxes, setCanvasTextboxes] = useState([]);
+  const [draggingTextbox, setDraggingTextbox] = useState(null); // { id, offsetX, offsetY }
   // Pan/Zoom para imagem PDF
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -238,6 +241,30 @@ export const CorrectEssay = () => {
     document.addEventListener('keydown', handler);
     return () => document.removeEventListener('keydown', handler);
   }, []);
+
+  // ── Drag de textboxes ──────────────────────────────────────────────────────
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!draggingTextbox) return;
+      const canvas = nativeCanvasRef.current;
+      if (!canvas) return;
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.width / rect.width;
+      const scaleY = canvas.height / rect.height;
+      const newX = (e.clientX - rect.left) * scaleX - draggingTextbox.offsetX;
+      const newY = (e.clientY - rect.top) * scaleY - draggingTextbox.offsetY;
+      setCanvasTextboxes(prev => prev.map(t =>
+        t.id === draggingTextbox.id ? { ...t, canvasX: newX, canvasY: newY } : t
+      ));
+    };
+    const handleMouseUp = () => setDraggingTextbox(null);
+    document.addEventListener('mousemove', handleMouseMove);
+    document.addEventListener('mouseup', handleMouseUp);
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [draggingTextbox]);
 
   // ── Drag de comentários em imagem/PDF via mouse events globais ─────────────
   useEffect(() => {
@@ -675,23 +702,30 @@ export const CorrectEssay = () => {
   const zoomOut = () => setZoom(p => Math.max(parseFloat((p - 0.25).toFixed(2)), 0.25));
 
   // Eventos de desenho no canvas nativo
-  // Confirmar texto digitado e renderizar no canvas
+  // Adicionar textbox como objeto arrastável (não queima no canvas imediatamente)
   const commitTextbox = (text, canvasX, canvasY, color, fontSize) => {
     if (!text.trim()) return;
+    const newTb = {
+      id: `tb_${Date.now()}`,
+      text, canvasX, canvasY, color, fontSize,
+    };
+    setCanvasTextboxes(prev => [...prev, newTb]);
+  };
+
+  // Queimar todas as textboxes no canvas (chamado antes de salvar/publicar)
+  const burnTextboxesToCanvas = () => {
     const ctx = ensureCtx();
     if (!ctx) return;
-    saveHistory();
-    ctx.save();
-    ctx.font = `${fontSize}px Arial, sans-serif`;
-    ctx.fillStyle = color;
-    ctx.textBaseline = 'top';
-    // Suporte a múltiplas linhas
-    const lines = text.split('\n');
-    const lineHeight = fontSize * 1.4;
-    lines.forEach((line, i) => {
-      ctx.fillText(line, canvasX, canvasY + i * lineHeight);
+    canvasTextboxes.forEach(tb => {
+      ctx.save();
+      ctx.font = `${tb.fontSize}px Arial, sans-serif`;
+      ctx.fillStyle = tb.color;
+      ctx.textBaseline = 'top';
+      const lines = tb.text.split('\n');
+      const lineHeight = tb.fontSize * 1.4;
+      lines.forEach((line, i) => ctx.fillText(line, tb.canvasX, tb.canvasY + i * lineHeight));
+      ctx.restore();
     });
-    ctx.restore();
   };
 
   const handleCanvasMouseDown = (e) => {
@@ -852,6 +886,7 @@ export const CorrectEssay = () => {
   const saveDraft = async () => {
     setSavingDraft(true);
     try {
+      burnTextboxesToCanvas();
       // Salvar canvas como dataUrl
       let canvasDraft = null;
       if (nativeCanvasRef.current) {
@@ -1207,6 +1242,7 @@ export const CorrectEssay = () => {
 
   const handleConfirmPublish = async () => {
     setShowConfirmPublish(false);
+    burnTextboxesToCanvas();
 
     const criteria_scores = prompt.criteria.map(c => ({
       criteria_id: c.id,
@@ -1267,6 +1303,7 @@ export const CorrectEssay = () => {
       return;
     }
     setRequestingRewrite(true);
+    burnTextboxesToCanvas();
     try {
       // 1. Finalizar a correção normalmente
       const criteria_scores = prompt.criteria.map(c => ({
@@ -1758,6 +1795,58 @@ export const CorrectEssay = () => {
                         onTouchMove={handleCanvasMouseMove}
                         onTouchEnd={handleCanvasMouseUp}
                       />
+                      {/* Textboxes arrastáveis sobrepostas */}
+                      {canvasTextboxes.map(tb => (
+                        <div key={tb.id} style={{
+                          position: 'absolute',
+                          left: `${(tb.canvasX / (nativeCanvasRef.current?.width || 1)) * 100}%`,
+                          top: `${(tb.canvasY / (nativeCanvasRef.current?.height || 1)) * 100}%`,
+                          zIndex: 25,
+                          cursor: draggingTextbox?.id === tb.id ? 'grabbing' : 'grab',
+                          userSelect: 'none',
+                        }}
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            const canvas = nativeCanvasRef.current;
+                            if (!canvas) return;
+                            const rect = canvas.getBoundingClientRect();
+                            const scaleX = canvas.width / rect.width;
+                            const scaleY = canvas.height / rect.height;
+                            const offsetX = (e.clientX - rect.left) * scaleX - tb.canvasX;
+                            const offsetY = (e.clientY - rect.top) * scaleY - tb.canvasY;
+                            setDraggingTextbox({ id: tb.id, offsetX, offsetY });
+                          }}
+                        >
+                          <div style={{
+                            fontFamily: 'Arial, sans-serif',
+                            fontSize: `${tb.fontSize}px`,
+                            color: tb.color,
+                            whiteSpace: 'pre-wrap',
+                            lineHeight: 1.4,
+                            padding: '2px 4px',
+                            border: '1px dashed rgba(0,0,0,0.2)',
+                            borderRadius: '3px',
+                            backgroundColor: 'rgba(255,255,255,0.1)',
+                            minWidth: '20px',
+                            minHeight: '20px',
+                          }}>
+                            {tb.text}
+                          </div>
+                          {/* Botão remover */}
+                          <button
+                            onMouseDown={(e) => { e.stopPropagation(); setCanvasTextboxes(prev => prev.filter(t => t.id !== tb.id)); }}
+                            style={{
+                              position: 'absolute', top: '-8px', right: '-8px',
+                              width: '16px', height: '16px', borderRadius: '50%',
+                              backgroundColor: '#7C1805', color: 'white',
+                              border: 'none', cursor: 'pointer', fontSize: '10px',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              lineHeight: 1, padding: 0,
+                            }}
+                          >×</button>
+                        </div>
+                      ))}
+
                       {/* Comentários arrastáveis sobrepostos */}
                       {inlineComments.filter(c => c.canvasX != null).map(c => (
                         <div key={c.id} style={{ position: 'absolute', zIndex: 20,
@@ -1961,6 +2050,30 @@ export const CorrectEssay = () => {
                       onTouchMove={handleCanvasMouseMove}
                       onTouchEnd={handleCanvasMouseUp}
                     />
+                    {/* Textboxes arrastáveis — imagem */}
+                    {canvasTextboxes.map(tb => (
+                      <div key={tb.id} style={{
+                        position: 'absolute',
+                        left: `${(tb.canvasX / (nativeCanvasRef.current?.width || 1)) * 100}%`,
+                        top: `${(tb.canvasY / (nativeCanvasRef.current?.height || 1)) * 100}%`,
+                        zIndex: 25, cursor: draggingTextbox?.id === tb.id ? 'grabbing' : 'grab', userSelect: 'none',
+                      }}
+                        onMouseDown={(e) => {
+                          e.stopPropagation();
+                          const canvas = nativeCanvasRef.current; if (!canvas) return;
+                          const rect = canvas.getBoundingClientRect();
+                          const offsetX = (e.clientX - rect.left) * (canvas.width / rect.width) - tb.canvasX;
+                          const offsetY = (e.clientY - rect.top) * (canvas.height / rect.height) - tb.canvasY;
+                          setDraggingTextbox({ id: tb.id, offsetX, offsetY });
+                        }}
+                      >
+                        <div style={{ fontFamily: 'Arial, sans-serif', fontSize: `${tb.fontSize}px`, color: tb.color, whiteSpace: 'pre-wrap', lineHeight: 1.4, padding: '2px 4px', border: '1px dashed rgba(0,0,0,0.2)', borderRadius: '3px', backgroundColor: 'rgba(255,255,255,0.1)' }}>
+                          {tb.text}
+                        </div>
+                        <button onMouseDown={(e) => { e.stopPropagation(); setCanvasTextboxes(prev => prev.filter(t => t.id !== tb.id)); }}
+                          style={{ position: 'absolute', top: '-8px', right: '-8px', width: '16px', height: '16px', borderRadius: '50%', backgroundColor: '#7C1805', color: 'white', border: 'none', cursor: 'pointer', fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>×</button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               )}
