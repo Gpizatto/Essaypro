@@ -1,10 +1,13 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Badge } from '../components/ui/badge';
-import { FileText, Clock, Filter, X } from 'lucide-react';
+import { Button } from '../components/ui/button';
+import { FileText, Clock, Filter, X, Trash2 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -31,6 +34,7 @@ export const MyEssays = () => {
   const [filterMonth, setFilterMonth] = useState('all');
   const [filterPrompt, setFilterPrompt] = useState('all');
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchEssays();
@@ -46,6 +50,21 @@ export const MyEssays = () => {
       console.error('Error fetching essays:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const deleteEssay = async (essayId, promptTitle) => {
+    if (!window.confirm(`Deletar permanentemente a redação "${promptTitle}"?\n\nEsta ação não pode ser desfeita.`)) {
+      return;
+    }
+    
+    try {
+      await axios.delete(`${API_URL}/api/admin/essays/${essayId}`, { withCredentials: true });
+      setEssays(prev => prev.filter(e => e.id !== essayId));
+      toast.success('Redação deletada com sucesso!');
+    } catch (error) {
+      console.error('Error deleting essay:', error);
+      toast.error('Erro ao deletar redação: ' + (error.response?.data?.detail || error.message));
     }
   };
 
@@ -218,16 +237,18 @@ export const MyEssays = () => {
             {filteredEssays.map((essay) => (
               <Card
                 key={essay.id}
-                className="p-6 bg-white border shadow-sm hover:shadow-md transition-shadow cursor-pointer"
-                onClick={() => {
-                  if (essay.status === 'corrected') {
-                    navigate(`/essay/${essay.id}/correction`);
-                  }
-                }}
+                className="p-6 bg-white border shadow-sm hover:shadow-md transition-shadow"
                 data-testid={`essay-card-${essay.id}`}
               >
                 <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
+                  <div 
+                    className="flex-1 cursor-pointer"
+                    onClick={() => {
+                      if (essay.status === 'corrected') {
+                        navigate(`/essay/${essay.id}/correction`);
+                      }
+                    }}
+                  >
                     <div className="flex items-center gap-3 mb-2 flex-wrap">
                       <h3 className="font-heading text-lg font-semibold" style={{ color: '#7C1805' }}>
                         {essay.prompt_title || 'Redação'}
@@ -248,16 +269,31 @@ export const MyEssays = () => {
                       Método: {essay.submission_method === 'editor' ? 'Editor' : essay.submission_method === 'paste' ? 'Texto colado' : 'Upload de arquivo'}
                     </p>
                   </div>
-                  {essay.status === 'corrected' && (
-                    <div className="text-right shrink-0">
+                  <div className="flex items-center gap-2 shrink-0">
+                    {essay.status === 'corrected' && (
                       <span
-                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold cursor-pointer"
                         style={{ backgroundColor: '#36555A', color: '#FDF3E8' }}
+                        onClick={() => navigate(`/essay/${essay.id}/correction`)}
                       >
                         Ver Correção →
                       </span>
-                    </div>
-                  )}
+                    )}
+                    {user?.role === 'admin' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteEssay(essay.id, essay.prompt_title || 'Redação');
+                        }}
+                        title="Deletar redação"
+                        style={{ color: '#DC2626', padding: '4px 8px' }}
+                      >
+                        <Trash2 size={16} />
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </Card>
             ))}
