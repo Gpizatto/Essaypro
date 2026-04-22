@@ -125,8 +125,6 @@ export const CorrectEssay = () => {
   const [scoreErrors, setScoreErrors] = useState({});
   const [feedback, setFeedback] = useState({
     general_feedback: '',
-    strengths: '',
-    improvements: '',
   });
 
   const [quickComments, setQuickComments] = useState([]);
@@ -271,8 +269,7 @@ export const CorrectEssay = () => {
     const hasContent =
       Object.values(scores).some(v => v > 0) ||
       feedback.general_feedback.trim() ||
-      feedback.strengths.trim() ||
-      feedback.improvements.trim();
+
     if (!hasContent) return;
 
     if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
