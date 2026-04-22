@@ -207,7 +207,7 @@ export const CreatePrompt = () => {
         ...formData,
         criteria
       }, { withCredentials: true });
-      toast.success('Tema criado com sucesso!');
+      toast.success('Proposta criado com sucesso!');
       navigate('/dashboard');
     } catch (error) {
       console.error('Error creating prompt:', error);
@@ -229,11 +229,11 @@ export const CreatePrompt = () => {
 
         <form onSubmit={handleSubmit} className="space-y-6" data-testid="create-prompt-form">
           <Card className="p-8 bg-white border">
-            <h3 className="font-semibold text-lg mb-4" style={{ color: '#7C1805' }}>Informações do Tema</h3>
+            <h3 className="font-semibold text-lg mb-4" style={{ color: '#7C1805' }}>Informações da Proposta</h3>
             
             <div className="space-y-4">
               <div>
-                <Label htmlFor="title">Título do Tema</Label>
+                <Label htmlFor="title">Proposta</Label>
                 <Input
                   id="title"
                   value={formData.title}
@@ -245,7 +245,7 @@ export const CreatePrompt = () => {
                 />
               </div>
 
-              <div>
+              /*<div>
                 <Label htmlFor="theme">Tema Central</Label>
                 <Textarea
                   id="theme"
@@ -257,7 +257,7 @@ export const CreatePrompt = () => {
                   className="mt-1"
                   data-testid="theme-input"
                 />
-              </div>
+              </div>*/
 
               {/* Restringir por turma */}
               {availableCourses.length > 0 && (
