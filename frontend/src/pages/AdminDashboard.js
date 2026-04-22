@@ -445,37 +445,7 @@ export const AdminDashboard = () => {
           </Card>
         )}
 
-        {/* FREQUÊNCIA DE ENVIO */}
-        {(stats?.essays_last_7_days !== undefined || stats?.essays_last_30_days !== undefined) && (
-          <div className="grid grid-cols-2 gap-4">
-            <Card className="p-5 bg-white border shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS — ÚLTIMOS 7 DIAS</p>
-                  <p className="text-3xl font-bold mt-1" style={{ color: '#D66B27' }}>
-                    {stats?.essays_last_7_days || 0}
-                  </p>
-                </div>
-                <div className="p-2 rounded-md" style={{ backgroundColor: '#D66B27' }}>
-                  <TrendingUp className="text-white" size={20} />
-                </div>
-              </div>
-            </Card>
-            <Card className="p-5 bg-white border shadow-sm">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS — ÚLTIMOS 30 DIAS</p>
-                  <p className="text-3xl font-bold mt-1" style={{ color: '#D66B27' }}>
-                    {stats?.essays_last_30_days || 0}
-                  </p>
-                </div>
-                <div className="p-2 rounded-md" style={{ backgroundColor: '#DAB257' }}>
-                  <TrendingUp className="text-white" size={20} />
-                </div>
-              </div>
-            </Card>
-          </div>
-        )}
+      
 
         {/* SEGUNDA LINHA — Top propostas + Top alunos */}
         <div className="grid md:grid-cols-2 gap-6">
