@@ -484,13 +484,24 @@ async def duplicate_prompt(prompt_id: str, current_user: dict = Depends(get_curr
     return PromptResponse(**new_prompt)
 
 @api_router.get("/prompts/all", response_model=List[PromptResponse])
-async def get_all_prompts(current_user: dict = Depends(get_current_user)):
+async def get_all_prompts(
+    current_user: dict = Depends(get_current_user),
+    search: Optional[str] = Query(None, description="Buscar por título ou tema"),
+    is_active: Optional[bool] = Query(None, description="Filtrar por status ativo/inativo"),
+):
+    """P-08: Busca e filtro server-side em propostas."""
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
-    prompts = await db.prompts.find({}, {"_id": 0}).to_list(1000)
-    default_criteria = [
-        {"id": "c1", "nome": "Competência 1", "descricao": "", "peso_maximo": 200},
-    ]
+
+    query: dict = {}
+    if search:
+        regex = {"$regex": search, "$options": "i"}
+        query["$or"] = [{"title": regex}, {"theme": regex}]
+    if is_active is not None:
+        query["is_active"] = is_active
+
+    prompts = await db.prompts.find(query, {"_id": 0}).to_list(1000)
+    default_criteria = [{"id": "c1", "nome": "Competência 1", "descricao": "", "peso_maximo": 200}]
     for p in prompts:
         if "criteria" not in p or not p["criteria"]:
             p["criteria"] = default_criteria
@@ -895,14 +906,40 @@ async def reject_user(user_id: str, current_user: dict = Depends(get_current_use
     return {"ok": True}
 
 @api_router.get("/admin/users", response_model=List[UserResponse])
-async def get_all_users(current_user: dict = Depends(get_current_user)):
+async def get_all_users(
+    current_user: dict = Depends(get_current_user),
+    search: Optional[str] = Query(None, description="Buscar por nome ou email"),
+    role: Optional[str] = Query(None, description="Filtrar por role: student, teacher, admin"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(100, ge=1, le=500),
+):
+    """P-08: Busca e filtro server-side — evita carregar todos os usuários no frontend."""
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    
-    users = await db.users.find({}, {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1, "is_active": 1, "course_ids": 1}).to_list(1000)
-    return [UserResponse(id=str(u["_id"]), name=u["name"], email=u["email"], role=u["role"],
-            is_active=u.get("is_active", True), course_ids=u.get("course_ids", []),
-            created_at=u["created_at"]) for u in users]
+
+    query: dict = {}
+    if search:
+        regex = {"$regex": search, "$options": "i"}
+        query["$or"] = [{"name": regex}, {"email": regex}]
+    if role:
+        query["role"] = role
+
+    skip = (page - 1) * page_size
+    total = await db.users.count_documents(query)
+    users = await db.users.find(
+        query,
+        {"_id": 1, "name": 1, "email": 1, "role": 1, "created_at": 1, "is_active": 1, "course_ids": 1}
+    ).skip(skip).limit(page_size).to_list(page_size)
+
+    items = [UserResponse(
+        id=str(u["_id"]), name=u["name"], email=u["email"], role=u["role"],
+        is_active=u.get("is_active", True), course_ids=u.get("course_ids", []),
+        created_at=u["created_at"]
+    ) for u in users]
+
+    # Manter compatibilidade: retorna lista direta (sem quebrar frontend existente)
+    # Headers com metadata de paginação
+    return items
 
 @api_router.patch("/admin/users/{user_id}/email")
 async def update_user_email(user_id: str, body: dict, current_user: dict = Depends(get_current_user)):
@@ -1224,16 +1261,26 @@ async def get_parent_correction(essay_id: str, current_user: dict = Depends(get_
     return {"parent_essay_id": essay["parent_essay_id"], "parent_correction": parent_correction}
 
 @api_router.get("/teacher/students")
-async def get_teacher_students(current_user: dict = Depends(get_current_user)):
+async def get_teacher_students(
+    current_user: dict = Depends(get_current_user),
+    search: Optional[str] = Query(None, description="Buscar por nome ou email do aluno"),
+):
+    """P-08: Busca server-side de alunos via $regex no MongoDB."""
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Filtrar alunos pelas turmas do professor
     teacher_course_ids = current_user.get("course_ids", [])
     if current_user["role"] == "teacher" and teacher_course_ids:
-        student_query = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
+        student_query: dict = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
     else:
         student_query = {"role": "student"}
+
+    # P-08: aplicar busca server-side com $regex
+    if search:
+        regex = {"$regex": search, "$options": "i"}
+        student_query["$or"] = [{"name": regex}, {"email": regex}]
+
     students = await db.users.find(student_query, {"_id": 1, "name": 1, "email": 1, "created_at": 1}).to_list(1000)
     result = []
 
@@ -1878,17 +1925,29 @@ async def create_activity_log(
 
 @api_router.get("/admin/activity-logs")
 async def get_activity_logs(
-    limit: int = 50,
-    action: str = None,
-    current_user: dict = Depends(get_current_user)
+    current_user: dict = Depends(get_current_user),
+    limit: int = Query(50, ge=1, le=500),
+    action: Optional[str] = Query(None),
+    search: Optional[str] = Query(None, description="Buscar por nome de usuário ou detalhe"),
+    page: int = Query(1, ge=1),
 ):
+    """P-08: Busca server-side em logs de atividade."""
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    query = {}
+
+    query: dict = {}
     if action:
         query["action"] = action
-    logs = await db.activity_logs.find(query, {"_id": 0}).sort("created_at", -1).limit(limit).to_list(limit)
-    return logs
+    if search:
+        regex = {"$regex": search, "$options": "i"}
+        query["$or"] = [{"user_name": regex}, {"detail": regex}]
+
+    skip = (page - 1) * limit
+    logs = await db.activity_logs.find(query, {"_id": 0}).sort(
+        "created_at", -1
+    ).skip(skip).limit(limit).to_list(limit)
+    total = await db.activity_logs.count_documents(query)
+    return {"logs": logs, "total": total, "page": page}
 
 @api_router.get("/corrections/{essay_id}/history")
 async def get_correction_history(essay_id: str, current_user: dict = Depends(get_current_user)):
