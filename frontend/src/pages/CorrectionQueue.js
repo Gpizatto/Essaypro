@@ -41,6 +41,7 @@ export const CorrectionQueue = () => {
   const [allEssays, setAllEssays] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('pending');
+  const [totalByStatus, setTotalByStatus] = useState({ pending: 0, in_progress: 0, corrected: 0 });
   const [deadlineDays, setDeadlineDays] = useState(3);
   const [courses, setCourses] = useState([]);
   const [filterCourse, setFilterCourse] = useState('all');
@@ -65,7 +66,7 @@ export const CorrectionQueue = () => {
   };
 
   useEffect(() => {
-    fetchAll();
+    fetchAll(activeTab);
     axios.get(`${API_URL}/api/settings/course`, { withCredentials: true })
       .then(r => { if (r.data.correction_deadline_days > 0) setDeadlineDays(r.data.correction_deadline_days); })
       .catch(() => {});
@@ -90,31 +91,46 @@ export const CorrectionQueue = () => {
     finally { setSendingBatch(false); }
   };
 
-  const fetchAll = async () => {
+  const fetchAll = async (statusFilter = 'pending', page = 1) => {
+    setLoading(true);
     try {
-      // Tentar endpoint completo, fallback para queue básica
-      let data = [];
-      try {
-        const res = await axios.get(`${API_URL}/api/essays/all-teacher`, { withCredentials: true });
-        data = res.data;
-      } catch (err) {
-        // Fallback: carregar só pendentes
-        const res = await axios.get(`${API_URL}/api/essays/queue`, { withCredentials: true });
-        data = res.data;
+      // P-01: Busca paginada por status — não carrega tudo de uma vez
+      const params = new URLSearchParams({ status: statusFilter, page, page_size: 50 });
+      const res = await axios.get(`${API_URL}/api/essays/all-teacher?${params}`, { withCredentials: true });
+      const payload = res.data;
+
+      // Novo formato: { essays, total, page, pages }
+      if (payload && Array.isArray(payload.essays)) {
+        const essays = payload.essays;
+        setAllEssays(essays);
+        setTotalByStatus(prev => ({ ...prev, [statusFilter]: payload.total }));
+      } else {
+        // Fallback legado (array direto)
+        setAllEssays(Array.isArray(payload) ? payload : []);
       }
-      setAllEssays(data.sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)));
     } catch (err) {
       console.error('Error loading queue:', err);
+      // Fallback para endpoint antigo
+      try {
+        const res = await axios.get(`${API_URL}/api/essays/queue`, { withCredentials: true });
+        setAllEssays(res.data || []);
+      } catch {}
     } finally {
       setLoading(false);
     }
   };
 
+  // P-01: Refetch ao mudar de aba — busca apenas o status necessário
+  useEffect(() => {
+    fetchAll(activeTab);
+  }, [activeTab]); // eslint-disable-line
+
+  // Com paginação, allEssays já contém apenas o status ativo
   const byStatus = useMemo(() => ({
-    pending:     allEssays.filter(e => e.status === 'pending'),
-    in_progress: allEssays.filter(e => e.status === 'in_progress'),
-    corrected:   allEssays.filter(e => e.status === 'corrected').reverse(),
-  }), [allEssays]);
+    pending:     activeTab === 'pending'     ? allEssays : [],
+    in_progress: activeTab === 'in_progress' ? allEssays : [],
+    corrected:   activeTab === 'corrected'   ? allEssays : [],
+  }), [allEssays, activeTab]);
 
   const promptOptions = useMemo(() =>
     [...new Set(allEssays.map(e => e.prompt_title).filter(Boolean))],
@@ -129,7 +145,7 @@ export const CorrectionQueue = () => {
     return matchSearch && matchPrompt;
   }), [currentList, search, filterPrompt]);
 
-  const urgentCount = byStatus.pending.filter(e => getWaitTime(e.submitted_at, deadlineDays).urgent).length;
+  const urgentCount = (activeTab === 'pending' ? allEssays : []).filter(e => getWaitTime(e.submitted_at, deadlineDays).urgent).length;
 
   const selectStyle = {
     padding: '6px 10px', borderRadius: '6px',
@@ -155,8 +171,8 @@ export const CorrectionQueue = () => {
           </h1>
           <div className="flex items-center gap-3 mt-1 flex-wrap">
             <p className="text-sm" style={{ color: '#6B5B4E' }}>
-              {byStatus.pending.length} pendente{byStatus.pending.length !== 1 ? 's' : ''}
-              {byStatus.in_progress.length > 0 && ` · ${byStatus.in_progress.length} em andamento`}
+              {totalByStatus.pending || allEssays.filter(e=>e.status==='pending').length} pendente{(totalByStatus.pending||0) !== 1 ? 's' : ''}
+              {(totalByStatus.in_progress || 0) > 0 && ` · ${totalByStatus.in_progress} em andamento`}
             </p>
             {urgentCount > 0 && (
               <span className="flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full"
@@ -187,7 +203,7 @@ export const CorrectionQueue = () => {
                   backgroundColor: activeTab === tab.key ? 'rgba(253,243,232,0.25)' : '#E8DDD0',
                   color: activeTab === tab.key ? '#FDF3E8' : '#6B5B4E',
                 }}>
-                {byStatus[tab.key]?.length || 0}
+                {tab.key === activeTab ? (allEssays.length > 0 ? totalByStatus[tab.key] || allEssays.length : 0) : totalByStatus[tab.key] || 0}
               </span>
             </button>
           ))}
