@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
@@ -23,18 +23,38 @@ export const AdminUsers = () => {
   const [filterActive, setFilterActive] = useState('all');
   const [changingRole, setChangingRole] = useState(null);
   const [togglingActive, setTogglingActive] = useState(null);
+  const searchTimerRef = useRef(null);
 
   useEffect(() => { fetchUsers(); }, []);
 
-  const fetchUsers = async () => {
+  const fetchUsers = async (searchTerm = '', role = 'all') => {
+    setLoading(true);
     try {
-      const { data } = await axios.get(`${API_URL}/api/admin/users`, { withCredentials: true });
+      // P-08: busca server-side via $regex no MongoDB
+      const params = new URLSearchParams({ page_size: 500 });
+      if (searchTerm) params.set('search', searchTerm);
+      if (role !== 'all') params.set('role', role);
+      const { data } = await axios.get(`${API_URL}/api/admin/users?${params}`, { withCredentials: true });
       setUsers(data);
     } catch (error) {
       toast.error('Erro ao carregar usuários');
     } finally {
       setLoading(false);
     }
+  };
+
+  // Debounce: espera 400ms após o usuário parar de digitar para buscar no servidor
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      fetchUsers(value, filterRole);
+    }, 400);
+  };
+
+  const handleRoleFilterChange = (value) => {
+    setFilterRole(value);
+    fetchUsers(search, value);
   };
 
   const updateRole = async (userId, newRole) => {
@@ -74,14 +94,12 @@ export const AdminUsers = () => {
     }
   };
 
+  // P-08: search e role já filtrados no servidor — apenas is_active filtra localmente
   const filtered = useMemo(() => users.filter(u => {
-    const matchSearch = u.name.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase());
-    const matchRole = filterRole === 'all' || u.role === filterRole;
     const matchActive = filterActive === 'all' ? true :
       filterActive === 'active' ? u.is_active !== false : u.is_active === false;
-    return matchSearch && matchRole && matchActive;
-  }), [users, search, filterRole, filterActive]);
+    return matchActive;
+  }), [users, filterActive]);
 
   const counts = useMemo(() => ({
     total: users.length,
@@ -125,7 +143,7 @@ export const AdminUsers = () => {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B5B4E' }} />
               <input
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Buscar por nome ou email..."
                 style={{
                   width: '100%', padding: '7px 10px 7px 32px',
@@ -134,7 +152,7 @@ export const AdminUsers = () => {
                 }}
               />
             </div>
-            <select value={filterRole} onChange={e => setFilterRole(e.target.value)} style={selectStyle}>
+            <select value={filterRole} onChange={e => handleRoleFilterChange(e.target.value)} style={selectStyle}>
               <option value="all">Todas as funções</option>
               <option value="student">Alunos</option>
               <option value="teacher">Professores</option>
