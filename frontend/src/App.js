@@ -64,7 +64,7 @@ function App() {
             <Route path="/prompts" element={<ProtectedRoute allowedRoles={['student']}><PromptsList /></ProtectedRoute>} />
             <Route path="/my-essays" element={<ProtectedRoute allowedRoles={['student']}><MyEssays /></ProtectedRoute>} />
             <Route path="/submit-essay/:promptId" element={<ProtectedRoute allowedRoles={['student']}><SubmitEssay /></ProtectedRoute>} />
-            <Route path="/essay/:essayId/correction" element={<ProtectedRoute allowedRoles={['student']}><CorrectionView /></ProtectedRoute>} />
+            <Route path="/essay/:essayId/correction" element={<ProtectedRoute allowedRoles={['student', 'teacher', 'admin']}><CorrectionView /></ProtectedRoute>} />
             <Route path="/correction-queue" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><CorrectionQueue /></ProtectedRoute>} />
             <Route path="/correct-essay/:essayId" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><CorrectEssay /></ProtectedRoute>} />
             <Route path="/create-prompt" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><CreatePrompt /></ProtectedRoute>} />
