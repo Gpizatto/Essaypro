@@ -139,6 +139,7 @@ export const CorrectEssay = () => {
   const [savingDraft, setSavingDraft] = useState(false);
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [showConfirmPublish, setShowConfirmPublish] = useState(false);
+  const [showShortcuts, setShowShortcuts] = useState(false); // U-09
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
   const pendingDraftRef = useRef(null);
   const [requestingRewrite, setRequestingRewrite] = useState(false);
@@ -203,6 +204,9 @@ export const CorrectEssay = () => {
     const handler = (e) => {
       const tag = document.activeElement?.tagName;
       if (['INPUT','TEXTAREA','SELECT'].includes(tag)) return;
+
+      // U-09: fechar modal de atalhos com Esc
+      if (e.key === 'Escape') { setShowShortcuts(false); }
 
       if (e.ctrlKey || e.metaKey) {
         if (e.key === 'z') { e.preventDefault(); undoRef.current?.(); }
@@ -1443,6 +1447,16 @@ export const CorrectEssay = () => {
           {autoSaveStatus === 'saved' && (
             <span className="text-xs" style={{ color: '#36555A' }}>✓ auto-salvo</span>
           )}
+          {/* U-09: botão de atalhos de teclado */}
+          <Button
+            onClick={() => setShowShortcuts(true)}
+            variant="ghost" size="sm"
+            title="Atalhos de teclado"
+            aria-label="Ver atalhos de teclado"
+            style={{ color: '#6B5B4E', fontSize: '16px', padding: '6px 8px' }}
+          >
+            ⌨
+          </Button>
           <Button
             onClick={handleRequestRewrite}
             disabled={requestingRewrite || submitting || rewriteRequested}
@@ -2681,6 +2695,61 @@ export const CorrectEssay = () => {
               <Button variant="outline" onClick={() => setShowCommentPopup(false)}>Cancelar</Button>
               <Button onClick={handleAddComment}>Adicionar</Button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* U-09: MODAL DE ATALHOS DE TECLADO */}
+      {showShortcuts && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center"
+          style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
+          onClick={() => setShowShortcuts(false)}>
+          <div className="rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
+            style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}
+            onClick={e => e.stopPropagation()}>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="font-heading font-bold text-lg" style={{ color: '#7C1805' }}>
+                ⌨ Atalhos de Teclado
+              </h3>
+              <button onClick={() => setShowShortcuts(false)}
+                aria-label="Fechar modal de atalhos"
+                style={{ color: '#6B5B4E', fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                ✕
+              </button>
+            </div>
+            <div className="space-y-1">
+              {[
+                { keys: 'S', desc: 'Seleção / mover' },
+                { keys: 'P / C', desc: 'Caneta livre' },
+                { keys: 'E', desc: 'Borracha' },
+                { keys: 'L', desc: 'Linha reta' },
+                { keys: 'A', desc: 'Seta' },
+                { keys: 'R', desc: 'Retângulo' },
+                { keys: 'O', desc: 'Oval / círculo' },
+                { keys: 'U', desc: 'Sublinhado' },
+                { keys: 'H', desc: 'Marcador (highlight)' },
+                { keys: 'X', desc: 'Tachado' },
+                { keys: 'M', desc: 'Comentário' },
+                { keys: 'T', desc: 'Caixa de texto' },
+                { keys: 'Ctrl + Z', desc: 'Desfazer' },
+                { keys: 'Ctrl + Y', desc: 'Refazer' },
+                { keys: 'Ctrl + S', desc: 'Salvar rascunho' },
+                { keys: 'Ctrl + Enter', desc: 'Confirmar texto' },
+                { keys: 'Esc', desc: 'Cancelar / fechar' },
+              ].map(({ keys, desc }) => (
+                <div key={keys} className="flex items-center justify-between py-1.5 px-2 rounded"
+                  style={{ borderBottom: '1px solid #F0EBE3' }}>
+                  <span className="text-sm" style={{ color: '#2C1A0E' }}>{desc}</span>
+                  <span className="text-xs font-mono font-bold px-2 py-0.5 rounded"
+                    style={{ backgroundColor: '#E8DDD0', color: '#7C1805' }}>
+                    {keys}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <p className="text-xs mt-3" style={{ color: '#6B5B4E' }}>
+              Clique fora ou pressione Esc para fechar
+            </p>
           </div>
         </div>
       )}
