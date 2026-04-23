@@ -319,10 +319,10 @@ export const ManagePrompts = () => {
                         </p>
                       </div>
                       <div className="flex items-center gap-2 shrink-0">
-                        <Button variant="ghost" size="sm" onClick={() => startEdit(prompt)} title="Editar">
+                        <Button variant="ghost" size="sm" onClick={() => startEdit(prompt)} title="Editar" aria-label="Editar proposta">
                           <Pencil size={15} />
                         </Button>
-                        <Button variant="ghost" size="sm" onClick={() => duplicate(prompt.id)} title="Duplicar">
+                        <Button variant="ghost" size="sm" onClick={() => duplicate(prompt.id)} title="Duplicar" aria-label="Duplicar proposta">
                           <Copy size={15} />
                         </Button>
                         <Button
