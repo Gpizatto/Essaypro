@@ -83,6 +83,9 @@ async def get_current_user(request: Request) -> dict:
         if auth_header.startswith("Bearer "):
             token = auth_header[7:]
     if not token:
+        # Fallback: token enviado via header customizado (guia anônima / sem cookie)
+        token = request.headers.get("X-Access-Token", "")
+    if not token:
         raise HTTPException(status_code=401, detail="Not authenticated")
     try:
         payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
@@ -276,10 +279,39 @@ async def login(login_data: UserLogin, response: Response):
     access_token = create_access_token(user_id, email)
     refresh_token = create_refresh_token(user_id)
     
-    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=900, path="/")
+    response.set_cookie(key="access_token", value=access_token, httponly=True, secure=True, samesite="none", max_age=28800, path="/")
     response.set_cookie(key="refresh_token", value=refresh_token, httponly=True, secure=True, samesite="none", max_age=604800, path="/")
+    # Expor token no header para fallback em ambientes que bloqueiam cookies (guia anônima)
+    response.headers["X-Access-Token"] = access_token
+    response.headers["X-Refresh-Token"] = refresh_token
     
     return UserResponse(id=user_id, name=user["name"], email=user["email"], role=user["role"], created_at=user["created_at"])
+
+@api_router.post("/auth/refresh")
+async def refresh_token(request: Request, response: Response):
+    """Renova o access_token usando o refresh_token (cookie ou header)"""
+    # Tentar pegar refresh_token do cookie primeiro, depois do header
+    token = request.cookies.get("refresh_token")
+    if not token:
+        token = request.headers.get("X-Refresh-Token", "")
+    if not token:
+        raise HTTPException(status_code=401, detail="No refresh token")
+    try:
+        payload = jwt.decode(token, get_jwt_secret(), algorithms=[JWT_ALGORITHM])
+        if payload.get("type") != "refresh":
+            raise HTTPException(status_code=401, detail="Invalid token type")
+        user = await db.users.find_one({"_id": ObjectId(payload["sub"])})
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+        user_id = str(user["_id"])
+        new_access = create_access_token(user_id, user["email"])
+        response.set_cookie(key="access_token", value=new_access, httponly=True, secure=True, samesite="none", max_age=28800, path="/")
+        response.headers["X-Access-Token"] = new_access
+        return {"access_token": new_access, "token_type": "bearer"}
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired — please login again")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid refresh token")
 
 @api_router.get("/auth/me", response_model=UserResponse)
 async def get_me(current_user: dict = Depends(get_current_user)):
@@ -2519,7 +2551,7 @@ async def cors_middleware(request: Request, call_next):
             "Access-Control-Allow-Origin": origin if is_allowed else "",
             "Access-Control-Allow-Credentials": "true",
             "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS, PATCH",
-            "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin, X-Requested-With",
+            "Access-Control-Allow-Headers": "Authorization, Content-Type, Accept, Origin, X-Requested-With, X-Access-Token, X-Refresh-Token",
             "Access-Control-Max-Age": "3600",
         }
         return Response(status_code=200, headers=headers)
@@ -2535,7 +2567,7 @@ async def cors_middleware(request: Request, call_next):
     if is_allowed:
         response.headers["Access-Control-Allow-Origin"] = origin
         response.headers["Access-Control-Allow-Credentials"] = "true"
-        response.headers["Access-Control-Expose-Headers"] = "*"
+        response.headers["Access-Control-Expose-Headers"] = "X-Access-Token, X-Refresh-Token, Content-Disposition"
 
     return response
 
