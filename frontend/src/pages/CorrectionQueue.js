@@ -354,8 +354,9 @@ export const CorrectionQueue = () => {
                         <Button variant="ghost" size="sm"
                           onClick={() => deleteEssay(essay.id, essay.student_name || 'aluno')}
                           title="Deletar redação"
+                          aria-label="Deletar redação"
                           style={{ color: '#DC2626', padding: '4px 8px' }}>
-                          <Trash2 size={14} />
+                          <Trash2 size={14} aria-hidden="true" />
                         </Button>
                       )}
                     </div>
