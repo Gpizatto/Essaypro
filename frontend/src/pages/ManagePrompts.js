@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
@@ -36,15 +36,34 @@ export const ManagePrompts = () => {
       .catch(() => {});
   }, []);
 
-  const fetchPrompts = async () => {
+  const searchTimerRef = useRef(null);
+
+  const fetchPrompts = async (searchTerm = '', activeFilter = 'all') => {
     try {
-      const { data } = await axios.get(`${API_URL}/api/prompts/all`, { withCredentials: true });
+      // P-08: busca e filtro server-side
+      const params = new URLSearchParams();
+      if (searchTerm) params.set('search', searchTerm);
+      if (activeFilter === 'active') params.set('is_active', 'true');
+      if (activeFilter === 'inactive') params.set('is_active', 'false');
+      const qs = params.toString();
+      const { data } = await axios.get(`${API_URL}/api/prompts/all${qs ? '?' + qs : ''}`, { withCredentials: true });
       setPrompts(data);
     } catch (err) {
       toast.error('Erro ao carregar propostas');
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => fetchPrompts(value, filterActive), 400);
+  };
+
+  const handleActiveFilterChange = (value) => {
+    setFilterActive(value);
+    fetchPrompts(search, value);
   };
 
   const startEdit = (prompt) => {
@@ -182,13 +201,7 @@ export const ManagePrompts = () => {
     } catch (e) { toast.error('Erro ao copiar grade'); }
   };
 
-  const filtered = prompts.filter(p => {
-    const matchSearch = p.title.toLowerCase().includes(search.toLowerCase()) ||
-      p.theme.toLowerCase().includes(search.toLowerCase());
-    const matchActive = filterActive === 'all' ? true :
-      filterActive === 'active' ? p.is_active : !p.is_active;
-    return matchSearch && matchActive;
-  });
+  const filtered = prompts; // P-08: busca e filtro feitos server-side
 
   const inputStyle = { marginTop: '4px' };
   const labelStyle = { color: '#2C1A0E', fontSize: '13px', fontWeight: 600 };
@@ -226,7 +239,7 @@ export const ManagePrompts = () => {
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B5B4E' }} />
               <input
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Buscar por título ou tema..."
                 style={{
                   width: '100%', padding: '7px 10px 7px 32px',
@@ -237,7 +250,7 @@ export const ManagePrompts = () => {
             </div>
             <select
               value={filterActive}
-              onChange={e => setFilterActive(e.target.value)}
+              onChange={e => handleActiveFilterChange(e.target.value)}
               style={{ padding: '7px 12px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E' }}
             >
               <option value="all">Todas</option>
