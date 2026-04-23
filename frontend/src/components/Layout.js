@@ -28,6 +28,24 @@ export const Layout = ({ children }) => {
   const [unread, setUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine); // U-12
+  const [showOnlineMsg, setShowOnlineMsg] = useState(false);  // U-12
+
+  // U-12: listeners de conexão
+  useEffect(() => {
+    const handleOffline = () => setIsOnline(false);
+    const handleOnline  = () => {
+      setIsOnline(true);
+      setShowOnlineMsg(true);
+      setTimeout(() => setShowOnlineMsg(false), 3000);
+    };
+    window.addEventListener('offline', handleOffline);
+    window.addEventListener('online',  handleOnline);
+    return () => {
+      window.removeEventListener('offline', handleOffline);
+      window.removeEventListener('online',  handleOnline);
+    };
+  }, []);
 
   const fetchNotifications = useCallback(async (force = false) => {
     const now = Date.now();
@@ -304,6 +322,21 @@ export const Layout = ({ children }) => {
 
       {/* Main content */}
       <main className="flex-1 overflow-auto" style={{ backgroundColor: '#FDF3E8' }}>
+        {/* U-12: banner de status de conexão */}
+        {!isOnline && (
+          <div className="flex items-center justify-center gap-2 py-2 text-sm font-semibold"
+            style={{ backgroundColor: '#7C1805', color: '#FDF3E8' }}
+            role="alert" aria-live="assertive">
+            ⚠️ Sem conexão — suas alterações não serão salvas até a conexão ser restaurada
+          </div>
+        )}
+        {showOnlineMsg && (
+          <div className="flex items-center justify-center gap-2 py-2 text-sm font-semibold"
+            style={{ backgroundColor: '#16A34A', color: '#fff' }}
+            role="status" aria-live="polite">
+            ✓ Conexão restaurada
+          </div>
+        )}
         <div className="p-6 md:p-8 lg:p-10">{children}</div>
       </main>
     </div>
