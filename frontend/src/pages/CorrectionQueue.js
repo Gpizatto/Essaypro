@@ -67,13 +67,14 @@ export const CorrectionQueue = () => {
 
   useEffect(() => {
     fetchAll(activeTab);
+    fetchCounts(); // BUG 2: carregar contagens de todas as abas imediatamente
     axios.get(`${API_URL}/api/settings/course`, { withCredentials: true })
       .then(r => { if (r.data.correction_deadline_days > 0) setDeadlineDays(r.data.correction_deadline_days); })
       .catch(() => {});
     axios.get(`${API_URL}/api/courses`, { withCredentials: true })
       .then(r => setCourses(r.data || []))
       .catch(() => {});
-  }, []);
+  }, []); // eslint-disable-line
 
   const sendBatchComment = async () => {
     if (!batchCommentText.trim() || selectedEssays.size === 0) return;
@@ -91,18 +92,38 @@ export const CorrectionQueue = () => {
     finally { setSendingBatch(false); }
   };
 
-  const fetchAll = async (statusFilter = 'pending', page = 1) => {
+  // BUG 2: buscar contagens de todos os status em paralelo
+  const fetchCounts = async (courseId = 'all') => {
+    try {
+      const statuses = ['pending', 'in_progress', 'corrected'];
+      const results = await Promise.all(
+        statuses.map(s => {
+          const p = new URLSearchParams({ status: s, page: 1, page_size: 1 });
+          if (courseId !== 'all') p.set('course_id', courseId);
+          return axios.get(`${API_URL}/api/essays/all-teacher?${p}`, { withCredentials: true })
+            .then(r => ({ status: s, total: r.data?.total ?? 0 }))
+            .catch(() => ({ status: s, total: 0 }));
+        })
+      );
+      const counts = {};
+      results.forEach(r => { counts[r.status] = r.total; });
+      setTotalByStatus(counts);
+    } catch {}
+  };
+
+  const fetchAll = async (statusFilter = 'pending', page = 1, courseId = 'all') => {
     setLoading(true);
     try {
       // P-01: Busca paginada por status — não carrega tudo de uma vez
       const params = new URLSearchParams({ status: statusFilter, page, page_size: 50 });
+      // BUG 1: passar filtro de turma ao backend
+      if (courseId !== 'all') params.set('course_id', courseId);
       const res = await axios.get(`${API_URL}/api/essays/all-teacher?${params}`, { withCredentials: true });
       const payload = res.data;
 
       // Novo formato: { essays, total, page, pages }
       if (payload && Array.isArray(payload.essays)) {
-        const essays = payload.essays;
-        setAllEssays(essays);
+        setAllEssays(payload.essays);
         setTotalByStatus(prev => ({ ...prev, [statusFilter]: payload.total }));
       } else {
         // Fallback legado (array direto)
@@ -110,7 +131,6 @@ export const CorrectionQueue = () => {
       }
     } catch (err) {
       console.error('Error loading queue:', err);
-      // Fallback para endpoint antigo
       try {
         const res = await axios.get(`${API_URL}/api/essays/queue`, { withCredentials: true });
         setAllEssays(res.data || []);
@@ -122,7 +142,7 @@ export const CorrectionQueue = () => {
 
   // P-01: Refetch ao mudar de aba — busca apenas o status necessário
   useEffect(() => {
-    fetchAll(activeTab);
+    fetchAll(activeTab, 1, filterCourse);
   }, [activeTab]); // eslint-disable-line
 
   // Com paginação, allEssays já contém apenas o status ativo
@@ -225,7 +245,12 @@ export const CorrectionQueue = () => {
               </select>
             )}
             {courses.length > 0 && (
-              <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} style={{ ...selectStyle, maxWidth: '180px' }}>
+              <select value={filterCourse} onChange={e => {
+                  const val = e.target.value;
+                  setFilterCourse(val);
+                  fetchAll(activeTab, 1, val);  // BUG 1: refetch com filtro de turma
+                  fetchCounts(val);             // BUG 2: atualizar contagens com filtro
+                }} style={{ ...selectStyle, maxWidth: '180px' }}>
                 <option value="all">Todas as turmas</option>
                 {courses.filter(c => c.is_active).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -238,7 +263,11 @@ export const CorrectionQueue = () => {
               <option value="name">Por nome do aluno</option>
             </select>
             {(search || filterPrompt !== 'all' || filterCourse !== 'all') && (
-              <button onClick={() => { setSearch(''); setFilterPrompt('all'); setFilterCourse('all'); }}
+              <button onClick={() => {
+                  setSearch(''); setFilterPrompt('all'); setFilterCourse('all');
+                  fetchAll(activeTab, 1, 'all');
+                  fetchCounts('all');
+                }}
                 className="text-xs px-2 py-1 rounded flex items-center gap-1"
                 style={{ backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27' }}>
                 ✕ Limpar
