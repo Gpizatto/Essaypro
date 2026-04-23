@@ -10,7 +10,7 @@ import { Progress } from '../components/ui/progress';
 import { Badge } from '../components/ui/badge';
 import { Card } from '../components/ui/card';
 import { toast } from 'sonner';
-import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, ChevronDown, ChevronUp, Sparkles, Save, Circle, Square, Minus, MoveRight, Trash2, ZoomIn, ZoomOut, Type } from 'lucide-react';
+import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, Save, Circle, Square, Minus, MoveRight, Trash2, ZoomIn, ZoomOut, Type } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
@@ -39,13 +39,6 @@ const TOOLS = [
   { id: 'eraser',        icon: Eraser,       label: 'Borracha (E)',   group: 'draw' },
 ];
 
-const TIPO_BADGES = {
-  gramatical: { label: 'Gramatical', color: '#DC2626', icon: '🔴' },
-  coesao: { label: 'Coesão', color: '#D97706', icon: '🟡' },
-  argumentacao: { label: 'Argumentação', color: '#EA580C', icon: '🟠' },
-  tematico: { label: 'Temático', color: '#2563EB', icon: '🔵' },
-  estilo: { label: 'Estilo', color: '#9333EA', icon: '🟣' }
-};
 
 export const CorrectEssay = () => {
   const { essayId } = useParams();
@@ -141,10 +134,6 @@ export const CorrectEssay = () => {
   const [autocompleteSuggestions, setAutocompleteSuggestions] = useState([]);
   const [showAutocomplete, setShowAutocomplete] = useState(false);
 
-  const [aiAnalyzing, setAiAnalyzing] = useState(false);
-  const [aiSuggestions, setAiSuggestions] = useState(null);
-  const [dismissedErrors, setDismissedErrors] = useState([]);
-  const [expandedSuggestions, setExpandedSuggestions] = useState({});
   const [essayHtml, setEssayHtml] = useState('');
   const [courseSettings, setCourseSettings] = useState(null);
   const [draftSaved, setDraftSaved] = useState(false);
@@ -1119,122 +1108,6 @@ export const CorrectEssay = () => {
     }
   };
 
-  const handleAnalyzeWithAI = async () => {
-    // Para redações com upload, pegar texto do DOM se content estiver vazio
-    const textContent = essay.content?.trim()
-      || textRef.current?.innerText?.trim()
-      || '';
-
-    if (!textContent || textContent === 'Conteúdo não disponível') {
-      toast.error('Esta redação foi enviada como imagem — sem texto para a IA analisar.');
-      return;
-    }
-
-    setAiAnalyzing(true);
-    setAiSuggestions(null);
-    try {
-      const { data } = await axios.post(
-        `${API_URL}/api/ai/analyze-essay`,
-        { essay_id: essayId, content: textContent },
-        { withCredentials: true }
-      );
-      setAiSuggestions(data);
-      setDismissedErrors([]);
-      setExpandedSuggestions({});
-      const count = data.erros?.length || 0;
-      toast.success(`Análise concluída! ${count} ponto${count !== 1 ? 's' : ''} encontrado${count !== 1 ? 's' : ''}.`);
-    } catch (error) {
-      console.error('AI analysis error:', error);
-      if (error.response?.status === 429) {
-        toast.error('Limite de requisições da IA atingido. Aguarde 30 segundos e tente novamente.');
-      } else {
-        const msg = error.response?.data?.detail || 'Não foi possível analisar. Tente novamente.';
-        toast.error(msg);
-      }
-    } finally {
-      setAiAnalyzing(false);
-    }
-  };
-
-  const handleDismissError = (errorId) => {
-    setDismissedErrors([...dismissedErrors, errorId]);
-  };
-
-  const handleAddErrorAsComment = (erro) => {
-    const newComment = {
-      id: inlineComments.length + 1,
-      selected_text: erro.trecho,
-      comment: `${erro.descricao}\n\nSugestão: ${erro.sugestao}`,
-      color: '#FEF3C7'
-    };
-    
-    setInlineComments([...inlineComments, newComment]);
-    
-    const textContent = textRef.current.textContent;
-    const index = textContent.indexOf(erro.trecho);
-    
-    if (index !== -1) {
-      const range = document.createRange();
-      const walker = document.createTreeWalker(textRef.current, NodeFilter.SHOW_TEXT);
-      let charCount = 0;
-      let startNode = null;
-      let startOffset = 0;
-      let endNode = null;
-      let endOffset = 0;
-      
-      while (walker.nextNode()) {
-        const node = walker.currentNode;
-        const nodeLength = node.textContent.length;
-        
-        if (!startNode && charCount + nodeLength > index) {
-          startNode = node;
-          startOffset = index - charCount;
-        }
-        
-        if (startNode && charCount + nodeLength >= index + erro.trecho.length) {
-          endNode = node;
-          endOffset = index + erro.trecho.length - charCount;
-          break;
-        }
-        
-        charCount += nodeLength;
-      }
-      
-      if (startNode && endNode) {
-        try {
-          range.setStart(startNode, startOffset);
-          range.setEnd(endNode, endOffset);
-          
-          const span = document.createElement('span');
-          span.textContent = erro.trecho;
-          span.style.backgroundColor = '#FEF3C7';
-          span.style.borderBottom = '2px dotted #92400E';
-          span.style.padding = '2px 4px';
-          span.style.borderRadius = '2px';
-          span.style.position = 'relative';
-          span.style.cursor = 'help';
-          span.setAttribute('data-comment-id', newComment.id);
-          span.className = 'inline-comment';
-          
-          const badge = document.createElement('sup');
-          badge.textContent = newComment.id;
-          badge.style.fontSize = '10px';
-          badge.style.fontWeight = 'bold';
-          badge.style.color = '#92400E';
-          badge.style.marginLeft = '2px';
-          span.appendChild(badge);
-          
-          range.deleteContents();
-          range.insertNode(span);
-        } catch (error) {
-          console.error('Error adding AI comment:', error);
-        }
-      }
-    }
-    
-    handleDismissError(erro.id);
-    toast.success('Erro adicionado como comentário');
-  };
 
   const handleSubmit = async () => {
     if (!feedback.general_feedback.trim()) {
@@ -1507,7 +1380,6 @@ export const CorrectEssay = () => {
     .sort((a, b) => new Date(b.last_used_at) - new Date(a.last_used_at))
     .slice(0, 5);
 
-  const visibleAiErrors = aiSuggestions?.erros?.filter(e => !dismissedErrors.includes(e.id)) || [];
 
   return (
     <div style={{ backgroundColor: '#FDF3E8', minHeight: '100vh' }}>
@@ -1699,17 +1571,6 @@ export const CorrectEssay = () => {
               </>
             )}
 
-            <Separator orientation="vertical" className="h-6" />
-            <Button
-              onClick={handleAnalyzeWithAI}
-              disabled={aiAnalyzing}
-              style={{ backgroundColor: '#36555A' }}
-              size="sm"
-              data-testid="analyze-ai-button"
-            >
-              <Sparkles size={16} className="mr-2" />
-              {aiAnalyzing ? 'Analisando...' : '🤖 Analisar com IA'}
-            </Button>
           </div>
 
           {/* RECADO DO ALUNO */}
@@ -2422,100 +2283,7 @@ export const CorrectEssay = () => {
                 data-testid="general-feedback-input"
               />
             </div>
-
-            {/* SUGESTÕES DA IA */}
-            {aiSuggestions && (
-              <>
-                <Separator />
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <h3 className="font-semibold" style={{ color: '#7C1805' }}>
-                      🤖 Análise da IA
-                    </h3>
-                    <div className="flex items-center gap-2">
-                      <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                        style={{ backgroundColor: '#FDF3E8', color: '#D66B27' }}>
-                        {visibleAiErrors.length} ponto{visibleAiErrors.length !== 1 ? 's' : ''}
-                      </span>
-                      <button
-                        onClick={() => setAiSuggestions(null)}
-                        className="text-xs"
-                        style={{ color: '#6B5B4E' }}
-                        title="Fechar análise"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  </div>
-
-                  {aiSuggestions.resumo && (
-                    <div className="p-3 rounded-lg mb-3" style={{ backgroundColor: '#FDF3E8', border: '1px solid #DAB257' }}>
-                      <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>Resumo geral</p>
-                      <p className="text-xs leading-relaxed" style={{ color: '#2C1A0E' }}>{aiSuggestions.resumo}</p>
-                    </div>
-                  )}
-
-                  {visibleAiErrors.length === 0 ? (
-                    <div className="p-4 rounded-lg text-center" style={{ backgroundColor: '#F0F5F5', border: '1px solid #36555A' }}>
-                      <p className="text-xs font-semibold" style={{ color: '#36555A' }}>✓ Nenhum ponto específico encontrado</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {visibleAiErrors.map((erro) => {
-                        const badge = TIPO_BADGES[erro.tipo] || TIPO_BADGES.gramatical;
-                        const isExpanded = expandedSuggestions[erro.id];
-                        return (
-                          <div key={erro.id} className="rounded-lg overflow-hidden"
-                            style={{ border: `1px solid ${badge.color}20`, backgroundColor: '#FFF' }}>
-                            {/* Header */}
-                            <div className="flex items-center justify-between px-3 py-2"
-                              style={{ backgroundColor: `${badge.color}15` }}>
-                              <span className="text-xs font-bold" style={{ color: badge.color }}>
-                                {badge.icon} {badge.label}
-                              </span>
-                              <button onClick={() => handleDismissError(erro.id)}
-                                style={{ color: '#6B5B4E' }}>
-                                <X size={12} />
-                              </button>
-                            </div>
-                            {/* Trecho */}
-                            <div className="px-3 py-2">
-                              <p className="text-xs italic mb-1" style={{ color: '#6B5B4E' }}>
-                                "{erro.trecho?.substring(0, 80)}{erro.trecho?.length > 80 ? '...' : ''}"
-                              </p>
-                              <p className="text-xs" style={{ color: '#2C1A0E' }}>{erro.descricao}</p>
-                            </div>
-                            {/* Ações */}
-                            <div className="px-3 pb-2 flex gap-2">
-                              <button
-                                onClick={() => setExpandedSuggestions({ ...expandedSuggestions, [erro.id]: !isExpanded })}
-                                className="text-xs flex items-center gap-1"
-                                style={{ color: '#D66B27' }}>
-                                {isExpanded ? <ChevronUp size={11} /> : <ChevronDown size={11} />}
-                                Sugestão
-                              </button>
-                              <button
-                                onClick={() => handleAddErrorAsComment(erro)}
-                                className="text-xs flex items-center gap-1"
-                                style={{ color: '#7C1805' }}>
-                                <Plus size={11} /> Comentário
-                              </button>
-                            </div>
-                            {isExpanded && (
-                              <div className="px-3 pb-3">
-                                <p className="text-xs p-2 rounded" style={{ backgroundColor: '#FDF3E8', color: '#2C1A0E' }}>
-                                  {erro.sugestao}
-                                </p>
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
+}
           </div>
         </div>
       </div>
