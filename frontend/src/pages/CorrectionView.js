@@ -31,6 +31,7 @@ export const CorrectionView = () => {
   const [imageBlobUrl, setImageBlobUrl] = useState(null);
   const [correction, setCorrection] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState(null); // U-05
   const textRef = useRef(null);
   const canvasContainerRef = useRef(null);
   const [hoveredCommentId, setHoveredCommentId] = useState(null);
@@ -153,6 +154,10 @@ export const CorrectionView = () => {
 
     } catch (error) {
       console.error('Error fetching data:', error);
+      const status = error?.response?.status;
+      if (status === 404) setFetchError('not_found');
+      else if (status === 403) setFetchError('forbidden');
+      else setFetchError('generic');
     } finally {
       setLoading(false);
     }
@@ -273,12 +278,58 @@ export const CorrectionView = () => {
     );
   }
 
-  if (!correction) {
+  // U-05: estados vazios contextuais
+  if (fetchError || !correction) {
+    const isNotFound  = fetchError === 'not_found'  || !essay;
+    const isForbidden = fetchError === 'forbidden';
+    const isPending   = essay && essay.status === 'pending';
+    const isInProgress = essay && essay.status === 'in_progress';
+
     return (
       <Layout>
-        <Card className="p-12 text-center bg-white">
-          <p className="text-lg text-slate-600">Correção não encontrada</p>
-        </Card>
+        <div className="flex flex-col items-center justify-center py-16 text-center max-w-md mx-auto">
+          <div className="text-5xl mb-4">
+            {isForbidden ? '🔒' : isPending ? '⏳' : isInProgress ? '✏️' : '📭'}
+          </div>
+          <h2 className="font-heading font-bold text-xl mb-2" style={{ color: '#7C1805' }}>
+            {isForbidden
+              ? 'Acesso não permitido'
+              : isPending
+              ? 'Aguardando correção'
+              : isInProgress
+              ? 'Correção em andamento'
+              : isNotFound
+              ? 'Correção não encontrada'
+              : 'Correção não disponível'}
+          </h2>
+          <p className="text-sm mb-6" style={{ color: '#6B5B4E' }}>
+            {isForbidden
+              ? 'Você não tem permissão para visualizar esta correção.'
+              : isPending
+              ? 'Sua redação foi recebida e está na fila de correção. Você receberá uma notificação assim que estiver pronta.'
+              : isInProgress
+              ? 'O professor está corrigindo sua redação agora. Em breve você poderá ver o resultado aqui.'
+              : isNotFound
+              ? 'Esta redação ainda não foi corrigida ou o endereço está incorreto.'
+              : 'Não foi possível carregar a correção. Tente novamente mais tarde.'}
+          </p>
+          <div className="flex gap-3">
+            <button
+              onClick={() => window.history.back()}
+              className="px-4 py-2 rounded-lg text-sm font-semibold border"
+              style={{ borderColor: '#E8DDD0', color: '#6B5B4E', backgroundColor: '#fff' }}>
+              ← Voltar
+            </button>
+            {(fetchError === 'generic' || (!fetchError && !correction)) && (
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
+                style={{ backgroundColor: '#7C1805' }}>
+                Tentar novamente
+              </button>
+            )}
+          </div>
+        </div>
       </Layout>
     );
   }
