@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useRef } from 'react';
 import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
@@ -28,21 +28,38 @@ export const ActivityLogs = () => {
 
   useEffect(() => { fetchLogs(); }, []);
 
-  const fetchLogs = async () => {
+  const searchTimerRef = useRef(null);
+
+  const fetchLogs = async (searchTerm = '', action = 'all', page = 1) => {
+    setLoading(true);
     try {
-      const { data } = await axios.get(`${API_URL}/api/admin/activity-logs?limit=200`, { withCredentials: true });
-      setLogs(data);
-    } catch (e) { console.error(e); }
-    finally { setLoading(false); }
+      // P-08: busca e filtro server-side
+      const params = new URLSearchParams({ limit: 100, page });
+      if (searchTerm) params.set('search', searchTerm);
+      if (action !== 'all') params.set('action', action);
+      const { data } = await axios.get(`${API_URL}/api/admin/activity-logs?${params}`, { withCredentials: true });
+      // Suporte ao novo formato { logs, total } e legado (array)
+      setLogs(Array.isArray(data) ? data : (data.logs || []));
+    } catch (err) {
+      console.error('Erro ao carregar logs:', err);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const filtered = useMemo(() => logs.filter(log => {
-    const matchSearch =
-      (log.user_name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (log.detail || '').toLowerCase().includes(search.toLowerCase());
-    const matchAction = filterAction === 'all' || log.action === filterAction;
-    return matchSearch && matchAction;
-  }), [logs, search, filterAction]);
+  const handleSearchChange = (value) => {
+    setSearch(value);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => fetchLogs(value, filterAction), 400);
+  };
+
+  const handleActionFilterChange = (value) => {
+    setFilterAction(value);
+    fetchLogs(search, value);
+  };;
+
+  // P-08: busca e action filtrados server-side
+  const filtered = logs;
 
   const handleExportExcel = () => {
     exportToExcel('logs-atividade',
@@ -89,11 +106,11 @@ export const ActivityLogs = () => {
           <div className="flex flex-wrap gap-2 items-center">
             <div className="relative flex-1 min-w-[180px]">
               <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B5B4E' }} />
-              <input value={search} onChange={e => setSearch(e.target.value)}
+              <input value={search} onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Buscar por usuário ou detalhe..."
                 style={{ width: '100%', padding: '6px 10px 6px 28px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E', outline: 'none' }} />
             </div>
-            <select value={filterAction} onChange={e => setFilterAction(e.target.value)} style={selectStyle}>
+            <select value={filterAction} onChange={e => handleActionFilterChange(e.target.value)} style={selectStyle}>
               <option value="all">Todas as ações</option>
               {Object.entries(ACTION_CONFIG).map(([key, val]) => (
                 <option key={key} value={key}>{val.icon} {val.label}</option>
