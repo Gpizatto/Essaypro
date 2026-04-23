@@ -42,7 +42,6 @@ export const CorrectionView = () => {
   const [intervention, setIntervention] = useState({ teacher_comment: '', suggest_rewrite: false, mark_important: false, extra_material: '' });
   const [correctionHistory, setCorrectionHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false); // U-10
-  const [showHistory, setShowHistory] = useState(false);
   const [evolutionData, setEvolutionData] = useState([]); // evolução do aluno por competência
   const [savingIntervention, setSavingIntervention] = useState(false);
   const [interventionDirty, setInterventionDirty] = useState(false);
