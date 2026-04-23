@@ -107,7 +107,6 @@ export const CorrectEssay = () => {
   // Caixas de texto arrastáveis — guardadas como objetos, não queimadas no canvas
   const [canvasTextboxes, setCanvasTextboxes] = useState([]);
   const [draggingTextbox, setDraggingTextbox] = useState(null); // { id, offsetX, offsetY }
-  const [editingTextboxId, setEditingTextboxId] = useState(null); // id da textbox sendo editada
   // Pan/Zoom para imagem PDF
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isPanning, setIsPanning] = useState(false);
@@ -692,22 +691,14 @@ export const CorrectEssay = () => {
   const zoomOut = () => setZoom(p => Math.max(parseFloat((p - 0.25).toFixed(2)), 0.25));
 
   // Eventos de desenho no canvas nativo
-  // Adicionar ou editar textbox arrastável
+  // Adicionar textbox arrastável
   const commitTextbox = (text, canvasX, canvasY, color, fontSize) => {
     if (!text.trim()) return;
-    if (editingTextboxId) {
-      // Editar existente
-      setCanvasTextboxes(prev => prev.map(t =>
-        t.id === editingTextboxId ? { ...t, text, color, fontSize } : t
-      ));
-      setEditingTextboxId(null);
-    } else {
-      // Criar nova
-      setCanvasTextboxes(prev => [...prev, {
-        id: `tb_${Date.now()}`,
-        text, canvasX, canvasY, color, fontSize,
-      }]);
-    }
+    setCanvasTextboxes(prev => [...prev, {
+      id: `tb_${Date.now()}`,
+      text, canvasX, canvasY, color, fontSize,
+      width: null, height: null, // será definido ao redimensionar
+    }]);
   };
 
   // Queimar todas as textboxes no canvas (chamado antes de salvar/publicar)
@@ -1230,93 +1221,76 @@ export const CorrectEssay = () => {
   };
 
   // Helper: abre popup de edição para uma textbox existente
-  const openTextboxForEdit = (tb) => {
-    setEditingTextboxId(tb.id);
-    setTextboxInput({
-      visible: true,
-      x: window.innerWidth / 2 - 110, // centralizado na tela
-      y: window.innerHeight / 2 - 120,
-      canvasX: tb.canvasX,
-      canvasY: tb.canvasY,
-      text: tb.text,
-      fontSize: tb.fontSize,
-      color: tb.color,
-    });
-    setTimeout(() => textboxInputRef.current?.focus(), 50);
-  };
-
-  // Helper: JSX de uma textbox arrastável (reutilizado em PDF e imagem)
+  // Helper: JSX de uma textbox arrastável com resize nativo
   const renderTextbox = (tb) => (
     <div key={tb.id} style={{
       position: 'absolute',
       left: `${(tb.canvasX / (nativeCanvasRef.current?.width || 1)) * 100}%`,
       top: `${(tb.canvasY / (nativeCanvasRef.current?.height || 1)) * 100}%`,
       zIndex: 25,
-      cursor: draggingTextbox?.id === tb.id ? 'grabbing' : 'grab',
       userSelect: 'none',
-    }}
-      onMouseDown={(e) => {
-        if (e.detail === 2) return; // duplo clique — não iniciar drag
-        e.stopPropagation();
-        const canvas = nativeCanvasRef.current; if (!canvas) return;
-        const rect = canvas.getBoundingClientRect();
-        const offsetX = (e.clientX - rect.left) * (canvas.width / rect.width) - tb.canvasX;
-        const offsetY = (e.clientY - rect.top) * (canvas.height / rect.height) - tb.canvasY;
-        setDraggingTextbox({ id: tb.id, offsetX, offsetY });
-      }}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        openTextboxForEdit(tb);
-      }}
-    >
-      {/* Texto renderizado */}
-      <div style={{
-        fontFamily: 'Arial, sans-serif',
-        fontSize: `${tb.fontSize}px`,
-        color: tb.color,
-        whiteSpace: 'pre-wrap',
-        lineHeight: 1.4,
-        padding: '2px 4px',
-        border: editingTextboxId === tb.id
-          ? '2px solid #7C1805'
-          : '1px dashed rgba(0,0,0,0.25)',
-        borderRadius: '3px',
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        minWidth: '20px', minHeight: '20px',
-        resize: 'both', overflow: 'auto',
-      }}>
+    }}>
+      {/* Área de texto — arrastável pelo topo, redimensionável pelas bordas */}
+      <div
+        style={{
+          fontFamily: 'Arial, sans-serif',
+          fontSize: `${tb.fontSize}px`,
+          color: tb.color,
+          whiteSpace: 'pre-wrap',
+          lineHeight: 1.4,
+          padding: '2px 6px',
+          border: '1px dashed rgba(0,0,0,0.3)',
+          borderRadius: '3px',
+          backgroundColor: 'rgba(255,255,255,0.05)',
+          minWidth: '40px',
+          minHeight: `${tb.fontSize * 1.4 + 6}px`,
+          width: tb.width ? `${tb.width}px` : 'auto',
+          height: tb.height ? `${tb.height}px` : 'auto',
+          resize: 'both',
+          overflow: 'hidden',
+          cursor: draggingTextbox?.id === tb.id ? 'grabbing' : 'grab',
+          boxSizing: 'border-box',
+        }}
+        onMouseDown={(e) => {
+          // Não iniciar drag se o clique for na alça de resize (canto inferior direito ~16px)
+          const el = e.currentTarget;
+          const rect = el.getBoundingClientRect();
+          const isResizeHandle = (e.clientX > rect.right - 16 && e.clientY > rect.bottom - 16);
+          if (isResizeHandle) return;
+          e.stopPropagation();
+          const canvas = nativeCanvasRef.current; if (!canvas) return;
+          const cRect = canvas.getBoundingClientRect();
+          const offsetX = (e.clientX - cRect.left) * (canvas.width / cRect.width) - tb.canvasX;
+          const offsetY = (e.clientY - cRect.top) * (canvas.height / cRect.height) - tb.canvasY;
+          setDraggingTextbox({ id: tb.id, offsetX, offsetY });
+        }}
+        onMouseUp={(e) => {
+          // Capturar novo tamanho após resize
+          const el = e.currentTarget;
+          const newW = Math.round(el.offsetWidth);
+          const newH = Math.round(el.offsetHeight);
+          if (newW !== (tb.width || 0) || newH !== (tb.height || 0)) {
+            setCanvasTextboxes(prev => prev.map(t =>
+              t.id === tb.id ? { ...t, width: newW, height: newH } : t
+            ));
+          }
+        }}
+      >
         {tb.text}
       </div>
-      {/* Toolbar de ações — aparece ao passar o mouse */}
-      <div style={{
-        position: 'absolute', top: '-22px', left: '0',
-        display: 'flex', gap: '2px',
-        opacity: draggingTextbox?.id === tb.id ? 0 : 1,
-        transition: 'opacity 0.15s',
-      }}>
-        {/* Editar */}
-        <button
-          onMouseDown={(e) => { e.stopPropagation(); openTextboxForEdit(tb); }}
-          title="Editar texto"
-          style={{
-            width: '18px', height: '18px', borderRadius: '3px',
-            backgroundColor: '#36555A', color: 'white',
-            border: 'none', cursor: 'pointer', fontSize: '10px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-          }}
-        >✏</button>
-        {/* Remover */}
-        <button
-          onMouseDown={(e) => { e.stopPropagation(); setCanvasTextboxes(prev => prev.filter(t => t.id !== tb.id)); if (editingTextboxId === tb.id) setEditingTextboxId(null); }}
-          title="Remover"
-          style={{
-            width: '18px', height: '18px', borderRadius: '3px',
-            backgroundColor: '#7C1805', color: 'white',
-            border: 'none', cursor: 'pointer', fontSize: '12px',
-            display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0,
-          }}
-        >×</button>
-      </div>
+      {/* Botão remover — aparece no canto superior direito */}
+      <button
+        onMouseDown={(e) => { e.stopPropagation(); setCanvasTextboxes(prev => prev.filter(t => t.id !== tb.id)); }}
+        title="Remover"
+        style={{
+          position: 'absolute', top: '-8px', right: '-8px',
+          width: '16px', height: '16px', borderRadius: '50%',
+          backgroundColor: '#7C1805', color: 'white',
+          border: 'none', cursor: 'pointer', fontSize: '11px',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+          padding: 0, lineHeight: 1, zIndex: 1,
+        }}
+      >×</button>
     </div>
   );
 
@@ -2299,18 +2273,12 @@ export const CorrectEssay = () => {
           flexDirection: 'column',
           gap: '6px',
           backgroundColor: 'white',
-          border: `2px solid ${editingTextboxId ? '#36555A' : '#7C1805'}`,
+          border: '2px solid #7C1805',
           borderRadius: '8px',
           padding: '8px',
           boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
           minWidth: '220px',
         }}>
-          {/* Indicador de modo edição */}
-          {editingTextboxId && (
-            <div style={{ fontSize: '10px', fontWeight: 700, color: '#36555A', marginBottom: '-2px' }}>
-              ✏️ Editando caixa de texto
-            </div>
-          )}
           {/* Controles de cor e tamanho */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
             <span style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: 600 }}>Cor:</span>
@@ -2374,7 +2342,7 @@ export const CorrectEssay = () => {
           {/* Botões */}
           <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
             <button onClick={() => setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 })}
-              onClick={() => { setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 }); setEditingTextboxId(null); }}
+              onClick={() => setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 })}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#6B5B4E', cursor: 'pointer', background: 'white' }}>
               Cancelar
             </button>
