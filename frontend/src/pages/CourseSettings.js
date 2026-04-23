@@ -49,6 +49,7 @@ export const CourseSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [loadError, setLoadError] = useState(false); // U-05
 
   useEffect(() => { fetchSettings(); }, []);
 
@@ -58,6 +59,7 @@ export const CourseSettings = () => {
       setSettings(data);
     } catch (err) {
       toast.error('Erro ao carregar configurações');
+      setLoadError(true);
     } finally {
       setLoading(false);
     }
@@ -103,6 +105,27 @@ export const CourseSettings = () => {
       <div className="animate-pulse space-y-4">
         <div className="h-8 bg-muted rounded w-1/3" />
         <div className="h-64 bg-muted rounded" />
+      </div>
+    </Layout>
+  );
+
+  // U-05: estado de erro no carregamento
+  if (loadError || !settings) return (
+    <Layout>
+      <div className="flex flex-col items-center justify-center py-16 text-center max-w-md mx-auto">
+        <div className="text-5xl mb-4">⚙️</div>
+        <h2 className="font-heading font-bold text-xl mb-2" style={{ color: '#7C1805' }}>
+          Erro ao carregar configurações
+        </h2>
+        <p className="text-sm mb-6" style={{ color: '#6B5B4E' }}>
+          Não foi possível carregar as configurações do curso. Verifique sua conexão e tente novamente.
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
+          style={{ backgroundColor: '#7C1805' }}>
+          Tentar novamente
+        </button>
       </div>
     </Layout>
   );
