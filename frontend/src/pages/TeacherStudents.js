@@ -34,10 +34,8 @@ export const TeacherStudents = () => {
     }
   };
 
-  const filtered = useMemo(() => students.filter(s =>
-    s.name.toLowerCase().includes(search.toLowerCase()) ||
-    s.email.toLowerCase().includes(search.toLowerCase())
-  ), [students, search]);
+  // P-08: filtro de busca feito server-side — students já vem filtrado
+  const filtered = students;
 
   if (loading) return (
     <Layout>
@@ -66,7 +64,7 @@ export const TeacherStudents = () => {
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B5B4E' }} />
             <input
               value={search}
-              onChange={e => setSearch(e.target.value)}
+              onChange={e => handleSearchChange(e.target.value)}
               placeholder="Buscar aluno por nome ou email..."
               style={{
                 width: '100%', padding: '7px 10px 7px 30px',
