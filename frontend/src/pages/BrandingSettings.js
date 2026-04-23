@@ -39,6 +39,7 @@ export const BrandingSettings = () => {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [savedOk, setSavedOk] = useState(false); // U-07
 
   useEffect(() => { fetchBranding(); }, []);
 
@@ -60,8 +61,9 @@ export const BrandingSettings = () => {
     try {
       await axios.put(`${API_URL}/api/settings/branding`, form, { withCredentials: true });
       setBranding(form); // atualiza contexto global imediatamente
-      toast.success('Personalização salva!');
       setDirty(false);
+      setSavedOk(true);  // U-07: exibir banner de confirmação
+      setTimeout(() => setSavedOk(false), 3500);
     } catch (e) { toast.error('Erro ao salvar'); }
     finally { setSaving(false); }
   };
@@ -105,7 +107,14 @@ export const BrandingSettings = () => {
           </div>
         </div>
 
-        {dirty && (
+        {/* U-07: feedback visual de save */}
+        {savedOk && (
+          <div className="px-4 py-3 rounded-lg text-sm font-semibold flex items-center gap-2 transition-all"
+            style={{ backgroundColor: '#F0FDF4', border: '1px solid #16A34A', color: '#16A34A' }}>
+            ✓ Personalização salva e aplicada com sucesso!
+          </div>
+        )}
+        {dirty && !savedOk && (
           <div className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
             style={{ backgroundColor: '#FFF8F0', border: '1px solid #D66B27', color: '#D66B27' }}>
             <Palette size={14} /> Alterações não salvas
