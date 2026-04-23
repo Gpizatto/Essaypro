@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
@@ -15,12 +16,26 @@ export const PromptsCalendar = () => {
   const [myEssays, setMyEssays] = useState([]);
   const [today] = useState(new Date());
   const [current, setCurrent] = useState({ year: new Date().getFullYear(), month: new Date().getMonth() });
+  const [loading, setLoading] = useState(true); // U-02
+  const [error, setError] = useState(false);    // U-02
 
   useEffect(() => {
-    axios.get(`${API_URL}/api/prompts`, { withCredentials: true })
-      .then(r => setPrompts(r.data || [])).catch(() => {});
-    axios.get(`${API_URL}/api/essays/my`, { withCredentials: true })
-      .then(r => setMyEssays(r.data || [])).catch(() => {});
+    const load = async () => {
+      try {
+        const [promptsRes, essaysRes] = await Promise.all([
+          axios.get(`${API_URL}/api/prompts`, { withCredentials: true }),
+          axios.get(`${API_URL}/api/essays/my`, { withCredentials: true }),
+        ]);
+        setPrompts(promptsRes.data || []);
+        setMyEssays(essaysRes.data || []);
+      } catch {
+        setError(true);
+        toast.error('Erro ao carregar o calendário. Tente novamente.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    load();
   }, []);
 
   const submittedPromptIds = new Set(myEssays.map(e => e.prompt_id));
@@ -56,6 +71,30 @@ export const PromptsCalendar = () => {
       return false;
     });
   };
+
+  // U-02: loading e erro
+  if (loading) return (
+    <Layout>
+      <div className="animate-pulse space-y-4">
+        <div className="h-8 bg-muted rounded w-48" />
+        <div className="h-96 bg-muted rounded" />
+      </div>
+    </Layout>
+  );
+
+  if (error) return (
+    <Layout>
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <p className="text-lg font-semibold mb-2" style={{ color: '#7C1805' }}>Erro ao carregar o calendário</p>
+        <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>Verifique sua conexão e tente novamente.</p>
+        <button onClick={() => window.location.reload()}
+          className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
+          style={{ backgroundColor: '#7C1805' }}>
+          Tentar novamente
+        </button>
+      </div>
+    </Layout>
+  );
 
   const cells = [];
   for (let i = 0; i < firstDay; i++) cells.push(null);
