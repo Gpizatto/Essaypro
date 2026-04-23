@@ -652,23 +652,31 @@ async def get_all_teacher_essays(
     status: Optional[str] = Query(None, description="Filtrar por status: pending, in_progress, corrected"),
     page: int = Query(1, ge=1, description="Página (começa em 1)"),
     page_size: int = Query(100, ge=1, le=500, description="Itens por página (máx 500)"),
+    course_id: Optional[str] = Query(None, description="Filtrar por turma (id do curso)"),
 ):
-    """Retorna redações paginadas com filtro por status. P-01: evita carregar 5000 docs de uma vez."""
+    """Retorna redações paginadas com filtro por status e turma. P-01 + BUG1."""
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Filtro por turma para professores
     query: dict = {}
-    if current_user["role"] == "teacher":
-        teacher_courses = current_user.get("course_ids", [])
-        if teacher_courses:
-            # Buscar alunos das turmas do professor
-            students = await db.users.find(
-                {"role": "student", "course_ids": {"$in": teacher_courses}},
-                {"_id": 1}
-            ).to_list(10000)
-            student_ids = [str(s["_id"]) for s in students]
-            query["student_id"] = {"$in": student_ids}
+
+    # Determinar quais turmas usar para filtrar alunos
+    if course_id and course_id != "all":
+        # Filtro explícito de turma (frontend selecionou uma turma)
+        filter_courses = [course_id]
+    elif current_user["role"] == "teacher":
+        # Professor vê apenas alunos das suas turmas
+        filter_courses = current_user.get("course_ids", [])
+    else:
+        filter_courses = []
+
+    if filter_courses:
+        students = await db.users.find(
+            {"role": "student", "course_ids": {"$in": filter_courses}},
+            {"_id": 1}
+        ).to_list(10000)
+        student_ids = [str(s["_id"]) for s in students]
+        query["student_id"] = {"$in": student_ids}
 
     if status:
         query["status"] = status
