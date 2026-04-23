@@ -86,17 +86,17 @@ export const BrandingSettings = () => {
 
   return (
     <Layout>
-      <div className="space-y-5 max-w-2xl">
-        <div className="flex items-start justify-between gap-3">
+      <div className="space-y-5 w-full max-w-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }}>
+            <h1 className="font-heading font-bold text-2xl sm:text-3xl" style={{ color: '#7C1805' }}>
               Personalização da Plataforma
             </h1>
             <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
               White label — adapte a plataforma à sua marca
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-shrink-0">
             <Button variant="ghost" size="sm" onClick={reset} title="Restaurar padrões">
               <RotateCcw size={14} className="mr-1" /> Padrão
             </Button>
@@ -122,7 +122,7 @@ export const BrandingSettings = () => {
         )}
 
         {/* IDENTIDADE */}
-        <Card className="p-5 bg-white border shadow-sm">
+        <Card className="p-4 sm:p-5 bg-white border shadow-sm">
           <p className="text-xs font-bold mb-1" style={{ color: '#D66B27' }}>IDENTIDADE</p>
 
           <Field label="Nome da plataforma" description="Aparece no topo do sidebar e na aba do browser">
@@ -160,7 +160,7 @@ export const BrandingSettings = () => {
         </Card>
 
         {/* CORES */}
-        <Card className="p-5 bg-white border shadow-sm">
+        <Card className="p-4 sm:p-5 bg-white border shadow-sm">
           <p className="text-xs font-bold mb-1" style={{ color: '#D66B27' }}>CORES</p>
           <p className="text-xs mb-3" style={{ color: '#6B5B4E' }}>
             As cores são aplicadas imediatamente após salvar.
@@ -172,22 +172,23 @@ export const BrandingSettings = () => {
             { key: 'accent_color', label: 'Cor de acento', desc: 'Botões de confirmação, status corrigida' },
           ].map(({ key, label, desc }) => (
             <Field key={key} label={label} description={desc}>
-              <div className="flex items-center gap-3 mt-1">
+              <div className="flex flex-wrap items-center gap-3 mt-1">
                 <input type="color" value={form[key]}
                   onChange={e => update(key, e.target.value)}
-                  style={{ width: '48px', height: '36px', border: '1px solid #E8DDD0', borderRadius: '6px', cursor: 'pointer', padding: '2px' }}
+                  aria-label={`Selecionar ${label}`}
+                  style={{ width: '48px', height: '36px', border: '1px solid #E8DDD0', borderRadius: '6px', cursor: 'pointer', padding: '2px', flexShrink: 0 }}
                 />
                 <Input value={form[key]} onChange={e => update(key, e.target.value)}
-                  style={{ width: '120px', fontFamily: 'monospace', fontSize: '13px' }}
+                  style={{ width: '130px', fontFamily: 'monospace', fontSize: '13px' }}
                   placeholder="#7C1805" />
-                <div className="w-8 h-8 rounded-full border" style={{ backgroundColor: form[key], borderColor: '#E8DDD0' }} />
+                <div className="w-8 h-8 rounded-full border flex-shrink-0" style={{ backgroundColor: form[key], borderColor: '#E8DDD0' }} />
               </div>
             </Field>
           ))}
         </Card>
 
         {/* NOMES DOS PERFIS */}
-        <Card className="p-5 bg-white border shadow-sm">
+        <Card className="p-4 sm:p-5 bg-white border shadow-sm">
           <p className="text-xs font-bold mb-1" style={{ color: '#D66B27' }}>NOMES DOS PERFIS</p>
           <p className="text-xs mb-3" style={{ color: '#6B5B4E' }}>
             Customize como cada papel é chamado na plataforma.
@@ -207,7 +208,7 @@ export const BrandingSettings = () => {
         </Card>
 
         {/* Preview */}
-        <Card className="p-5 bg-white border shadow-sm">
+        <Card className="p-4 sm:p-5 bg-white border shadow-sm">
           <div className="flex items-center gap-2 mb-3">
             <Eye size={16} style={{ color: '#7C1805' }} />
             <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>Preview</p>
@@ -217,21 +218,21 @@ export const BrandingSettings = () => {
               {form.platform_name || 'nome da plataforma'}
             </p>
           </div>
-          <div className="flex gap-2 mt-3">
-            <button className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
+          <div className="flex flex-wrap gap-2 mt-3">
+            <button className="px-3 py-2 rounded-lg text-white text-sm font-semibold"
               style={{ backgroundColor: form.primary_color }}>
               Botão primário
             </button>
-            <button className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
+            <button className="px-3 py-2 rounded-lg text-white text-sm font-semibold"
               style={{ backgroundColor: form.secondary_color }}>
               Secundário
             </button>
-            <button className="px-4 py-2 rounded-lg text-white text-sm font-semibold"
+            <button className="px-3 py-2 rounded-lg text-white text-sm font-semibold"
               style={{ backgroundColor: form.accent_color }}>
               Acento
             </button>
           </div>
-          <div className="flex gap-2 mt-2">
+          <div className="flex flex-wrap gap-2 mt-2">
             {['role_student', 'role_teacher', 'role_admin'].map(k => (
               <span key={k} className="text-xs px-2 py-1 rounded-full font-semibold text-white"
                 style={{ backgroundColor: form.primary_color }}>
