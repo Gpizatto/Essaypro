@@ -696,8 +696,11 @@ export const CorrectEssay = () => {
     if (!text.trim()) return;
     setCanvasTextboxes(prev => [...prev, {
       id: `tb_${Date.now()}`,
-      text, canvasX, canvasY, color, fontSize,
-      width: null, height: null, // será definido ao redimensionar
+      text, canvasX, canvasY, color,
+      fontSize,           // fontSize atual (muda proporcionalmente ao resize)
+      originalFontSize: fontSize, // referência original para cálculo proporcional
+      width: null, height: null,  // definidos após primeiro render/resize
+      initialWidth: null,         // largura natural inicial (capturada no primeiro render)
     }]);
   };
 
@@ -712,7 +715,12 @@ export const CorrectEssay = () => {
       ctx.textBaseline = 'top';
       const lines = tb.text.split('\n');
       const lineHeight = tb.fontSize * 1.4;
-      lines.forEach((line, i) => ctx.fillText(line, tb.canvasX, tb.canvasY + i * lineHeight));
+      // Usar maxWidth se a caixa foi redimensionada
+      const maxW = tb.width ? tb.width - 8 : undefined;
+      lines.forEach((line, i) => {
+        if (maxW) ctx.fillText(line, tb.canvasX, tb.canvasY + i * lineHeight, maxW);
+        else ctx.fillText(line, tb.canvasX, tb.canvasY + i * lineHeight);
+      });
       ctx.restore();
     });
   };
@@ -1230,8 +1238,21 @@ export const CorrectEssay = () => {
       zIndex: 25,
       userSelect: 'none',
     }}>
-      {/* Área de texto — arrastável pelo topo, redimensionável pelas bordas */}
+      {/* Área de texto — arrastável, redimensionável, fontSize proporcional */}
       <div
+        ref={(el) => {
+          // Capturar tamanho natural na primeira montagem (antes de qualquer resize)
+          if (el && !tb.initialWidth) {
+            const naturalW = el.offsetWidth;
+            if (naturalW > 0) {
+              setCanvasTextboxes(prev => prev.map(t =>
+                t.id === tb.id && !t.initialWidth
+                  ? { ...t, initialWidth: naturalW }
+                  : t
+              ));
+            }
+          }
+        }}
         style={{
           fontFamily: 'Arial, sans-serif',
           fontSize: `${tb.fontSize}px`,
@@ -1265,20 +1286,23 @@ export const CorrectEssay = () => {
           setDraggingTextbox({ id: tb.id, offsetX, offsetY });
         }}
         onMouseUp={(e) => {
-          // Capturar novo tamanho após resize
+          // Após resize: calcular novo fontSize proporcional à largura
           const el = e.currentTarget;
           const newW = Math.round(el.offsetWidth);
           const newH = Math.round(el.offsetHeight);
-          if (newW !== (tb.width || 0) || newH !== (tb.height || 0)) {
-            setCanvasTextboxes(prev => prev.map(t =>
-              t.id === tb.id ? { ...t, width: newW, height: newH } : t
-            ));
-          }
+          const refW = tb.initialWidth || newW;
+          const ratio = refW > 0 ? newW / refW : 1;
+          const newFontSize = Math.max(6, Math.round(tb.originalFontSize * ratio));
+          setCanvasTextboxes(prev => prev.map(t =>
+            t.id === tb.id
+              ? { ...t, width: newW, height: newH, fontSize: newFontSize }
+              : t
+          ));
         }}
       >
         {tb.text}
       </div>
-      {/* Botão remover — aparece no canto superior direito */}
+      {/* Botão remover */}
       <button
         onMouseDown={(e) => { e.stopPropagation(); setCanvasTextboxes(prev => prev.filter(t => t.id !== tb.id)); }}
         title="Remover"
