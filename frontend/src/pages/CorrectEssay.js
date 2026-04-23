@@ -1230,92 +1230,118 @@ export const CorrectEssay = () => {
 
   // Helper: abre popup de edição para uma textbox existente
   // Helper: JSX de uma textbox arrastável com resize nativo
-  const renderTextbox = (tb) => (
-    <div key={tb.id} style={{
-      position: 'absolute',
-      left: `${(tb.canvasX / (nativeCanvasRef.current?.width || 1)) * 100}%`,
-      top: `${(tb.canvasY / (nativeCanvasRef.current?.height || 1)) * 100}%`,
-      zIndex: 25,
-      userSelect: 'none',
-    }}>
-      {/* Área de texto — arrastável, redimensionável, fontSize proporcional */}
-      <div
-        ref={(el) => {
-          // Capturar tamanho natural na primeira montagem (antes de qualquer resize)
-          if (el && !tb.initialWidth) {
-            const naturalW = el.offsetWidth;
-            if (naturalW > 0) {
-              setCanvasTextboxes(prev => prev.map(t =>
-                t.id === tb.id && !t.initialWidth
-                  ? { ...t, initialWidth: naturalW }
-                  : t
-              ));
-            }
-          }
-        }}
-        style={{
-          fontFamily: 'Arial, sans-serif',
-          fontSize: `${tb.fontSize}px`,
-          color: tb.color,
-          whiteSpace: 'pre-wrap',
-          lineHeight: 1.4,
-          padding: '2px 6px',
-          border: '1px dashed rgba(0,0,0,0.3)',
-          borderRadius: '3px',
-          backgroundColor: 'rgba(255,255,255,0.05)',
-          minWidth: '40px',
-          minHeight: `${tb.fontSize * 1.4 + 6}px`,
-          width: tb.width ? `${tb.width}px` : 'auto',
-          height: tb.height ? `${tb.height}px` : 'auto',
-          resize: 'both',
-          overflow: 'hidden',
-          cursor: draggingTextbox?.id === tb.id ? 'grabbing' : 'grab',
-          boxSizing: 'border-box',
-        }}
-        onMouseDown={(e) => {
-          // Não iniciar drag se o clique for na alça de resize (canto inferior direito ~16px)
-          const el = e.currentTarget;
-          const rect = el.getBoundingClientRect();
-          const isResizeHandle = (e.clientX > rect.right - 16 && e.clientY > rect.bottom - 16);
-          if (isResizeHandle) return;
-          e.stopPropagation();
-          const canvas = nativeCanvasRef.current; if (!canvas) return;
-          const cRect = canvas.getBoundingClientRect();
-          const offsetX = (e.clientX - cRect.left) * (canvas.width / cRect.width) - tb.canvasX;
-          const offsetY = (e.clientY - cRect.top) * (canvas.height / cRect.height) - tb.canvasY;
-          setDraggingTextbox({ id: tb.id, offsetX, offsetY });
-        }}
-        onMouseUp={(e) => {
-          // Após resize: calcular novo fontSize proporcional à largura
-          const el = e.currentTarget;
-          const newW = Math.round(el.offsetWidth);
-          const newH = Math.round(el.offsetHeight);
-          const refW = tb.initialWidth || newW;
-          const ratio = refW > 0 ? newW / refW : 1;
-          const newFontSize = Math.max(6, Math.round(tb.originalFontSize * ratio));
-          setCanvasTextboxes(prev => prev.map(t =>
-            t.id === tb.id
-              ? { ...t, width: newW, height: newH, fontSize: newFontSize }
-              : t
-          ));
-        }}
-      >
-        {tb.text}
+  // Componente React para textbox arrastável e redimensionável
+  const TextboxItem = React.memo(({ tb, draggingId, canvasRef, onDragStart, onResize, onRemove }) => {
+    const elRef = React.useRef(null);
+
+    // Capturar largura natural após montagem (sem chamar setState durante render)
+    React.useEffect(() => {
+      if (elRef.current && !tb.initialWidth) {
+        const naturalW = elRef.current.offsetWidth;
+        if (naturalW > 0) onResize(tb.id, null, null, naturalW);
+      }
+    }, []); // eslint-disable-line
+
+    const handleMouseDown = (e) => {
+      const el = e.currentTarget;
+      const rect = el.getBoundingClientRect();
+      const isResizeHandle = (e.clientX > rect.right - 16 && e.clientY > rect.bottom - 16);
+      if (isResizeHandle) return;
+      e.stopPropagation();
+      const canvas = canvasRef.current; if (!canvas) return;
+      const cRect = canvas.getBoundingClientRect();
+      const offsetX = (e.clientX - cRect.left) * (canvas.width / cRect.width) - tb.canvasX;
+      const offsetY = (e.clientY - cRect.top) * (canvas.height / cRect.height) - tb.canvasY;
+      onDragStart(tb.id, offsetX, offsetY);
+    };
+
+    const handleMouseUp = (e) => {
+      const el = e.currentTarget;
+      const newW = Math.round(el.offsetWidth);
+      const newH = Math.round(el.offsetHeight);
+      const refW = tb.initialWidth || newW;
+      const ratio = refW > 0 ? newW / refW : 1;
+      const newFontSize = Math.max(6, Math.round(tb.originalFontSize * ratio));
+      onResize(tb.id, newW, newH, tb.initialWidth || newW, newFontSize);
+    };
+
+    return (
+      <div style={{
+        position: 'absolute',
+        left: `${(tb.canvasX / (canvasRef.current?.width || 1)) * 100}%`,
+        top: `${(tb.canvasY / (canvasRef.current?.height || 1)) * 100}%`,
+        zIndex: 25,
+        userSelect: 'none',
+      }}>
+        <div
+          ref={elRef}
+          style={{
+            fontFamily: 'Arial, sans-serif',
+            fontSize: `${tb.fontSize}px`,
+            color: tb.color,
+            whiteSpace: 'pre-wrap',
+            lineHeight: 1.4,
+            padding: '2px 6px',
+            border: '1px dashed rgba(0,0,0,0.3)',
+            borderRadius: '3px',
+            backgroundColor: 'rgba(255,255,255,0.05)',
+            minWidth: '40px',
+            minHeight: `${tb.fontSize * 1.4 + 6}px`,
+            width: tb.width ? `${tb.width}px` : 'auto',
+            height: tb.height ? `${tb.height}px` : 'auto',
+            resize: 'both',
+            overflow: 'hidden',
+            cursor: draggingId === tb.id ? 'grabbing' : 'grab',
+            boxSizing: 'border-box',
+          }}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+        >
+          {tb.text}
+        </div>
+        <button
+          onMouseDown={(e) => { e.stopPropagation(); onRemove(tb.id); }}
+          title="Remover"
+          style={{
+            position: 'absolute', top: '-8px', right: '-8px',
+            width: '16px', height: '16px', borderRadius: '50%',
+            backgroundColor: '#7C1805', color: 'white',
+            border: 'none', cursor: 'pointer', fontSize: '11px',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            padding: 0, lineHeight: 1, zIndex: 1,
+          }}
+        >×</button>
       </div>
-      {/* Botão remover */}
-      <button
-        onMouseDown={(e) => { e.stopPropagation(); setCanvasTextboxes(prev => prev.filter(t => t.id !== tb.id)); }}
-        title="Remover"
-        style={{
-          position: 'absolute', top: '-8px', right: '-8px',
-          width: '16px', height: '16px', borderRadius: '50%',
-          backgroundColor: '#7C1805', color: 'white',
-          border: 'none', cursor: 'pointer', fontSize: '11px',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          padding: 0, lineHeight: 1, zIndex: 1,
-        }}
-      >×</button>
-    </div>
+    );
+  });
+
+  const handleTextboxDragStart = (id, offsetX, offsetY) => {
+    setDraggingTextbox({ id, offsetX, offsetY });
+  };
+
+  const handleTextboxResize = (id, newW, newH, initialWidth, newFontSize) => {
+    setCanvasTextboxes(prev => prev.map(t => {
+      if (t.id !== id) return t;
+      // Só initialWidth (primeiro mount) — sem width/height/fontSize
+      if (newW === null) return t.initialWidth ? t : { ...t, initialWidth };
+      return { ...t, width: newW, height: newH, fontSize: newFontSize, initialWidth: t.initialWidth || initialWidth };
+    }));
+  };
+
+  const handleTextboxRemove = (id) => {
+    setCanvasTextboxes(prev => prev.filter(t => t.id !== id));
+  };
+
+  const renderTextbox = (tb) => (
+    <TextboxItem
+      key={tb.id}
+      tb={tb}
+      draggingId={draggingTextbox?.id}
+      canvasRef={nativeCanvasRef}
+      onDragStart={handleTextboxDragStart}
+      onResize={handleTextboxResize}
+      onRemove={handleTextboxRemove}
+    />
   );
 
   if (loading) {
