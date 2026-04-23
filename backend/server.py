@@ -636,11 +636,42 @@ async def update_essay_status(essay_id: str, body: dict, current_user: dict = De
     return {"status": new_status}
 
 @api_router.get("/essays/all-teacher")
-async def get_all_teacher_essays(current_user: dict = Depends(get_current_user)):
+async def get_all_teacher_essays(
+    current_user: dict = Depends(get_current_user),
+    status: Optional[str] = Query(None, description="Filtrar por status: pending, in_progress, corrected"),
+    page: int = Query(1, ge=1, description="Página (começa em 1)"),
+    page_size: int = Query(100, ge=1, le=500, description="Itens por página (máx 500)"),
+):
+    """Retorna redações paginadas com filtro por status. P-01: evita carregar 5000 docs de uma vez."""
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
-    essays = await db.essays.find({}, {"_id": 0}).to_list(5000)
-    # Batch load — 2 queries instead of 2*N
+
+    # Filtro por turma para professores
+    query: dict = {}
+    if current_user["role"] == "teacher":
+        teacher_courses = current_user.get("course_ids", [])
+        if teacher_courses:
+            # Buscar alunos das turmas do professor
+            students = await db.users.find(
+                {"role": "student", "course_ids": {"$in": teacher_courses}},
+                {"_id": 1}
+            ).to_list(10000)
+            student_ids = [str(s["_id"]) for s in students]
+            query["student_id"] = {"$in": student_ids}
+
+    if status:
+        query["status"] = status
+
+    skip = (page - 1) * page_size
+
+    # Contar total para paginação
+    total = await db.essays.count_documents(query)
+
+    essays = await db.essays.find(query, {"_id": 0}).sort(
+        "submitted_at", -1
+    ).skip(skip).limit(page_size).to_list(page_size)
+
+    # Batch load nomes e títulos — 2 queries para N essays
     sid_set = {e["student_id"] for e in essays if e.get("student_id")}
     pid_set = {e["prompt_id"] for e in essays if e.get("prompt_id")}
     students_map = {}
@@ -654,7 +685,14 @@ async def get_all_teacher_essays(current_user: dict = Depends(get_current_user))
     for essay in essays:
         essay["student_name"] = students_map.get(essay.get("student_id", ""), "")
         essay["prompt_title"] = prompts_map.get(essay.get("prompt_id", ""), "")
-    return [EssayResponse(**e) for e in essays]
+
+    return {
+        "essays": [EssayResponse(**e).model_dump() for e in essays],
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "pages": (total + page_size - 1) // page_size,
+    }
 
 @api_router.get("/essays/{essay_id}", response_model=EssayResponse)
 async def get_essay(essay_id: str, current_user: dict = Depends(get_current_user)):
@@ -782,7 +820,7 @@ async def get_student_stats(current_user: dict = Depends(get_current_user)):
     return {
         "total_essays": len(essays),
         "pending_corrections": len([e for e in essays if e["status"] == "pending"]),
-        "average_score": sum(scores) / len(scores) if scores else 0,
+        "average_score": round(avg_score or 0, 1),
         "best_score": max(scores) if scores else 0
     }
 
@@ -1006,120 +1044,70 @@ async def mark_all_read(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/teacher/my-stats")
 async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
+    """P-02: Calcula stats do professor via aggregation pipeline — sem carregar 10.000 docs."""
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     tid = current_user["_id"]
-    # Busca tanto string quanto ObjectId (compatibilidade com correções antigas)
-    try:
-        corrections = await db.corrections.find(
-            {"$or": [{"teacher_id": tid}, {"teacher_id": ObjectId(tid)}]},
-            {"_id": 0}
-        ).to_list(10000)
-    except Exception:
-        corrections = await db.corrections.find({"teacher_id": tid}, {"_id": 0}).to_list(10000)
-    total = len(corrections)
-
-    # Helper: converter qualquer formato de data para datetime aware
-    def parse_dt(val):
-        if val is None:
-            return None
-        if isinstance(val, datetime):
-            return val.replace(tzinfo=timezone.utc) if val.tzinfo is None else val
-        try:
-            from dateutil import parser as dtparser
-            return dtparser.parse(str(val)).replace(tzinfo=timezone.utc)
-        except Exception:
-            return None
-
-    # Normalizar corrected_at em todas as correções
-    for c in corrections:
-        c["_corrected_dt"] = parse_dt(c.get("corrected_at"))
-
-    # Tempo médio — batch load essays
-    durations = []
-    if corrections:
-        essay_ids = list({c["essay_id"] for c in corrections if c.get("essay_id")})
-        if essay_ids:
-            essays_batch = await db.essays.find(
-                {"id": {"$in": essay_ids}}, {"_id": 0, "id": 1, "submitted_at": 1}
-            ).to_list(len(essay_ids))
-            essays_map = {e["id"]: e for e in essays_batch}
-            for c in corrections:
-                essay = essays_map.get(c.get("essay_id", ""))
-                cdt = c["_corrected_dt"]
-                sdt = parse_dt(essay.get("submitted_at")) if essay else None
-                if cdt and sdt:
-                    try:
-                        diff = (cdt - sdt).total_seconds() / 3600
-                        if 0 < diff < 720:
-                            durations.append(diff)
-                    except Exception:
-                        pass
-
-    avg_hours = round(sum(durations) / len(durations), 1) if durations else 0
-
-    # Por mês — últimos 6 meses
-    from collections import defaultdict
-    monthly = defaultdict(int)
-    for c in corrections:
-        cdt = c["_corrected_dt"]
-        if cdt:
-            try:
-                key = cdt.strftime("%Y-%m")
-                monthly[key] += 1
-            except Exception:
-                pass
-
-    sorted_months = sorted(monthly.keys())[-6:]
-    monthly_data = [{"month": m, "count": monthly[m]} for m in sorted_months]
-
-    # Por semana — últimas 4 semanas
     now = datetime.now(timezone.utc)
+    today_start     = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    week_start      = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    month_start     = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    six_months_ago  = now - timedelta(days=180)
+
+    # Filtro compatível com teacher_id como string ou ObjectId
+    try:
+        tid_filter = {"$or": [{"teacher_id": tid}, {"teacher_id": ObjectId(tid)}]}
+    except Exception:
+        tid_filter = {"teacher_id": tid}
+
+    # ── Contagens periódicas via aggregation — 1 query ──────────────────────
+    period_agg = await db.corrections.aggregate([
+        {"$match": tid_filter},
+        {"$group": {
+            "_id": None,
+            "total":     {"$sum": 1},
+            "today":     {"$sum": {"$cond": [{"$gte": ["$corrected_at", today_start]}, 1, 0]}},
+            "this_week": {"$sum": {"$cond": [{"$gte": ["$corrected_at", week_start]}, 1, 0]}},
+            "this_month":{"$sum": {"$cond": [{"$gte": ["$corrected_at", month_start]}, 1, 0]}},
+            "avg_time":  {"$avg": "$correction_time_minutes"},
+        }}
+    ]).to_list(1)
+    counts = period_agg[0] if period_agg else {"total": 0, "today": 0, "this_week": 0, "this_month": 0, "avg_time": 0}
+
+    # ── Por mês — últimos 6 meses via aggregation ────────────────────────────
+    monthly_agg = await db.corrections.aggregate([
+        {"$match": {**tid_filter, "corrected_at": {"$gte": six_months_ago}}},
+        {"$group": {
+            "_id": {"$dateToString": {"format": "%Y-%m", "date": "$corrected_at"}},
+            "count": {"$sum": 1}
+        }},
+        {"$sort": {"_id": 1}},
+        {"$limit": 6},
+    ]).to_list(6)
+    monthly_data = [{"month": r["_id"], "count": r["count"]} for r in monthly_agg if r.get("_id")]
+
+    # ── Por semana — últimas 4 semanas ───────────────────────────────────────
     weekly = []
     for i in range(3, -1, -1):
-        week_start = (now - timedelta(days=now.weekday() + 7 * i)).replace(hour=0, minute=0, second=0, microsecond=0)
-        week_end = week_start + timedelta(days=7)
-        count = 0
-        for c in corrections:
-            cdt = c["_corrected_dt"]
-            if cdt:
-                try:
-                    if week_start <= cdt <= week_end:
-                        count += 1
-                except Exception:
-                    pass
-        weekly.append({"week": week_start.strftime("%d/%m"), "count": count})
+        w_start = (now - timedelta(days=now.weekday() + 7 * i)).replace(hour=0, minute=0, second=0, microsecond=0)
+        w_end   = w_start + timedelta(days=7)
+        count   = await db.corrections.count_documents({
+            **tid_filter,
+            "corrected_at": {"$gte": w_start, "$lt": w_end}
+        })
+        weekly.append({"week": w_start.strftime("%d/%m"), "count": count})
 
-    # Hoje e esta semana
-    today_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-    week_start_curr = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-
-    def safe_count(dt_field, since):
-        count = 0
-        for c in corrections:
-            cdt = c.get("_corrected_dt")
-            if cdt:
-                try:
-                    if cdt >= since:
-                        count += 1
-                except Exception:
-                    pass
-        return count
-
-    today_count = safe_count("_corrected_dt", today_start)
-    week_count = safe_count("_corrected_dt", week_start_curr)
-    month_count = safe_count("_corrected_dt", month_start)
+    avg_hours = round((counts.get("avg_time") or 0) / 60, 1)
 
     return {
-        "total_corrections": total,
-        "today": today_count,
-        "this_week": week_count,
-        "this_month": month_count,
-        "avg_hours": round(avg_hours, 1),
-        "monthly_data": monthly_data,
-        "weekly_data": weekly,
+        "total_corrections": counts.get("total", 0),
+        "today":             counts.get("today", 0),
+        "this_week":         counts.get("this_week", 0),
+        "this_month":        counts.get("this_month", 0),
+        "avg_hours":         avg_hours,
+        "monthly_data":      monthly_data,
+        "weekly_data":       weekly,
     }
 
 # ============================================================
@@ -1381,32 +1369,32 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
     total_rewrites = sum(r["count"] for r in essay_agg if r["_id"].get("is_rewrite"))
     total_corrections = await db.corrections.count_documents({})
 
-    corrections = await db.corrections.find({}, {"_id": 0, "total_score": 1}).to_list(10000)
-    scores = [c["total_score"] for c in corrections]
+    # P-03: média de notas via aggregation — sem carregar 10.000 docs
+    score_agg = await db.corrections.aggregate([
+        {"$group": {"_id": None, "avg": {"$avg": "$total_score"}}}
+    ]).to_list(1)
+    avg_score = score_agg[0]["avg"] if score_agg else 0
 
-    # Propostas mais enviadas
-    essays_all = await db.essays.find({}, {"_id": 0, "prompt_id": 1}).to_list(10000)
-    prompt_counts = {}
-    for e in essays_all:
-        pid = e.get("prompt_id")
-        if pid:
-            prompt_counts[pid] = prompt_counts.get(pid, 0) + 1
-    top_prompt_ids = sorted(prompt_counts, key=lambda x: -prompt_counts[x])[:5]
-    # Batch load top prompts — 1 query
+    # P-03: top propostas via aggregation — sem carregar todos os essays
+    prompt_agg = await db.essays.aggregate([
+        {"$group": {"_id": "$prompt_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 5},
+    ]).to_list(5)
+    top_prompt_ids = [r["_id"] for r in prompt_agg if r.get("_id")]
     top_prompts = []
     if top_prompt_ids:
         plist = await db.prompts.find({"id": {"$in": top_prompt_ids}}, {"_id": 0, "id": 1, "title": 1}).to_list(5)
         pmap = {p["id"]: p["title"] for p in plist}
-        top_prompts = [{"title": pmap[pid], "count": prompt_counts[pid]} for pid in top_prompt_ids if pid in pmap]
+        top_prompts = [{"title": pmap[r["_id"]], "count": r["count"]} for r in prompt_agg if r.get("_id") in pmap]
 
-    # Alunos mais ativos — reuse essays_all, batch load names
-    student_counts = {}
-    for e in essays_all:
-        sid = e.get("student_id")
-        if sid:
-            student_counts[sid] = student_counts.get(sid, 0) + 1
-    top_student_ids = sorted(student_counts, key=lambda x: -student_counts[x])[:5]
-    # Batch load top students — 1 query
+    # P-03: top alunos via aggregation
+    student_agg = await db.essays.aggregate([
+        {"$group": {"_id": "$student_id", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 5},
+    ]).to_list(5)
+    top_student_ids = [r["_id"] for r in student_agg if r.get("_id")]
     top_students = []
     if top_student_ids:
         try:
@@ -1415,8 +1403,8 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
                 {"_id": 1, "name": 1}
             ).to_list(5)
             umap = {str(u["_id"]): u["name"] for u in ulist}
-            top_students = [{"name": umap[sid], "count": student_counts[sid]} for sid in top_student_ids if sid in umap]
-        except:
+            top_students = [{"name": umap[r["_id"]], "count": r["count"]} for r in student_agg if r.get("_id") in umap]
+        except Exception:
             pass
 
     # Frequência de envio — essays nos últimos 7 e 30 dias
@@ -1435,7 +1423,7 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         "total_pending": total_pending,
         "total_corrections": total_corrections,
         "total_rewrites": total_rewrites,
-        "average_score": sum(scores) / len(scores) if scores else 0,
+        "average_score": round(avg_score or 0, 1),
         "top_prompts": top_prompts,
         "top_students": top_students,
         "essays_last_7_days": essays_last_7,
@@ -1929,11 +1917,12 @@ async def get_ranking(current_user: dict = Depends(get_current_user)):
         students = await db.users.find(student_filter, {"_id": 1, "name": 1, "created_at": 1}).to_list(1000)
         result = []
 
-        # Batch load all essays and corrections — evita N+1
+        # P-04: Limitar campos buscados + projeção — reduz dados trafegados
         all_student_ids = [str(s["_id"]) for s in students]
         all_essays = await db.essays.find(
-            {"student_id": {"$in": all_student_ids}}, {"_id": 0}
-        ).to_list(50000)
+            {"student_id": {"$in": all_student_ids}},
+            {"_id": 0, "id": 1, "student_id": 1, "status": 1, "is_rewrite": 1, "submitted_at": 1, "prompt_id": 1}
+        ).to_list(10000)  # P-04: reduzido de 50000 para 10000 com projeção de campos
         essays_by_student = {}
         for e in all_essays:
             essays_by_student.setdefault(e["student_id"], []).append(e)
@@ -2594,6 +2583,15 @@ async def startup_event():
     await db.corrections.create_index("corrected_at")
 
     await db.drafts.create_index([("essay_id", 1), ("teacher_id", 1)])
+
+    # P-05/P-06/P-07: Índices em collections sem índice (adicionados na otimização de performance)
+    await db.correction_history.create_index("essay_id")
+    await db.correction_history.create_index("saved_at")
+    await db.courses.create_index("is_active")
+    await db.courses.create_index("name")
+    await db.uploaded_files.create_index("file_id")
+    await db.prompt_drafts.create_index("teacher_id")
+    await db.essays.create_index([("status", 1), ("submitted_at", -1)])  # P-01: suporte ao sort paginado
     await db.notifications.create_index([("user_id", 1), ("read", 1)])
     await db.notifications.create_index("created_at")
     await db.activity_logs.create_index("created_at")
