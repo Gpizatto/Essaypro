@@ -41,6 +41,7 @@ export const CorrectionView = () => {
   const [courseSettings, setCourseSettings] = useState(null);
   const [intervention, setIntervention] = useState({ teacher_comment: '', suggest_rewrite: false, mark_important: false, extra_material: '' });
   const [correctionHistory, setCorrectionHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false); // U-10
   const [showHistory, setShowHistory] = useState(false);
   const [evolutionData, setEvolutionData] = useState([]); // evolução do aluno por competência
   const [savingIntervention, setSavingIntervention] = useState(false);
@@ -867,6 +868,92 @@ export const CorrectionView = () => {
           </div>
         </Card>
         )}
+
+      {/* U-10: HISTÓRICO DE VERSÕES */}
+      {correctionHistory.length > 1 && (
+        <Card className="p-5 bg-white border shadow-sm">
+          <button
+            onClick={() => setShowHistory(h => !h)}
+            className="w-full flex items-center justify-between"
+            aria-expanded={showHistory}
+            aria-label="Ver histórico de versões da correção"
+          >
+            <div className="flex items-center gap-2">
+              <span style={{ color: '#7C1805', fontSize: '16px' }}>🕐</span>
+              <span className="font-semibold text-sm" style={{ color: '#7C1805' }}>
+                Histórico de versões
+              </span>
+              <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                style={{ backgroundColor: '#FDF3E8', color: '#D66B27', border: '1px solid #DAB257' }}>
+                {correctionHistory.length} versões
+              </span>
+            </div>
+            <span style={{ color: '#6B5B4E', fontSize: '18px', lineHeight: 1 }}>
+              {showHistory ? '▲' : '▼'}
+            </span>
+          </button>
+
+          {showHistory && (
+            <div className="mt-4 space-y-3">
+              <p className="text-xs" style={{ color: '#6B5B4E' }}>
+                Cada versão representa uma publicação da correção. A mais recente está no topo.
+              </p>
+              {correctionHistory.map((hist, idx) => {
+                const isLatest = idx === 0;
+                const histMax = hist.criteria_scores?.reduce((s, c) => s + (c.max || 0), 0) || 1000;
+                const histScore = hist.total_score || 0;
+                const pct = Math.round((histScore / histMax) * 100);
+                const color = pct >= 70 ? '#16A34A' : pct >= 50 ? '#D97706' : '#DC2626';
+                const savedAt = hist.saved_at
+                  ? new Date(hist.saved_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+                  : '—';
+
+                return (
+                  <div key={hist._id || idx}
+                    className="flex items-center justify-between p-3 rounded-lg"
+                    style={{
+                      backgroundColor: isLatest ? '#F0FDF4' : '#FAFAFA',
+                      border: `1px solid ${isLatest ? '#16A34A' : '#E8DDD0'}`,
+                    }}>
+                    <div className="flex items-center gap-3">
+                      <div className="flex flex-col items-center justify-center rounded-full w-10 h-10 flex-shrink-0"
+                        style={{ backgroundColor: isLatest ? '#16A34A' : '#E8DDD0' }}>
+                        <span className="text-xs font-bold" style={{ color: isLatest ? 'white' : '#6B5B4E', lineHeight: 1 }}>
+                          v{correctionHistory.length - idx}
+                        </span>
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-sm font-semibold" style={{ color }}>
+                            {histScore} pts
+                          </span>
+                          <span className="text-xs" style={{ color: '#6B5B4E' }}>
+                            de {histMax} ({pct}%)
+                          </span>
+                          {isLatest && (
+                            <span className="text-xs px-1.5 py-0.5 rounded font-semibold"
+                              style={{ backgroundColor: '#16A34A', color: 'white' }}>
+                              atual
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                          {savedAt}
+                        </p>
+                      </div>
+                    </div>
+                    {/* Mini barra de progresso */}
+                    <div className="w-20 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#E8DDD0' }}>
+                      <div className="h-2 rounded-full transition-all"
+                        style={{ width: `${pct}%`, backgroundColor: color }} />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </Card>
+      )}
 
       {/* MODAL DA PROPOSTA */}
       {showPromptModal && prompt && (
