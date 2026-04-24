@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
 import { useParams } from 'react-router-dom';
 import { Layout } from '../components/Layout';
@@ -16,7 +16,7 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getScoreColor = (score, max) => {
   const percentage = max > 0 ? (score / max) * 100 : 0;
-  if (percentage >= 80) return '#36555A';
+  if (percentage >= 80) return 'var(--accent-green)';
   if (percentage >= 60) return '#3B82F6';
   if (percentage >= 40) return '#F59E0B';
   return '#EF4444';
@@ -291,7 +291,7 @@ export const CorrectionView = () => {
           <div className="text-5xl mb-4">
             {isForbidden ? '🔒' : isPending ? '⏳' : isInProgress ? '✏️' : '📭'}
           </div>
-          <h2 className="font-heading font-bold text-xl mb-2" style={{ color: '#7C1805' }}>
+          <h2 className="font-heading font-bold text-xl mb-2" style={{ color: 'var(--accent-red)' }}>
             {isForbidden
               ? 'Acesso não permitido'
               : isPending
@@ -302,7 +302,7 @@ export const CorrectionView = () => {
               ? 'Correção não encontrada'
               : 'Correção não disponível'}
           </h2>
-          <p className="text-sm mb-6" style={{ color: '#6B5B4E' }}>
+          <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
             {isForbidden
               ? 'Você não tem permissão para visualizar esta correção.'
               : isPending
@@ -317,14 +317,14 @@ export const CorrectionView = () => {
             <button
               onClick={() => window.history.back()}
               className="px-4 py-2 rounded-lg text-sm font-semibold border"
-              style={{ borderColor: '#E8DDD0', color: '#6B5B4E', backgroundColor: '#fff' }}>
+              style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', backgroundColor: '#fff' }}>
               ← Voltar
             </button>
             {(fetchError === 'generic' || (!fetchError && !correction)) && (
               <button
                 onClick={() => window.location.reload()}
                 className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
-                style={{ backgroundColor: '#7C1805' }}>
+                style={{ backgroundColor: 'var(--accent-red)' }}>
                 Tentar novamente
               </button>
             )}
@@ -368,30 +368,30 @@ export const CorrectionView = () => {
       <div className="space-y-8">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }} data-testid="correction-title">
+            <h1 className="font-heading font-bold text-3xl" style={{ color: 'var(--accent-red)' }} data-testid="correction-title">
               Correção da Redação
             </h1>
             {essay?.is_rewrite && (
-              <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ backgroundColor: '#FFF0E0', color: '#D66B27', border: '1px solid #D66B27' }}>
+              <span className="text-xs px-2 py-1 rounded-full font-semibold" style={{ backgroundColor: '#FFF0E0', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)' }}>
                 ✏️ Reescrita
               </span>
             )}
-            <Badge style={{ backgroundColor: '#36555A', color: '#FDF3E8' }}>
+            <Badge style={{ backgroundColor: 'var(--accent-green)', color: 'var(--bg-primary)' }}>
               <CheckCircle2 size={12} className="mr-1" />
               Corrigida
             </Badge>
           </div>
 
-          <p className="font-heading font-semibold text-lg" style={{ color: '#2C1A0E' }}>{essay?.prompt_title}</p>
+          <p className="font-heading font-semibold text-lg" style={{ color: 'var(--text-primary)' }}>{essay?.prompt_title}</p>
 
           {/* Linha de metadados */}
-          <div className="flex flex-wrap gap-4 text-sm" style={{ color: '#6B5B4E' }}>
+          <div className="flex flex-wrap gap-4 text-sm" style={{ color: 'var(--text-secondary)' }}>
             <span className="flex items-center gap-1">
               <CalendarDays size={14} />
               Enviada em {essay ? new Date(essay.submitted_at).toLocaleDateString('pt-BR') : '—'}
             </span>
             <span className="flex items-center gap-1">
-              <CheckCircle2 size={14} style={{ color: '#36555A' }} />
+              <CheckCircle2 size={14} style={{ color: 'var(--accent-green)' }} />
               Corrigida em {correction ? new Date(correction.corrected_at).toLocaleDateString('pt-BR') : '—'}
             </span>
             {correction?.teacher_name && courseSettings?.show_teacher_name !== false && (
@@ -447,13 +447,13 @@ export const CorrectionView = () => {
         {/* TEXTO DA REDAÇÃO COM CANVAS */}
         <Card className="p-8 bg-white border shadow-sm">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="font-heading text-2xl font-bold" style={{ color: '#7C1805' }}>
+            <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--accent-red)' }}>
               Sua Redação com Anotações
             </h2>
             {essay?.is_rewrite && essay?.parent_essay_id && (
               <a href={`/correction/${essay.parent_essay_id}`} target="_blank" rel="noreferrer"
                 className="text-xs px-3 py-1.5 rounded-lg font-semibold border flex items-center gap-1"
-                style={{ borderColor: '#D66B27', color: '#D66B27' }}>
+                style={{ borderColor: 'var(--accent-orange)', color: 'var(--accent-orange)' }}>
                 🔍 Ver versão anterior
               </a>
             )}
@@ -464,7 +464,7 @@ export const CorrectionView = () => {
               {pdfPages.map((src, i) => (
                 <div key={i} style={{ position: 'relative', marginBottom: '24px' }}>
                   {pdfPages.length > 1 && (
-                    <p className="text-xs mb-1" style={{ color: '#6B5B4E' }}>
+                    <p className="text-xs mb-1" style={{ color: 'var(--text-secondary)' }}>
                       Página {i + 1} de {pdfPages.length}
                     </p>
                   )}
@@ -472,7 +472,7 @@ export const CorrectionView = () => {
                   <img
                     src={src}
                     alt={`Página ${i + 1}`}
-                    style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                    style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid var(--border-color)' }}
                   />
                   {/* Anotações do professor: pdf_annotations por página ou canvas_annotations geral */}
                   {(correction.pdf_annotations?.[i + 1] || (i === 0 && correction.canvas_annotations?.dataUrl)) && (
@@ -505,7 +505,7 @@ export const CorrectionView = () => {
                           }}
                         >
                           <div style={{
-                            backgroundColor: '#7C1805', color: 'white',
+                            backgroundColor: 'var(--accent-red)', color: 'white',
                             borderRadius: '50%', width: '24px', height: '24px',
                             display: 'flex', alignItems: 'center', justifyContent: 'center',
                             fontSize: '12px', fontWeight: 'bold', boxShadow: '0 2px 6px rgba(0,0,0,0.3)',
@@ -514,7 +514,7 @@ export const CorrectionView = () => {
                           <div style={{
                             position: 'absolute', bottom: '28px', left: '50%',
                             transform: 'translateX(-50%)',
-                            backgroundColor: '#2C1A0E', color: 'white',
+                            backgroundColor: 'var(--text-primary)', color: 'white',
                             padding: '6px 10px', borderRadius: '8px',
                             fontSize: '12px', whiteSpace: 'nowrap', maxWidth: '220px',
                             whiteSpace: 'pre-wrap', wordBreak: 'break-word',
@@ -529,7 +529,7 @@ export const CorrectionView = () => {
                               position: 'absolute', top: '100%', left: '50%',
                               transform: 'translateX(-50%)',
                               border: '5px solid transparent',
-                              borderTopColor: '#2C1A0E',
+                              borderTopColor: 'var(--text-primary)',
                             }} />
                           </div>
                         </div>
@@ -546,7 +546,7 @@ export const CorrectionView = () => {
               <img
                 src={imageBlobUrl || essay.file_url}
                 alt="Redação do aluno"
-                style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid #E8DDD0' }}
+                style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid var(--border-color)' }}
               />
               {/* Mostrar anotações: preferir pdf_annotations[1], fallback para canvas_annotations */}
               {(correction.pdf_annotations?.[1] || correction.canvas_annotations?.dataUrl) && (
@@ -560,10 +560,10 @@ export const CorrectionView = () => {
               {(correction.inline_comments || []).filter(c => c.canvasX != null).map(c => (
                 <div key={c.id} className="comment-pin"
                   style={{ position: 'absolute', left: `${(c.canvasX / 800) * 100}%`, top: `${(c.canvasY / 1000) * 100}%`, transform: 'translate(-50%,-100%)', zIndex: 20 }}>
-                  <div style={{ backgroundColor: '#7C1805', color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>!</div>
-                  <div className="comment-tooltip" style={{ position: 'absolute', bottom: '28px', left: '50%', transform: 'translateX(-50%)', backgroundColor: '#2C1A0E', color: 'white', padding: '6px 10px', borderRadius: '8px', fontSize: '12px', maxWidth: '220px', wordBreak: 'break-word', opacity: 0, pointerEvents: 'none', transition: 'opacity 0.15s', zIndex: 30, whiteSpace: 'pre-wrap' }}>
+                  <div style={{ backgroundColor: 'var(--accent-red)', color: 'white', borderRadius: '50%', width: '24px', height: '24px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 'bold', boxShadow: '0 2px 6px rgba(0,0,0,0.3)' }}>!</div>
+                  <div className="comment-tooltip" style={{ position: 'absolute', bottom: '28px', left: '50%', transform: 'translateX(-50%)', backgroundColor: 'var(--text-primary)', color: 'white', padding: '6px 10px', borderRadius: '8px', fontSize: '12px', maxWidth: '220px', wordBreak: 'break-word', opacity: 0, pointerEvents: 'none', transition: 'opacity 0.15s', zIndex: 30, whiteSpace: 'pre-wrap' }}>
                     {c.comment}
-                    <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', border: '5px solid transparent', borderTopColor: '#2C1A0E' }} />
+                    <div style={{ position: 'absolute', top: '100%', left: '50%', transform: 'translateX(-50%)', border: '5px solid transparent', borderTopColor: 'var(--text-primary)' }} />
                   </div>
                 </div>
               ))}
@@ -601,7 +601,7 @@ export const CorrectionView = () => {
         </Card>
 
         <div>
-          <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: '#7C1805' }}>
+          <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: 'var(--accent-red)' }}>
             Avaliação por Critérios
           </h2>
           <div className="space-y-4">
@@ -609,11 +609,11 @@ export const CorrectionView = () => {
               <Card key={cs.criteria_id} className="p-6 bg-white border" data-testid={`competency-${cs.criteria_id}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex-1">
-                    <p className="font-semibold" style={{ color: '#7C1805' }}>
+                    <p className="font-semibold" style={{ color: 'var(--accent-red)' }}>
                       {cs.nome}
                     </p>
                   </div>
-                  <span className="text-2xl font-bold ml-4" style={{ color: '#36555A' }}>
+                  <span className="text-2xl font-bold ml-4" style={{ color: 'var(--accent-green)' }}>
                     {cs.score}/{cs.max}
                   </span>
                 </div>
@@ -627,8 +627,8 @@ export const CorrectionView = () => {
 
         <Card className="p-6 bg-white border" data-testid="general-feedback-card">
           <div className="flex items-center gap-2 mb-3">
-            <Award size={20} style={{ color: '#36555A' }} />
-            <h3 className="font-semibold" style={{ color: '#7C1805' }}>
+            <Award size={20} style={{ color: 'var(--accent-green)' }} />
+            <h3 className="font-semibold" style={{ color: 'var(--accent-red)' }}>
               Feedback Geral
             </h3>
           </div>
@@ -637,36 +637,36 @@ export const CorrectionView = () => {
 
         {/* COMPARAÇÃO DE NOTAS — aluno vê nota original vs reescrita */}
         {user?.role === 'student' && parentCorrectionData && (
-          <Card className="p-6 bg-white border" style={{ borderLeft: '4px solid #36555A' }}>
-            <h3 className="font-semibold mb-4 flex items-center gap-2" style={{ color: '#7C1805' }}>
+          <Card className="p-6 bg-white border" style={{ borderLeft: '4px solid var(--accent-green)' }}>
+            <h3 className="font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--accent-red)' }}>
               <RotateCcw size={18} /> Comparação: Original × Reescrita
             </h3>
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-lg text-center" style={{ backgroundColor: '#F0F7F6', border: '1px solid #D0E8E4' }}>
-                <p className="text-xs font-semibold mb-1" style={{ color: '#6B5B4E' }}>NOTA ORIGINAL</p>
+                <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>NOTA ORIGINAL</p>
                 <p className="text-4xl font-black" style={{ color: getScoreColor(parentCorrectionData.parent_correction.total_score, correction.criteria_scores?.reduce((s, c) => s + c.max, 0) || 1000) }}>
                   {parentCorrectionData.parent_correction.total_score}
                 </p>
                 <a href={`/essay/${parentCorrectionData.parent_essay_id}/correction`}
-                  className="text-xs mt-2 block" style={{ color: '#36555A' }}>
+                  className="text-xs mt-2 block" style={{ color: 'var(--accent-green)' }}>
                   Ver correção original →
                 </a>
               </div>
-              <div className="p-4 rounded-lg text-center" style={{ backgroundColor: '#FDF3E8', border: '1px solid #DAB257' }}>
-                <p className="text-xs font-semibold mb-1" style={{ color: '#6B5B4E' }}>NOTA REESCRITA</p>
+              <div className="p-4 rounded-lg text-center" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid #DAB257' }}>
+                <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>NOTA REESCRITA</p>
                 <p className="text-4xl font-black" style={{ color: getScoreColor(correction.total_score, correction.criteria_scores?.reduce((s, c) => s + c.max, 0) || 1000) }}>
                   {correction.total_score}
                 </p>
                 {correction.total_score > parentCorrectionData.parent_correction.total_score ? (
-                  <p className="text-xs mt-2 font-semibold" style={{ color: '#36555A' }}>
+                  <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--accent-green)' }}>
                     ▲ +{correction.total_score - parentCorrectionData.parent_correction.total_score} pts — Melhorou!
                   </p>
                 ) : correction.total_score < parentCorrectionData.parent_correction.total_score ? (
-                  <p className="text-xs mt-2 font-semibold" style={{ color: '#7C1805' }}>
+                  <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--accent-red)' }}>
                     ▼ {correction.total_score - parentCorrectionData.parent_correction.total_score} pts
                   </p>
                 ) : (
-                  <p className="text-xs mt-2 font-semibold" style={{ color: '#6B5B4E' }}>= Mesma nota</p>
+                  <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--text-secondary)' }}>= Mesma nota</p>
                 )}
               </div>
             </div>
@@ -675,13 +675,13 @@ export const CorrectionView = () => {
 
         {/* REESCRITA ENVIADA — professor vê que existe uma reescrita desta redação */}
         {user?.role !== 'student' && rewriteData && (
-          <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid #D66B27' }}>
+          <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
-                <p className="font-semibold text-sm flex items-center gap-2" style={{ color: '#D66B27' }}>
+                <p className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--accent-orange)' }}>
                   <RotateCcw size={16} /> O aluno enviou uma reescrita
                 </p>
-                <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
+                <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                   {rewriteData.rewrite_correction
                     ? `Reescrita já corrigida — Nota: ${rewriteData.rewrite_correction.total_score} pts`
                     : 'Reescrita aguardando correção'}
@@ -690,7 +690,7 @@ export const CorrectionView = () => {
               <div className="flex gap-2">
                 <Button size="sm" variant="outline"
                   onClick={() => navigate(`/essay/${rewriteData.rewrite.id}/correction`)}
-                  style={{ borderColor: '#D66B27', color: '#D66B27' }}>
+                  style={{ borderColor: 'var(--accent-orange)', color: 'var(--accent-orange)' }}>
                   {rewriteData.rewrite_correction ? 'Ver correção da reescrita' : 'Corrigir reescrita →'}
                 </Button>
               </div>
@@ -703,9 +703,9 @@ export const CorrectionView = () => {
           <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid #D9B2CF' }}>
             <div className="flex items-center gap-2 mb-2">
               <MessageSquarePlus size={16} style={{ color: '#D9B2CF' }} />
-              <p className="font-semibold text-sm" style={{ color: '#7C1805' }}>Observação da Professora</p>
+              <p className="font-semibold text-sm" style={{ color: 'var(--accent-red)' }}>Observação da Professora</p>
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: '#2C1A0E' }}>{correction.teacher_comment}</p>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{correction.teacher_comment}</p>
           </Card>
         )}
 
@@ -714,9 +714,9 @@ export const CorrectionView = () => {
           <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid #DAB257' }}>
             <div className="flex items-center gap-2 mb-2">
               <ExternalLink size={16} style={{ color: '#DAB257' }} />
-              <p className="font-semibold text-sm" style={{ color: '#7C1805' }}>Material Complementar</p>
+              <p className="font-semibold text-sm" style={{ color: 'var(--accent-red)' }}>Material Complementar</p>
             </div>
-            <p className="text-sm" style={{ color: '#2C1A0E' }}>{correction.extra_material}</p>
+            <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{correction.extra_material}</p>
           </Card>
         )}
 
@@ -725,12 +725,12 @@ export const CorrectionView = () => {
           <Card className="p-5 bg-white border shadow-sm">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
-                <MessageSquarePlus size={18} style={{ color: '#7C1805' }} />
-                <h3 className="font-semibold" style={{ color: '#7C1805' }}>Intervenção Pedagógica</h3>
+                <MessageSquarePlus size={18} style={{ color: 'var(--accent-red)' }} />
+                <h3 className="font-semibold" style={{ color: 'var(--accent-red)' }}>Intervenção Pedagógica</h3>
               </div>
               <div className="flex items-center gap-2">
                 {interventionDirty && (
-                  <span className="text-xs" style={{ color: '#D66B27' }}>Alterações não salvas</span>
+                  <span className="text-xs" style={{ color: 'var(--accent-orange)' }}>Alterações não salvas</span>
                 )}
                 <Button size="sm" onClick={saveIntervention} disabled={savingIntervention || !interventionDirty}>
                   <Save size={13} className="mr-1" />
@@ -746,9 +746,9 @@ export const CorrectionView = () => {
                   onClick={() => updateIntervention('mark_important', !intervention.mark_important)}
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all"
                   style={{
-                    backgroundColor: intervention.mark_important ? '#FDF3E8' : 'white',
-                    borderColor: intervention.mark_important ? '#D66B27' : '#E8DDD0',
-                    color: intervention.mark_important ? '#D66B27' : '#6B5B4E',
+                    backgroundColor: intervention.mark_important ? 'var(--bg-primary)' : 'white',
+                    borderColor: intervention.mark_important ? 'var(--accent-orange)' : 'var(--border-color)',
+                    color: intervention.mark_important ? 'var(--accent-orange)' : 'var(--text-secondary)',
                   }}
                 >
                   <Bookmark size={14} />
@@ -759,8 +759,8 @@ export const CorrectionView = () => {
                   className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border transition-all"
                   style={{
                     backgroundColor: intervention.suggest_rewrite ? '#FFF0E0' : 'white',
-                    borderColor: intervention.suggest_rewrite ? '#D66B27' : '#E8DDD0',
-                    color: intervention.suggest_rewrite ? '#D66B27' : '#6B5B4E',
+                    borderColor: intervention.suggest_rewrite ? 'var(--accent-orange)' : 'var(--border-color)',
+                    color: intervention.suggest_rewrite ? 'var(--accent-orange)' : 'var(--text-secondary)',
                   }}
                 >
                   <RotateCcw size={14} />
@@ -770,8 +770,8 @@ export const CorrectionView = () => {
 
               {/* Comentário complementar */}
               <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>
-                  Comentário complementar <span style={{ color: '#6B5B4E' }}>(visível ao aluno)</span>
+                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-primary)' }}>
+                  Comentário complementar <span style={{ color: 'var(--text-secondary)' }}>(visível ao aluno)</span>
                 </label>
                 <Textarea
                   rows={3}
@@ -784,15 +784,15 @@ export const CorrectionView = () => {
 
               {/* Material extra */}
               <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>
-                  Material extra <span style={{ color: '#6B5B4E' }}>(link ou descrição — visível ao aluno)</span>
+                <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-primary)' }}>
+                  Material extra <span style={{ color: 'var(--text-secondary)' }}>(link ou descrição — visível ao aluno)</span>
                 </label>
                 <input
                   type="text"
                   value={intervention.extra_material || ''}
                   onChange={e => updateIntervention('extra_material', e.target.value)}
                   placeholder="Ex: https://... ou 'Ver página 45 do caderno'"
-                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E' }}
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-primary)' }}
                 />
               </div>
             </div>
@@ -801,7 +801,7 @@ export const CorrectionView = () => {
 
         {correction.inline_comments && correction.inline_comments.length > 0 && (
           <Card className="p-6 bg-white border">
-            <h3 className="font-semibold mb-4" style={{ color: '#7C1805' }}>
+            <h3 className="font-semibold mb-4" style={{ color: 'var(--accent-red)' }}>
               Legenda de Comentários ({correction.inline_comments.length})
             </h3>
             <div className="space-y-3">
@@ -827,29 +827,29 @@ export const CorrectionView = () => {
         {/* BOTÃO REESCRITA — aluno vê quando permitido ou quando professor solicitou */}
         {user?.role === 'student' && courseSettings?.allow_rewrite !== false && !rewriteData && (
         <Card className="p-6 bg-white border" style={{
-          borderColor: intervention.suggest_rewrite ? '#D66B27' : '#DAB257',
+          borderColor: intervention.suggest_rewrite ? 'var(--accent-orange)' : '#DAB257',
           backgroundColor: intervention.suggest_rewrite ? '#FFF7ED' : '#FFFBF0',
         }}>
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
             <div>
               {intervention.suggest_rewrite ? (
                 <>
-                  <p className="text-xs font-bold mb-1 flex items-center gap-1" style={{ color: '#D66B27' }}>
+                  <p className="text-xs font-bold mb-1 flex items-center gap-1" style={{ color: 'var(--accent-orange)' }}>
                     ✏️ O professor solicitou uma reescrita
                   </p>
-                  <h3 className="font-semibold mb-1" style={{ color: '#7C1805' }}>
+                  <h3 className="font-semibold mb-1" style={{ color: 'var(--accent-red)' }}>
                     Envie sua nova versão
                   </h3>
-                  <p className="text-sm" style={{ color: '#6B5B4E' }}>
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                     Aplique o feedback recebido e envie uma nova versão melhorada.
                   </p>
                 </>
               ) : (
                 <>
-                  <h3 className="font-semibold mb-1" style={{ color: '#7C1805' }}>
+                  <h3 className="font-semibold mb-1" style={{ color: 'var(--accent-red)' }}>
                     Quer reescrever esta redação?
                   </h3>
-                  <p className="text-sm" style={{ color: '#6B5B4E' }}>
+                  <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                     Aplique o feedback recebido e envie uma nova versão vinculada a esta correção.
                   </p>
                 </>
@@ -858,7 +858,7 @@ export const CorrectionView = () => {
             <Button
               onClick={() => navigate(`/submit-essay/${essay?.prompt_id}?rewrite=${essayId}`)}
               className="shrink-0"
-              style={intervention.suggest_rewrite ? { backgroundColor: '#D66B27', color: 'white' } : {}}
+              style={intervention.suggest_rewrite ? { backgroundColor: 'var(--accent-orange)', color: 'white' } : {}}
               variant={intervention.suggest_rewrite ? 'default' : 'outline'}
             >
               <RotateCcw size={16} className="mr-2" />
@@ -878,23 +878,23 @@ export const CorrectionView = () => {
             aria-label="Ver histórico de versões da correção"
           >
             <div className="flex items-center gap-2">
-              <span style={{ color: '#7C1805', fontSize: '16px' }}>🕐</span>
-              <span className="font-semibold text-sm" style={{ color: '#7C1805' }}>
+              <span style={{ color: 'var(--accent-red)', fontSize: '16px' }}>🕐</span>
+              <span className="font-semibold text-sm" style={{ color: 'var(--accent-red)' }}>
                 Histórico de versões
               </span>
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{ backgroundColor: '#FDF3E8', color: '#D66B27', border: '1px solid #DAB257' }}>
+                style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-orange)', border: '1px solid #DAB257' }}>
                 {correctionHistory.length} versões
               </span>
             </div>
-            <span style={{ color: '#6B5B4E', fontSize: '18px', lineHeight: 1 }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '18px', lineHeight: 1 }}>
               {showHistory ? '▲' : '▼'}
             </span>
           </button>
 
           {showHistory && (
             <div className="mt-4 space-y-3">
-              <p className="text-xs" style={{ color: '#6B5B4E' }}>
+              <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                 Cada versão representa uma publicação da correção. A mais recente está no topo.
               </p>
               {correctionHistory.map((hist, idx) => {
@@ -912,12 +912,12 @@ export const CorrectionView = () => {
                     className="flex items-center justify-between p-3 rounded-lg"
                     style={{
                       backgroundColor: isLatest ? '#F0FDF4' : '#FAFAFA',
-                      border: `1px solid ${isLatest ? '#16A34A' : '#E8DDD0'}`,
+                      border: `1px solid ${isLatest ? '#16A34A' : 'var(--border-color)'}`,
                     }}>
                     <div className="flex items-center gap-3">
                       <div className="flex flex-col items-center justify-center rounded-full w-10 h-10 flex-shrink-0"
-                        style={{ backgroundColor: isLatest ? '#16A34A' : '#E8DDD0' }}>
-                        <span className="text-xs font-bold" style={{ color: isLatest ? 'white' : '#6B5B4E', lineHeight: 1 }}>
+                        style={{ backgroundColor: isLatest ? '#16A34A' : 'var(--border-color)' }}>
+                        <span className="text-xs font-bold" style={{ color: isLatest ? 'white' : 'var(--text-secondary)', lineHeight: 1 }}>
                           v{correctionHistory.length - idx}
                         </span>
                       </div>
@@ -926,7 +926,7 @@ export const CorrectionView = () => {
                           <span className="text-sm font-semibold" style={{ color }}>
                             {histScore} pts
                           </span>
-                          <span className="text-xs" style={{ color: '#6B5B4E' }}>
+                          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                             de {histMax} ({pct}%)
                           </span>
                           {isLatest && (
@@ -936,13 +936,13 @@ export const CorrectionView = () => {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                        <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                           {savedAt}
                         </p>
                       </div>
                     </div>
                     {/* Mini barra de progresso */}
-                    <div className="w-20 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: '#E8DDD0' }}>
+                    <div className="w-20 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: 'var(--border-color)' }}>
                       <div className="h-2 rounded-full transition-all"
                         style={{ width: `${pct}%`, backgroundColor: color }} />
                     </div>
@@ -965,29 +965,29 @@ export const CorrectionView = () => {
             className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: '#E8DDD0' }}>
-              <h2 className="font-heading font-bold text-xl" style={{ color: '#7C1805' }}>
+            <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: 'var(--border-color)' }}>
+              <h2 className="font-heading font-bold text-xl" style={{ color: 'var(--accent-red)' }}>
                 {prompt.title}
               </h2>
-              <button onClick={() => setShowPromptModal(false)} style={{ color: '#6B5B4E' }}>
+              <button onClick={() => setShowPromptModal(false)} style={{ color: 'var(--text-secondary)' }}>
                 <X size={20} />
               </button>
             </div>
             <div className="p-6 space-y-4">
               <div>
-                <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>TEMA</p>
-                <p className="text-sm" style={{ color: '#2C1A0E' }}>{prompt.theme}</p>
+                <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>TEMA</p>
+                <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{prompt.theme}</p>
               </div>
               {prompt.supporting_texts && (
                 <div>
-                  <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>TEXTOS DE APOIO</p>
-                  <p className="text-sm whitespace-pre-line" style={{ color: '#2C1A0E' }}>{prompt.supporting_texts}</p>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>TEXTOS DE APOIO</p>
+                  <p className="text-sm whitespace-pre-line" style={{ color: 'var(--text-primary)' }}>{prompt.supporting_texts}</p>
                 </div>
               )}
               {prompt.instructions && (
                 <div>
-                  <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>INSTRUÇÕES</p>
-                  <p className="text-sm" style={{ color: '#2C1A0E' }}>{prompt.instructions}</p>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>INSTRUÇÕES</p>
+                  <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{prompt.instructions}</p>
                 </div>
               )}
             </div>
