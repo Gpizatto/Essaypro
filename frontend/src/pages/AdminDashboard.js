@@ -9,18 +9,31 @@ import { Button } from '../components/ui/button';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-const StatCard = ({ label, value, icon: Icon, color, sub }) => (
-  <Card className="p-5 bg-white border shadow-sm">
-    <div className="flex items-start justify-between">
-      <div>
-        <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>{label}</p>
-        <p className="text-3xl font-bold mt-1" style={{ color }}>{value}</p>
-        {sub && <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>{sub}</p>}
-      </div>
-      <div className="p-2 rounded-md" style={{ backgroundColor: color }}>
-        <Icon className="text-white" size={20} />
-      </div>
+// Card de estatística com ghost icon e dot colorido
+const StatCard = ({ label, value, Icon, color, sub }) => (
+  <Card
+    className="bg-white border"
+    style={{
+      padding: '18px 18px 14px',
+      borderRadius: '14px',
+      borderColor: `${color}22`,
+      boxShadow: '0 1px 4px rgba(44,26,14,0.05)',
+      position: 'relative',
+      overflow: 'hidden',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '3px',
+    }}
+  >
+    <div style={{ position: 'absolute', right: '-8px', top: '-8px', opacity: 0.07, pointerEvents: 'none' }}>
+      <Icon size={72} color={color} />
     </div>
+    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
+      <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
+      <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</p>
+    </div>
+    <p style={{ fontSize: '34px', fontWeight: 800, color, lineHeight: 1, letterSpacing: '-0.02em' }}>{value}</p>
+    {sub && <p style={{ fontSize: '11px', color: '#6B5B4E', marginTop: '2px' }}>{sub}</p>}
   </Card>
 );
 
@@ -28,7 +41,7 @@ export const AdminDashboard = () => {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [pendingUsers, setPendingUsers] = useState([]);
-  const [pendingSelections, setPendingSelections] = useState({}); // {userId: {role, course_id}}
+  const [pendingSelections, setPendingSelections] = useState({});
   const [backups, setBackups] = useState([]);
   const [runningBackup, setRunningBackup] = useState(false);
   const [courses, setCourses] = useState([]);
@@ -65,32 +78,19 @@ export const AdminDashboard = () => {
     setSavingCredits(true);
     try {
       await axios.put(`${API_URL}/api/credits/config`, creditConfig, { withCredentials: true });
-      alert('Configuração salva!');
+      toast.success('Configuração salva!');
     } catch (error) {
-      alert('Erro ao salvar');
+      toast.error('Erro ao salvar');
     } finally {
       setSavingCredits(false);
     }
   };
 
   const selectStyle = {
-    padding: '8px 12px', borderRadius: '6px',
-    border: '1px solid #E8DDD0', fontSize: '14px',
-    color: '#2C1A0E', backgroundColor: '#FFF',
+    padding: '8px 12px', borderRadius: '8px',
+    border: '1px solid #E8DDD0', fontSize: '13px',
+    color: '#2C1A0E', backgroundColor: '#FFF', outline: 'none',
   };
-
-  if (loading) {
-    return (
-      <Layout>
-        <div className="animate-pulse space-y-4">
-          <div className="h-8 bg-muted rounded w-1/3"></div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[1,2,3,4,5,6].map(i => <div key={i} className="h-28 bg-muted rounded" />)}
-          </div>
-        </div>
-      </Layout>
-    );
-  }
 
   const approveUser = async (userId) => {
     const sel = pendingSelections[userId] || {};
@@ -98,7 +98,6 @@ export const AdminDashboard = () => {
       const res = await axios.post(`${API_URL}/api/admin/approve-user/${userId}`,
         { role: sel.role || 'student', course_id: sel.course_id || null },
         { withCredentials: true });
-      
       const { user, modified } = res.data || {};
       if (modified === 0) {
         toast.warning('Usuário já estava aprovado ou não foi encontrado.');
@@ -107,13 +106,10 @@ export const AdminDashboard = () => {
       } else {
         toast.error('Aprovação pode ter falhado — verifique o banco.');
       }
-      
       setPendingUsers(prev => prev.filter(u => u.id !== userId));
       setPendingSelections(prev => { const n = {...prev}; delete n[userId]; return n; });
     } catch (e) {
-      const detail = e.response?.data?.detail || 'Erro desconhecido';
-      toast.error('Erro ao aprovar: ' + detail);
-      console.error('approveUser error:', e.response?.data);
+      toast.error('Erro ao aprovar: ' + (e.response?.data?.detail || 'Erro desconhecido'));
     }
   };
 
@@ -125,26 +121,6 @@ export const AdminDashboard = () => {
         { email: newEmail.toLowerCase().trim() },
         { withCredentials: true });
       toast.success(`Email atualizado para ${newEmail}`);
-      fetchData();
-    } catch (e) {
-      toast.error('Erro: ' + (e.response?.data?.detail || e.message));
-    }
-  };
-
-  const forceApproveByEmail = async (email) => {
-    const emailInput = window.prompt('Email do usuário para aprovar:', email || '');
-    if (!emailInput) return;
-    try {
-      const res = await axios.post(`${API_URL}/api/admin/force-approve`,
-        { email: emailInput.toLowerCase().trim() },
-        { withCredentials: true });
-      const { user } = res.data || {};
-      if (user?.is_approved) {
-        toast.success(`✅ ${user.email} aprovado! Pode fazer login agora.`);
-        fetchData();
-      } else {
-        toast.error('Aprovação falhou — usuário não encontrado?');
-      }
     } catch (e) {
       toast.error('Erro: ' + (e.response?.data?.detail || e.message));
     }
@@ -216,128 +192,171 @@ export const AdminDashboard = () => {
     ? Math.round((stats.total_pending / stats.total_essays) * 100)
     : 0;
 
+  if (loading) {
+    return (
+      <Layout>
+        <div className="animate-pulse space-y-4">
+          <div className="h-8 bg-muted rounded w-1/3"></div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {[1,2,3,4,5,6].map(i => <div key={i} className="h-28 bg-muted rounded" />)}
+          </div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
+
+        {/* Header */}
         <div>
-          <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }} data-testid="admin-dashboard-title">
+          <h1
+            className="font-heading font-bold"
+            style={{ fontSize: '28px', color: '#7C1805', letterSpacing: '-0.02em' }}
+            data-testid="admin-dashboard-title"
+          >
             Painel Administrativo
           </h1>
           <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>Visão geral da plataforma</p>
-          {courses.length > 0 && (
-            <div className="flex items-center gap-2 mt-2">
-              <span className="text-xs" style={{ color: '#6B5B4E' }}>Turma:</span>
-              <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)}
-                style={{ padding: '4px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', color: '#2C1A0E' }}>
-                <option value="all">Todas</option>
-                {courses.filter(c => c.is_active).map(c => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-          <div className="flex gap-2 mt-3">
-            <button onClick={handleRunBackup} disabled={runningBackup}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
-              style={{ borderColor: '#6B5B4E', color: '#6B5B4E', backgroundColor: 'white' }}>
-              {runningBackup ? '⏳ Salvando...' : '💾 Backup agora'}
+
+          {/* Filtro de turma + ferramentas */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
+            {courses.length > 0 && (
+              <>
+                <span style={{ fontSize: '12px', color: '#6B5B4E', fontWeight: 600 }}>Turma:</span>
+                <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} style={{ ...selectStyle, fontSize: '12px', padding: '4px 8px' }}>
+                  <option value="all">Todas</option>
+                  {courses.filter(c => c.is_active).map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </>
+            )}
+            <button
+              onClick={handleRunBackup}
+              disabled={runningBackup}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px',
+                padding: '6px 12px', borderRadius: '8px',
+                border: '1px solid #E8DDD0', backgroundColor: '#fff',
+                fontSize: '12px', fontWeight: 600, color: '#6B5B4E', cursor: 'pointer',
+              }}
+            >
+              {runningBackup ? '⏳ Salvando...' : '💾 Backup'}
             </button>
             {backups.length > 0 && (
-              <span className="text-xs" style={{ color: '#6B5B4E', alignSelf: 'center' }}>
+              <span style={{ fontSize: '11px', color: '#6B5B4E' }}>
                 Último: {new Date(backups[0].created_at).toLocaleDateString('pt-BR')}
               </span>
             )}
-          </div>
-          <div className="flex gap-2 mt-2">
-            <button onClick={handleExportPDF}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
-              style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
-              <Download size={13} /> PDF
+            <button
+              onClick={handleExportPDF}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px',
+                padding: '6px 12px', borderRadius: '8px',
+                border: '1px solid #7C1805', backgroundColor: '#fff',
+                fontSize: '12px', fontWeight: 600, color: '#7C1805', cursor: 'pointer',
+              }}
+            >
+              <Download size={12} /> PDF
             </button>
-            <button onClick={handleExportExcel}
-              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
-              style={{ borderColor: '#36555A', color: '#36555A', backgroundColor: 'white' }}>
-              <Download size={13} /> Excel
+            <button
+              onClick={handleExportExcel}
+              style={{
+                display: 'flex', alignItems: 'center', gap: '5px',
+                padding: '6px 12px', borderRadius: '8px',
+                border: '1px solid #36555A', backgroundColor: '#fff',
+                fontSize: '12px', fontWeight: 600, color: '#36555A', cursor: 'pointer',
+              }}
+            >
+              <Download size={12} /> Excel
             </button>
           </div>
         </div>
 
-        {/* MÉTRICAS PRINCIPAIS */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          <StatCard label="USUÁRIOS" value={stats?.total_users || 0} icon={Users} color="#7C1805"
+        {/* Métricas principais */}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard label="Usuários" value={stats?.total_users || 0} Icon={Users} color="#7C1805"
             sub={`${stats?.total_students || 0} alunos · ${stats?.total_teachers || 0} prof.`} />
-          <StatCard label="REDAÇÕES" value={stats?.total_essays || 0} icon={FileText} color="#D66B27" />
-          <StatCard label="PENDENTES" value={stats?.total_pending || 0} icon={Clock} color="#DAB257"
+          <StatCard label="Redações" value={stats?.total_essays || 0} Icon={FileText} color="#D66B27" />
+          <StatCard label="Pendentes" value={stats?.total_pending || 0} Icon={Clock} color="#DAB257"
             sub={`${pendingRate}% do total`} />
-          <StatCard label="CORRIGIDAS" value={stats?.total_corrections || 0} icon={CheckCircle} color="#36555A" />
-          <StatCard label="REESCRITAS" value={stats?.total_rewrites || 0} icon={RotateCcw} color="#D9B2CF"
-            sub="taxa de reenvio" />
-          <StatCard label="MÉDIA GERAL" value={Math.round(stats?.average_score || 0)} icon={Award} color="#A03217" />
+          <StatCard label="Corrigidas" value={stats?.total_corrections || 0} Icon={CheckCircle} color="#36555A" />
+          <StatCard label="Reescritas" value={stats?.total_rewrites || 0} Icon={RotateCcw} color="#6B5B4E" />
+          <StatCard label="Média Geral" value={Math.round(stats?.average_score || 0)} Icon={Award} color="#A03217" />
         </div>
 
-        
-
-        {/* FREQUÊNCIA DE ENVIO */}
+        {/* Frequência de envio */}
         <div className="grid grid-cols-2 gap-4">
-          <Card className="p-4 bg-white border shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS (7 DIAS)</p>
-                <p className="text-3xl font-bold mt-1" style={{ color: '#7C1805' }}>
-                  {stats?.essays_last_7_days ?? 0}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>redações enviadas</p>
-              </div>
-              <div className="p-2 rounded-md" style={{ backgroundColor: '#D9B2CF' }}>
-                <TrendingUp className="text-white" size={20} />
-              </div>
+          <Card
+            className="bg-white border"
+            style={{ padding: '18px', borderRadius: '14px', borderColor: '#D9B2CF44', position: 'relative', overflow: 'hidden' }}
+          >
+            <div style={{ position: 'absolute', right: '-8px', top: '-8px', opacity: 0.07, pointerEvents: 'none' }}>
+              <TrendingUp size={72} color="#D9B2CF" />
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#A0509A' }} />
+              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Envios (7 dias)</p>
+            </div>
+            <p style={{ fontSize: '34px', fontWeight: 800, color: '#7C1805', lineHeight: 1, letterSpacing: '-0.02em' }}>{stats?.essays_last_7_days ?? 0}</p>
+            <p style={{ fontSize: '11px', color: '#6B5B4E', marginTop: '2px' }}>redações enviadas</p>
           </Card>
-          <Card className="p-4 bg-white border shadow-sm">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>ENVIOS (30 DIAS)</p>
-                <p className="text-3xl font-bold mt-1" style={{ color: '#7C1805' }}>
-                  {stats?.essays_last_30_days ?? 0}
-                </p>
-                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
-                  ~{stats?.essays_last_30_days ? Math.round(stats.essays_last_30_days / 4) : 0}/semana
-                </p>
-              </div>
-              <div className="p-2 rounded-md" style={{ backgroundColor: '#DAB257' }}>
-                <TrendingUp className="text-white" size={20} />
-              </div>
+          <Card
+            className="bg-white border"
+            style={{ padding: '18px', borderRadius: '14px', borderColor: '#DAB25744', position: 'relative', overflow: 'hidden' }}
+          >
+            <div style={{ position: 'absolute', right: '-8px', top: '-8px', opacity: 0.07, pointerEvents: 'none' }}>
+              <TrendingUp size={72} color="#DAB257" />
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
+              <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#DAB257' }} />
+              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Envios (30 dias)</p>
+            </div>
+            <p style={{ fontSize: '34px', fontWeight: 800, color: '#7C1805', lineHeight: 1, letterSpacing: '-0.02em' }}>{stats?.essays_last_30_days ?? 0}</p>
+            <p style={{ fontSize: '11px', color: '#6B5B4E', marginTop: '2px' }}>
+              ~{stats?.essays_last_30_days ? Math.round(stats.essays_last_30_days / 4) : 0}/semana
+            </p>
           </Card>
         </div>
 
-        {/* APROVAÇÃO DE USUÁRIOS PENDENTES */}
+        {/* Aprovação de usuários pendentes */}
         {pendingUsers.length > 0 && (
-          <Card className="p-5 bg-white border shadow-sm" style={{ borderColor: '#DAB257' }}>
-            <div className="flex items-center gap-2 mb-3">
-              <div className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: '#D66B27' }} />
-              <h2 className="font-semibold text-sm" style={{ color: '#7C1805' }}>
+          <Card
+            className="bg-white border"
+            style={{ padding: '20px', borderRadius: '14px', borderColor: '#DAB257' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#D66B27', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805' }}>
                 Aguardando aprovação ({pendingUsers.length})
               </h2>
             </div>
             <div className="space-y-2">
               {pendingUsers.map(u => (
-                <div key={u.id} className="p-3 rounded-lg"
-                  style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="flex-1">
-                      <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{u.name}</p>
-                      <p className="text-xs mb-2" style={{ color: '#6B5B4E' }}>
+                <div
+                  key={u.id}
+                  style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
+                    <div style={{ flex: 1 }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#2C1A0E' }}>{u.name}</p>
+                      <p style={{ fontSize: '11px', color: '#6B5B4E', marginBottom: '8px' }}>
                         {u.email}
-                        <button onClick={() => editUserEmail(u.id, u.email)}
-                          className="ml-2" style={{ color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px' }}
-                          title="Corrigir email">✏️ corrigir</button>
+                        <button
+                          onClick={() => editUserEmail(u.id, u.email)}
+                          style={{ marginLeft: '8px', color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px' }}
+                        >
+                          ✏️ corrigir
+                        </button>
                       </p>
-                      <div className="flex gap-2 flex-wrap">
+                      <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
                         <select
                           value={pendingSelections[u.id]?.role || 'student'}
                           onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], role: e.target.value }}))}
-                          style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}>
+                          style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}
+                        >
                           <option value="student">Aluno</option>
                           <option value="teacher">Professor</option>
                           <option value="admin">Admin</option>
@@ -346,7 +365,8 @@ export const AdminDashboard = () => {
                           <select
                             value={pendingSelections[u.id]?.course_id || ''}
                             onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], course_id: e.target.value }}))}
-                            style={{ fontSize: '12px', padding: '3px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}>
+                            style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}
+                          >
                             <option value="">Sem turma</option>
                             {courses.filter(c => c.is_active).map(c => (
                               <option key={c.id} value={c.id}>{c.name}</option>
@@ -355,15 +375,17 @@ export const AdminDashboard = () => {
                         )}
                       </div>
                     </div>
-                    <div className="flex flex-col gap-1">
-                      <button onClick={() => approveUser(u.id)}
-                        className="px-3 py-1 rounded text-xs font-semibold text-white"
-                        style={{ backgroundColor: '#36555A' }}>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <button
+                        onClick={() => approveUser(u.id)}
+                        style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#36555A', color: '#fff', fontSize: '12px', fontWeight: 600 }}
+                      >
                         ✓ Aprovar
                       </button>
-                      <button onClick={() => rejectUser(u.id)}
-                        className="px-3 py-1 rounded text-xs font-semibold"
-                        style={{ backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5' }}>
+                      <button
+                        onClick={() => rejectUser(u.id)}
+                        style={{ padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5', fontSize: '12px', fontWeight: 600 }}
+                      >
                         ✕ Rejeitar
                       </button>
                     </div>
@@ -374,82 +396,66 @@ export const AdminDashboard = () => {
           </Card>
         )}
 
-      
-
-        {/* SEGUNDA LINHA — Top propostas + Top alunos */}
-        <div className="grid md:grid-cols-2 gap-6">
-          {/* Propostas mais enviadas */}
-          <Card className="p-5 bg-white border shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <BookOpen size={18} style={{ color: '#7C1805' }} />
-              <h2 className="font-heading font-semibold text-base" style={{ color: '#7C1805' }}>
-                Propostas mais enviadas
-              </h2>
+        {/* Top propostas + Top alunos */}
+        <div className="grid md:grid-cols-2 gap-4">
+          <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: '#E8DDD0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <BookOpen size={16} style={{ color: '#7C1805' }} />
+              <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805' }}>Propostas mais enviadas</h2>
             </div>
             {stats?.top_prompts?.length > 0 ? (
               <div className="space-y-3">
                 {stats.top_prompts.map((p, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="text-xs font-bold w-5 text-center" style={{ color: '#D66B27' }}>{i + 1}</span>
-                      <span className="text-sm truncate" style={{ color: '#2C1A0E' }}>{p.title}</span>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, width: '20px', textAlign: 'center', color: '#D66B27' }}>{i + 1}</span>
+                      <span style={{ fontSize: '13px', color: '#2C1A0E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                     </div>
-                    <span className="text-sm font-bold ml-2 shrink-0" style={{ color: '#7C1805' }}>{p.count}</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#7C1805', marginLeft: '8px', flexShrink: 0 }}>{p.count}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm" style={{ color: '#6B5B4E' }}>Nenhum dado ainda</p>
+              <p style={{ fontSize: '13px', color: '#6B5B4E' }}>Nenhum dado ainda</p>
             )}
           </Card>
 
-          {/* Alunos mais ativos */}
-          <Card className="p-5 bg-white border shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <TrendingUp size={18} style={{ color: '#7C1805' }} />
-              <h2 className="font-heading font-semibold text-base" style={{ color: '#7C1805' }}>
-                Alunos mais ativos
-              </h2>
+          <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: '#E8DDD0' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+              <TrendingUp size={16} style={{ color: '#7C1805' }} />
+              <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805' }}>Alunos mais ativos</h2>
             </div>
             {stats?.top_students?.length > 0 ? (
               <div className="space-y-3">
                 {stats.top_students.map((s, i) => (
-                  <div key={i} className="flex items-center justify-between">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
-                      <span className="text-xs font-bold w-5 text-center" style={{ color: '#D66B27' }}>{i + 1}</span>
-                      <span className="text-sm truncate" style={{ color: '#2C1A0E' }}>{s.name}</span>
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
+                      <span style={{ fontSize: '11px', fontWeight: 700, width: '20px', textAlign: 'center', color: '#D66B27' }}>{i + 1}</span>
+                      <span style={{ fontSize: '13px', color: '#2C1A0E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
                     </div>
-                    <span className="text-sm font-bold ml-2 shrink-0" style={{ color: '#7C1805' }}>
-                      {s.count} red.
-                    </span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#7C1805', marginLeft: '8px', flexShrink: 0 }}>{s.count} red.</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p className="text-sm" style={{ color: '#6B5B4E' }}>Nenhum dado ainda</p>
+              <p style={{ fontSize: '13px', color: '#6B5B4E' }}>Nenhum dado ainda</p>
             )}
           </Card>
         </div>
 
-        {/* CONFIGURAÇÃO DE CRÉDITOS */}
-        <Card className="p-5 bg-white border shadow-sm">
-          <div className="flex items-center gap-2 mb-3">
-            <Zap size={18} style={{ color: '#7C1805' }} />
-            <h2 className="font-heading font-semibold text-base" style={{ color: '#7C1805' }}>
-              Créditos de Envio
-            </h2>
+        {/* Configuração de créditos */}
+        <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: '#E8DDD0' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
+            <Zap size={16} style={{ color: '#7C1805' }} />
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805' }}>Créditos de Envio</h2>
           </div>
-          <p className="text-xs mb-4" style={{ color: '#6B5B4E' }}>
+          <p style={{ fontSize: '12px', color: '#6B5B4E', marginBottom: '16px' }}>
             Configure quantas redações cada aluno pode enviar por período.
           </p>
-          <div className="flex flex-wrap items-end gap-4">
+          <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '12px' }}>
             <div>
-              <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>Modo</label>
-              <select
-                value={creditConfig.mode}
-                onChange={e => setCreditConfig({ ...creditConfig, mode: e.target.value })}
-                style={selectStyle}
-              >
+              <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px', color: '#2C1A0E' }}>Modo</label>
+              <select value={creditConfig.mode} onChange={e => setCreditConfig({ ...creditConfig, mode: e.target.value })} style={selectStyle}>
                 <option value="unlimited">Ilimitado</option>
                 <option value="monthly">Limite por mês</option>
                 <option value="weekly">Limite por semana</option>
@@ -457,7 +463,7 @@ export const AdminDashboard = () => {
             </div>
             {creditConfig.mode !== 'unlimited' && (
               <div>
-                <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px', color: '#2C1A0E' }}>
                   Qtd. {creditConfig.mode === 'monthly' ? 'por mês' : 'por semana'}
                 </label>
                 <input
@@ -468,33 +474,29 @@ export const AdminDashboard = () => {
                 />
               </div>
             )}
-            <Button onClick={saveCreditConfig} disabled={savingCredits} size="sm">
-              <Save size={14} className="mr-1" />
+            <Button onClick={saveCreditConfig} disabled={savingCredits} size="sm" style={{ borderRadius: '8px' }}>
+              <Save size={14} style={{ marginRight: '4px' }} />
               {savingCredits ? 'Salvando...' : 'Salvar'}
             </Button>
           </div>
         </Card>
 
-        {/* AÇÕES RÁPIDAS */}
-        <Card className="p-5 bg-white border shadow-sm">
-          <h2 className="font-heading font-semibold text-base mb-4" style={{ color: '#7C1805' }}>
-            Ações rápidas
-          </h2>
-          <div className="flex flex-wrap gap-3">
+        {/* Ações rápidas */}
+        <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: '#E8DDD0' }}>
+          <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805', marginBottom: '14px' }}>Ações rápidas</h2>
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             <a href="/admin/users"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm text-white"
-              style={{ backgroundColor: '#7C1805' }} data-testid="manage-users-button">
-              <Users size={15} /> Gerenciar Usuários
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', backgroundColor: '#7C1805', color: '#FDF3E8', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
+              data-testid="manage-users-button">
+              <Users size={14} /> Gerenciar Usuários
             </a>
             <a href="/create-prompt"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm border"
-              style={{ borderColor: '#7C1805', color: '#7C1805' }}>
-              <BookOpen size={15} /> Criar Proposta
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', border: '1px solid #7C1805', color: '#7C1805', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+              <BookOpen size={14} /> Criar Proposta
             </a>
             <a href="/correction-queue"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-md font-semibold text-sm border"
-              style={{ borderColor: '#36555A', color: '#36555A' }}>
-              <FileText size={15} /> Fila de Correções
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', border: '1px solid #36555A', color: '#36555A', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+              <FileText size={14} /> Fila de Correções
             </a>
           </div>
         </Card>
