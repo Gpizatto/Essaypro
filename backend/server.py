@@ -294,8 +294,8 @@ async def register(user_data: UserRegister, request: Request):
 
 @api_router.post("/auth/login", response_model=UserResponse)
 async def login(login_data: UserLogin, response: Response, request: Request):
-    # S-01: max 10 tentativas de login por minuto por IP
-    check_rate_limit(request, max_calls=10, window_seconds=60)
+    # S-01: max 20 tentativas de login por minuto por IP
+    check_rate_limit(request, max_calls=20, window_seconds=60)
     email = login_data.email.lower()
     user = await db.users.find_one({"email": email})
     if not user:
@@ -1994,8 +1994,8 @@ async def send_rewrite_requested_email(to_email: str, to_name: str, teacher_name
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(body: dict, request: Request):
-    # S-01: max 5 tentativas de reset por hora por IP
-    check_rate_limit(request, max_calls=5, window_seconds=3600)
+    # S-01: max 10 tentativas de reset por hora por IP
+    check_rate_limit(request, max_calls=10, window_seconds=3600)
     email = body.get("email", "").lower().strip()
     if not email:
         raise HTTPException(status_code=400, detail="Email obrigatório")
@@ -2734,6 +2734,7 @@ async def get_my_credits(current_user: dict = Depends(get_current_user)):
 ALLOWED_ORIGINS = [
     os.environ.get("FRONTEND_URL", "http://localhost:3000"),
     "https://essaypro-frontend.onrender.com",
+    "https://essaypro.onrender.com",        # URL alternativa do frontend
     "http://localhost:3000",
     "http://localhost:3001",
 ]
