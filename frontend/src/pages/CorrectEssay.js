@@ -1309,7 +1309,7 @@ export const CorrectEssay = () => {
           style={{
             position: 'absolute', top: '-8px', right: '-8px',
             width: '16px', height: '16px', borderRadius: '50%',
-            backgroundColor: '#7C1805', color: 'white',
+            backgroundColor: 'var(--accent-red)', color: 'white',
             border: 'none', cursor: 'pointer', fontSize: '11px',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             padding: 0, lineHeight: 1, zIndex: 1,
@@ -1374,7 +1374,7 @@ export const CorrectEssay = () => {
 
   const getScoreColor = (score, max) => {
     const percentage = max > 0 ? (score / max) * 100 : 0;
-    if (percentage >= 80) return '#36555A';
+    if (percentage >= 80) return 'var(--accent-green)';
     if (percentage >= 60) return '#3B82F6';
     if (percentage >= 40) return '#F59E0B';
     return '#EF4444';
@@ -1410,7 +1410,7 @@ export const CorrectEssay = () => {
 
 
   return (
-    <div style={{ backgroundColor: '#FDF3E8', minHeight: '100vh' }}>
+    <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh' }}>
       {/* HEADER FIXO */}
       <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
         <div>
@@ -1422,7 +1422,7 @@ export const CorrectEssay = () => {
           >
             ← Voltar para fila
           </Button>
-          <h1 className="font-heading text-xl font-bold" style={{ color: '#7C1805' }}>
+          <h1 className="font-heading text-xl font-bold" style={{ color: 'var(--accent-red)' }}>
             {essay.prompt_title}
           </h1>
           <p className="text-sm text-slate-500">Aluno: {essay.student_name}</p>
@@ -1433,8 +1433,8 @@ export const CorrectEssay = () => {
             disabled={savingDraft}
             className="flex items-center gap-1 px-4 py-2 rounded-md text-sm font-medium border transition-colors"
             style={{
-              borderColor: draftSaved ? '#36555A' : '#E8DDD0',
-              color: draftSaved ? '#36555A' : '#6B5B4E',
+              borderColor: draftSaved ? 'var(--accent-green)' : 'var(--border-color)',
+              color: draftSaved ? 'var(--accent-green)' : 'var(--text-secondary)',
               backgroundColor: 'transparent',
             }}
           >
@@ -1442,10 +1442,10 @@ export const CorrectEssay = () => {
             {savingDraft ? 'Salvando...' : draftSaved ? 'Salvo ✓' : 'Rascunho (Ctrl+S)'}
           </button>
           {autoSaveStatus === 'saving' && (
-            <span className="text-xs" style={{ color: '#6B5B4E' }}>auto-salvando...</span>
+            <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>auto-salvando...</span>
           )}
           {autoSaveStatus === 'saved' && (
-            <span className="text-xs" style={{ color: '#36555A' }}>✓ auto-salvo</span>
+            <span className="text-xs" style={{ color: 'var(--accent-green)' }}>✓ auto-salvo</span>
           )}
           {/* U-09: botão de atalhos de teclado */}
           <Button
@@ -1453,7 +1453,7 @@ export const CorrectEssay = () => {
             variant="ghost" size="sm"
             title="Atalhos de teclado"
             aria-label="Ver atalhos de teclado"
-            style={{ color: '#6B5B4E', fontSize: '16px', padding: '6px 8px' }}
+            style={{ color: 'var(--text-secondary)', fontSize: '16px', padding: '6px 8px' }}
           >
             ⌨
           </Button>
@@ -1463,8 +1463,8 @@ export const CorrectEssay = () => {
             size="lg"
             variant="outline"
             style={{
-              borderColor: rewriteRequested ? '#36555A' : '#D66B27',
-              color: rewriteRequested ? '#36555A' : '#D66B27',
+              borderColor: rewriteRequested ? 'var(--accent-green)' : 'var(--accent-orange)',
+              color: rewriteRequested ? 'var(--accent-green)' : 'var(--accent-orange)',
             }}
             title="Envia a correção e solicita que o aluno reescreva"
           >
@@ -1474,7 +1474,7 @@ export const CorrectEssay = () => {
             onClick={() => confirmBeforePublish ? setShowConfirmPublish(true) : handleSubmit()}
             disabled={submitting}
             size="lg"
-            style={{ backgroundColor: '#36555A' }}
+            style={{ backgroundColor: 'var(--accent-green)' }}
             data-testid="finalize-correction-button"
           >
             {submitting ? 'Finalizando...' : '✓ Finalizar Correção'}
@@ -1547,13 +1547,13 @@ export const CorrectEssay = () => {
               <Button variant="ghost" size="sm" onClick={zoomOut} title="Diminuir zoom">
                 <ZoomOut size={16} />
               </Button>
-              <span className="flex items-center px-1 text-xs" style={{ color: '#6B5B4E' }}>
+              <span className="flex items-center px-1 text-xs" style={{ color: 'var(--text-secondary)' }}>
                 {Math.round(zoom * 100)}%
               </span>
               <Button variant="ghost" size="sm" onClick={zoomIn} title="Aumentar zoom">
                 <ZoomIn size={16} />
               </Button>
-              <Button variant="ghost" size="sm" onClick={clearCanvas} title="Apagar todas as marcações" style={{ color: '#7C1805' }}>
+              <Button variant="ghost" size="sm" onClick={clearCanvas} title="Apagar todas as marcações" style={{ color: 'var(--accent-red)' }}>
                 <Trash2 size={16} />
               </Button>
             </div>
@@ -1578,16 +1578,16 @@ export const CorrectEssay = () => {
             <>
               <Separator orientation="vertical" className="h-6" />
               <div className="flex items-center gap-2">
-                <span className="text-xs" style={{ color: '#6B5B4E' }}>Esp:</span>
+                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Esp:</span>
                 <input
                   type="range"
                   min="0.5" max="20" step="0.5"
                   value={penWidth}
                   onChange={e => setPenWidth(parseFloat(e.target.value))}
-                  style={{ width: '80px', accentColor: '#7C1805' }}
+                  style={{ width: '80px', accentColor: 'var(--accent-red)' }}
                   title={`Espessura: ${penWidth}px`}
                 />
-                <span className="text-xs font-mono" style={{ color: '#7C1805', minWidth: '32px' }}>{penWidth}px</span>
+                <span className="text-xs font-mono" style={{ color: 'var(--accent-red)', minWidth: '32px' }}>{penWidth}px</span>
               </div>
             </>
 
@@ -1595,16 +1595,16 @@ export const CorrectEssay = () => {
               <>
                 <Separator orientation="vertical" className="h-6" />
                 <div className="flex items-center gap-2">
-                  <span className="text-xs" style={{ color: '#6B5B4E' }}>Tam:</span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Tam:</span>
                   <input
                     type="range"
                     min="5" max="80" step="1"
                     value={eraserWidth}
                     onChange={e => setEraserWidth(parseInt(e.target.value))}
-                    style={{ width: '80px', accentColor: '#7C1805' }}
+                    style={{ width: '80px', accentColor: 'var(--accent-red)' }}
                     title={`Tamanho: ${eraserWidth}px`}
                   />
-                  <span className="text-xs font-mono" style={{ color: '#7C1805', minWidth: '32px' }}>{eraserWidth}px</span>
+                  <span className="text-xs font-mono" style={{ color: 'var(--accent-red)', minWidth: '32px' }}>{eraserWidth}px</span>
                 </div>
               </>
             )}
@@ -1613,20 +1613,20 @@ export const CorrectEssay = () => {
 
           {/* RECADO DO ALUNO */}
           {essay.student_note && (
-            <div className="mx-4 mt-3 px-4 py-3 rounded-lg" style={{ backgroundColor: '#FDF3E8', border: '1px solid #DAB257' }}>
-              <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>✉ Recado do aluno:</p>
-              <p className="text-sm" style={{ color: '#2C1A0E' }}>{essay.student_note}</p>
+            <div className="mx-4 mt-3 px-4 py-3 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid #DAB257' }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>✉ Recado do aluno:</p>
+              <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{essay.student_note}</p>
             </div>
           )}
 
           {/* BANNER REESCRITA - para o professor */}
           {essay.is_rewrite && essay.parent_essay_id && (
-            <div className="mx-4 mt-3 px-4 py-3 rounded-lg" style={{ backgroundColor: '#FFF0E0', border: '1px solid #D66B27' }}>
-              <p className="text-xs font-semibold mb-1" style={{ color: '#D66B27' }}>✏️ Esta é uma reescrita</p>
+            <div className="mx-4 mt-3 px-4 py-3 rounded-lg" style={{ backgroundColor: '#FFF0E0', border: '1px solid var(--accent-orange)' }}>
+              <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>✏️ Esta é uma reescrita</p>
               <a
                 href={`/essay/${essay.parent_essay_id}/correction`}
                 className="text-xs underline"
-                style={{ color: '#7C1805' }}
+                style={{ color: 'var(--accent-red)' }}
                 target="_blank"
                 rel="noreferrer"
               >
@@ -1640,7 +1640,7 @@ export const CorrectEssay = () => {
             <div className="px-8 pb-4">
               {/* Header: título + navegação de páginas + botões */}
               <div className="flex items-center justify-between mb-3">
-                <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+                <span className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>
                   📄 PDF do aluno
                 </span>
                 <div className="flex items-center gap-2">
@@ -1649,26 +1649,26 @@ export const CorrectEssay = () => {
                       <button onClick={() => pdfPage > 1 && renderPdfPage(pdfPage - 1)}
                         disabled={pdfPage <= 1}
                         className="px-2 py-1 rounded text-xs font-bold border"
-                        style={{ borderColor: '#E8DDD0', color: pdfPage <= 1 ? '#ccc' : '#7C1805' }}>
+                        style={{ borderColor: 'var(--border-color)', color: pdfPage <= 1 ? '#ccc' : 'var(--accent-red)' }}>
                         ←
                       </button>
-                      <span className="text-xs" style={{ color: '#6B5B4E' }}>
+                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>
                         {pdfPage} / {pdfTotalPages}
                       </span>
                       <button onClick={() => pdfPage < pdfTotalPages && renderPdfPage(pdfPage + 1)}
                         disabled={pdfPage >= pdfTotalPages}
                         className="px-2 py-1 rounded text-xs font-bold border"
-                        style={{ borderColor: '#E8DDD0', color: pdfPage >= pdfTotalPages ? '#ccc' : '#7C1805' }}>
+                        style={{ borderColor: 'var(--border-color)', color: pdfPage >= pdfTotalPages ? '#ccc' : 'var(--accent-red)' }}>
                         →
                       </button>
                     </div>
                   )}
                   <a href={essay.file_url} target="_blank" rel="noreferrer"
-                    className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>
+                    className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: 'var(--accent-red)', color: 'white' }}>
                     ↗ Abrir
                   </a>
                   <a href={essay.file_url}
-                    className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: '#7C1805', color: '#7C1805' }}>
+                    className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)' }}>
                     ⬇ Baixar
                   </a>
                 </div>
@@ -1686,7 +1686,7 @@ export const CorrectEssay = () => {
               {pdfImagePages.length > 0 && (
                 <div>
                   <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                    <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+                    <span className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>
                       📄 PDF — {pdfImagePages.length} pág.
                     </span>
                     <div className="flex items-center gap-1 flex-wrap">
@@ -1704,8 +1704,8 @@ export const CorrectEssay = () => {
                         }}
                             disabled={pdfPage <= 1}
                             className="px-2 py-1 rounded border text-xs font-bold"
-                            style={{ borderColor: '#E8DDD0', color: pdfPage <= 1 ? '#ccc' : '#7C1805' }}>←</button>
-                          <span className="text-xs" style={{ color: '#6B5B4E' }}>{pdfPage}/{pdfImagePages.length}</span>
+                            style={{ borderColor: 'var(--border-color)', color: pdfPage <= 1 ? '#ccc' : 'var(--accent-red)' }}>←</button>
+                          <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>{pdfPage}/{pdfImagePages.length}</span>
                           <button onClick={() => {
                           if (pdfPage < pdfImagePages.length) {
                             if (nativeCanvasRef.current && nativeCanvasRef.current.width > 0) {
@@ -1716,22 +1716,22 @@ export const CorrectEssay = () => {
                         }}
                             disabled={pdfPage >= pdfImagePages.length}
                             className="px-2 py-1 rounded border text-xs font-bold"
-                            style={{ borderColor: '#E8DDD0', color: pdfPage >= pdfImagePages.length ? '#ccc' : '#7C1805' }}>→</button>
-                          <div style={{ width: '1px', height: '16px', backgroundColor: '#E8DDD0', margin: '0 4px' }} />
+                            style={{ borderColor: 'var(--border-color)', color: pdfPage >= pdfImagePages.length ? '#ccc' : 'var(--accent-red)' }}>→</button>
+                          <div style={{ width: '1px', height: '16px', backgroundColor: 'var(--border-color)', margin: '0 4px' }} />
                         </>
                       )}
                       {/* Rotação */}
                       <button onClick={() => setImageRotation(r => (r - 90 + 360) % 360)} title="Girar esquerda"
-                        className="px-2 py-1 rounded border text-xs font-bold" style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>↺</button>
+                        className="px-2 py-1 rounded border text-xs font-bold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>↺</button>
                       <button onClick={() => setImageRotation(r => (r + 90) % 360)} title="Girar direita"
-                        className="px-2 py-1 rounded border text-xs font-bold" style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>↻</button>
+                        className="px-2 py-1 rounded border text-xs font-bold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>↻</button>
                       {imageRotation !== 0 && (
-                        <span className="text-xs font-semibold" style={{ color: '#D66B27' }}>{imageRotation}°</span>
+                        <span className="text-xs font-semibold" style={{ color: 'var(--accent-orange)' }}>{imageRotation}°</span>
                       )}
                     </div>
                   </div>
                   {/* Container scrollável para pan+zoom */}
-                  <div style={{ overflow: 'auto', maxHeight: '92vh', borderRadius: '8px', border: '1px solid #E8DDD0', cursor: selectedTool === 'select' ? 'grab' : 'default' }}>
+                  <div style={{ overflow: 'auto', maxHeight: '92vh', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: selectedTool === 'select' ? 'grab' : 'default' }}>
                     <div style={{
                       position: 'relative', lineHeight: 0,
                       // Rotação sem cortes: ao girar 90/270°, troca largura/altura via padding
@@ -1825,7 +1825,7 @@ export const CorrectEssay = () => {
                               hoverTimerRef.current = setTimeout(() => setHoveredCommentId(null), 200);
                             }}
                             style={{
-                              backgroundColor: draggingComment?.id === c.id ? '#5a1003' : '#7C1805',
+                              backgroundColor: draggingComment?.id === c.id ? '#5a1003' : 'var(--accent-red)',
                               color: 'white',
                               borderRadius: '50% 50% 50% 0',
                               width: '28px', height: '28px',
@@ -1847,15 +1847,15 @@ export const CorrectEssay = () => {
                               style={{
                                 position: 'absolute', bottom: '36px', left: '50%',
                                 transform: 'translateX(-50%)',
-                                backgroundColor: 'white', border: '1px solid #E8DDD0',
+                                backgroundColor: 'white', border: '1px solid var(--border-color)',
                                 borderRadius: '8px', padding: '8px 12px',
                                 boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                 minWidth: '180px', maxWidth: '260px',
                                 zIndex: 30, pointerEvents: 'auto',
                               }}
                             >
-                              <p className="text-xs font-semibold mb-1" style={{ color: '#7C1805' }}>#{c.id}</p>
-                              <p style={{ fontSize: '12px', color: '#2C1A0E', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{c.comment}</p>
+                              <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-red)' }}>#{c.id}</p>
+                              <p style={{ fontSize: '12px', color: 'var(--text-primary)', lineHeight: '1.5', whiteSpace: 'pre-wrap' }}>{c.comment}</p>
                               <button onClick={() => {
                                 setInlineComments(prev => prev.filter(cm => cm.id !== c.id));
                                 setHoveredCommentId(null);
@@ -1875,17 +1875,17 @@ export const CorrectEssay = () => {
               {essay?.file_url && pdfImagePages.length === 0 &&
                (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) && (
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                  <span className="text-sm font-semibold" style={{ color: '#7C1805' }}>🖼️ Imagem do aluno</span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>🖼️ Imagem do aluno</span>
                   <div className="flex gap-1 items-center">
                     <button onClick={() => setImageRotation(r => (r - 90 + 360) % 360)} title="Girar esquerda"
-                      className="text-xs px-2 py-1 rounded border font-bold" style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>↺</button>
+                      className="text-xs px-2 py-1 rounded border font-bold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>↺</button>
                     <button onClick={() => setImageRotation(r => (r + 90) % 360)} title="Girar direita"
-                      className="text-xs px-2 py-1 rounded border font-bold" style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>↻</button>
-                    {imageRotation !== 0 && <span className="text-xs" style={{ color: '#D66B27' }}>{imageRotation}°</span>}
+                      className="text-xs px-2 py-1 rounded border font-bold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>↻</button>
+                    {imageRotation !== 0 && <span className="text-xs" style={{ color: 'var(--accent-orange)' }}>{imageRotation}°</span>}
                     <a href={essay.file_url} target="_blank" rel="noreferrer"
-                      className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: '#7C1805', color: 'white' }}>↗ Abrir</a>
+                      className="text-xs px-3 py-1 rounded font-semibold" style={{ backgroundColor: 'var(--accent-red)', color: 'white' }}>↗ Abrir</a>
                     <a href={essay.file_url}
-                      className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: '#7C1805', color: '#7C1805' }}>⬇ Baixar</a>
+                      className="text-xs px-3 py-1 rounded font-semibold border" style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)' }}>⬇ Baixar</a>
                   </div>
                 </div>
               )}
@@ -1899,29 +1899,29 @@ export const CorrectEssay = () => {
                     display: 'block',
                     width: '100%',
                     borderRadius: '8px',
-                    border: '1px solid #E8DDD0',
+                    border: '1px solid var(--border-color)',
                     backgroundColor: '#fff',
                   }}
                 />
               )}
               {essay?.file_url && /\.pdf$/i.test(essay.file_url) && !pdfPageImage && !pdfError && (
-                <div style={{ minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #E8DDD0', borderRadius: '8px', backgroundColor: '#fff' }}>
-                  <p style={{ color: '#6B5B4E' }}>⏳ Carregando PDF...</p>
+                <div style={{ minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: '#fff' }}>
+                  <p style={{ color: 'var(--text-secondary)' }}>⏳ Carregando PDF...</p>
                 </div>
               )}
               {pdfError && (
-                <div style={{ minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', border: '1px solid #E8DDD0', borderRadius: '8px', backgroundColor: '#FDF3E8', padding: '32px' }}>
-                  <p style={{ color: '#7C1805', fontWeight: '600' }}>⚠️ Não foi possível visualizar o PDF inline</p>
-                  <p style={{ color: '#6B5B4E', fontSize: '13px', textAlign: 'center' }}>
+                <div style={{ minHeight: '300px', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', border: '1px solid var(--border-color)', borderRadius: '8px', backgroundColor: 'var(--bg-primary)', padding: '32px' }}>
+                  <p style={{ color: 'var(--accent-red)', fontWeight: '600' }}>⚠️ Não foi possível visualizar o PDF inline</p>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '13px', textAlign: 'center' }}>
                     O arquivo pode estar com acesso restrito. Use os botões abaixo para abrir ou baixar.
                   </p>
                   <div style={{ display: 'flex', gap: '8px' }}>
                     <a href={pdfError} target="_blank" rel="noreferrer"
-                      style={{ backgroundColor: '#7C1805', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+                      style={{ backgroundColor: 'var(--accent-red)', color: 'white', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
                       ↗ Abrir PDF em nova aba
                     </a>
                     <a href={pdfError}
-                      style={{ border: '1px solid #7C1805', color: '#7C1805', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
+                      style={{ border: '1px solid var(--accent-red)', color: 'var(--accent-red)', padding: '8px 16px', borderRadius: '8px', fontSize: '13px', fontWeight: '600', textDecoration: 'none' }}>
                       ⬇ Baixar PDF
                     </a>
                   </div>
@@ -1931,7 +1931,7 @@ export const CorrectEssay = () => {
               {/* Imagem direta (JPG/PNG enviado pelo aluno) */}
               {essay?.file_url && pdfImagePages.length === 0 &&
                (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) && (
-                <div style={{ overflow: 'auto', maxHeight: '92vh', borderRadius: '8px', border: '1px solid #E8DDD0' }}>
+                <div style={{ overflow: 'auto', maxHeight: '92vh', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
                   <div style={{
                     position: 'relative', lineHeight: 0,
                     transition: 'transform 0.2s ease',
@@ -1949,8 +1949,8 @@ export const CorrectEssay = () => {
                     } : {}),
                   }}>
                     {!imageBlobUrl && (
-                      <div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: '#FDF3E8' }}>
-                        <p style={{ color: '#6B5B4E', fontSize: '14px' }}>⏳ Carregando imagem...</p>
+                      <div style={{ minHeight: '400px', display: 'flex', alignItems: 'center', justifyContent: 'center', backgroundColor: 'var(--bg-primary)' }}>
+                        <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>⏳ Carregando imagem...</p>
                       </div>
                     )}
                     <img
@@ -2008,8 +2008,8 @@ export const CorrectEssay = () => {
 
               {/* Upload sem arquivo disponível */}
               {essay?.submission_method === 'upload' && !essay?.file_url && (
-                <div className="bg-white rounded-lg p-12 text-center" style={{ border: '1px solid #E8DDD0', minHeight: '400px' }}>
-                  <p style={{ color: '#6B5B4E', fontSize: '14px' }}>
+                <div className="bg-white rounded-lg p-12 text-center" style={{ border: '1px solid var(--border-color)', minHeight: '400px' }}>
+                  <p style={{ color: 'var(--text-secondary)', fontSize: '14px' }}>
                     📎 Esta redação foi enviada como arquivo, mas o arquivo não está disponível.<br/>
                     Use as ferramentas acima para adicionar comentários gerais.
                   </p>
@@ -2104,7 +2104,7 @@ export const CorrectEssay = () => {
           top: eraserCursor.y - eraserWidth / 2,
           width: eraserWidth,
           height: eraserWidth,
-          border: '2px solid #7C1805',
+          border: '2px solid var(--accent-red)',
           borderRadius: '3px',
           pointerEvents: 'none',
           zIndex: 9999,
@@ -2122,7 +2122,7 @@ export const CorrectEssay = () => {
           transform: 'translate(-50%, -100%)',
           display: 'flex',
           gap: '4px',
-          backgroundColor: '#2C1A0E',
+          backgroundColor: 'var(--text-primary)',
           borderRadius: '6px',
           padding: '4px 6px',
           zIndex: 9999,
@@ -2172,8 +2172,8 @@ export const CorrectEssay = () => {
           left: activeTooltip.x,
           top: activeTooltip.y,
           transform: 'translateX(-50%)',
-          backgroundColor: '#2C1A0E',
-          color: '#FDF3E8',
+          backgroundColor: 'var(--text-primary)',
+          color: 'var(--bg-primary)',
           fontSize: '11px',
           fontWeight: '600',
           padding: '4px 8px',
@@ -2188,7 +2188,7 @@ export const CorrectEssay = () => {
             position: 'absolute', top: '-4px', left: '50%', transform: 'translateX(-50%)',
             width: 0, height: 0,
             borderLeft: '4px solid transparent', borderRight: '4px solid transparent',
-            borderBottom: '4px solid #2C1A0E',
+            borderBottom: '4px solid var(--text-primary)',
           }} />
         </div>
       )}
@@ -2198,7 +2198,7 @@ export const CorrectEssay = () => {
           <div className="p-6 space-y-6">
             {/* PONTUAÇÃO */}
             <div>
-              <h3 className="font-semibold mb-3" style={{ color: '#7C1805' }}>Pontuação por Critério</h3>
+              <h3 className="font-semibold mb-3" style={{ color: 'var(--accent-red)' }}>Pontuação por Critério</h3>
               {prompt.criteria.map((criterion) => {
                 const levels = [];
                 if (criterion.level_descriptions && criterion.level_descriptions.length > 0) {
@@ -2209,16 +2209,16 @@ export const CorrectEssay = () => {
                 }
                 const current = scores[criterion.id] || 0;
                 const pct = criterion.peso_maximo > 0 ? current / criterion.peso_maximo : 0;
-                const levelColor = pct === 1 ? '#36555A' : pct >= 0.8 ? '#36555A' : pct >= 0.6 ? '#D66B27' : pct >= 0.4 ? '#DAB257' : pct > 0 ? '#7C1805' : '#6B5B4E';
+                const levelColor = pct === 1 ? 'var(--accent-green)' : pct >= 0.8 ? 'var(--accent-green)' : pct >= 0.6 ? 'var(--accent-orange)' : pct >= 0.4 ? '#DAB257' : pct > 0 ? 'var(--accent-red)' : 'var(--text-secondary)';
                 return (
                   <div key={criterion.id} className="mb-5" data-testid={`score-${criterion.id}`}>
                     <div className="flex justify-between items-start mb-1">
                       <div className="flex-1 pr-2">
-                        <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{criterion.nome}</p>
-                        <p className="text-xs" style={{ color: '#6B5B4E' }}>{criterion.descricao}</p>
+                        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{criterion.nome}</p>
+                        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>{criterion.descricao}</p>
                       </div>
                       <span className="text-lg font-black" style={{ color: levelColor }}>
-                        {current}<span className="text-xs font-normal" style={{ color: '#6B5B4E' }}>/{criterion.peso_maximo}</span>
+                        {current}<span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>/{criterion.peso_maximo}</span>
                       </span>
                     </div>
 
@@ -2227,7 +2227,7 @@ export const CorrectEssay = () => {
                       {levels.map((val) => {
                         const isSelected = current === val;
                         const levelPct = criterion.peso_maximo > 0 ? val / criterion.peso_maximo : 0;
-                        const btnColor = levelPct === 1 ? '#36555A' : levelPct >= 0.6 ? '#D66B27' : levelPct >= 0.4 ? '#DAB257' : levelPct > 0 ? '#7C1805' : '#6B5B4E';
+                        const btnColor = levelPct === 1 ? 'var(--accent-green)' : levelPct >= 0.6 ? 'var(--accent-orange)' : levelPct >= 0.4 ? '#DAB257' : levelPct > 0 ? 'var(--accent-red)' : 'var(--text-secondary)';
                         return (
                           <button
                             key={val}
@@ -2241,9 +2241,9 @@ export const CorrectEssay = () => {
                               flex: 1,
                               padding: '6px 2px',
                               borderRadius: '6px',
-                              border: isSelected ? `2px solid ${btnColor}` : '2px solid #E8DDD0',
+                              border: isSelected ? `2px solid ${btnColor}` : '2px solid var(--border-color)',
                               backgroundColor: isSelected ? btnColor : '#FFF',
-                              color: isSelected ? '#FFF' : '#6B5B4E',
+                              color: isSelected ? '#FFF' : 'var(--text-secondary)',
                               fontSize: '11px',
                               fontWeight: isSelected ? 700 : 500,
                               cursor: 'pointer',
@@ -2262,12 +2262,12 @@ export const CorrectEssay = () => {
                       const levelInfo = criterion.level_descriptions?.find(l => Math.abs(parseFloat(l.pontuacao) - parseFloat(current)) < 0.01);
                       if (levelInfo?.proficiencia || levelInfo?.descricao) {
                         return (
-                          <div className="mt-2 p-2 rounded" style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
+                          <div className="mt-2 p-2 rounded" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
                             {levelInfo.proficiencia && (
-                              <p className="text-xs font-semibold mb-0.5" style={{ color: '#7C1805' }}>{levelInfo.proficiencia}</p>
+                              <p className="text-xs font-semibold mb-0.5" style={{ color: 'var(--accent-red)' }}>{levelInfo.proficiencia}</p>
                             )}
                             {levelInfo.descricao && (
-                              <p className="text-xs leading-relaxed" style={{ color: '#6B5B4E' }}>{levelInfo.descricao}</p>
+                              <p className="text-xs leading-relaxed" style={{ color: 'var(--text-secondary)' }}>{levelInfo.descricao}</p>
                             )}
                           </div>
                         );
@@ -2282,7 +2282,7 @@ export const CorrectEssay = () => {
             <Separator />
 
             {/* TOTAL */}
-            <div className="text-center p-4 rounded-lg" style={{ backgroundColor: '#FDF3E8' }}>
+            <div className="text-center p-4 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)' }}>
               <p className="text-sm font-semibold mb-2" style={{ color: '#525252' }}>NOTA TOTAL</p>
               <p className="text-5xl font-black mb-2" style={{ color: getScoreColor(totalScore, maxScore) }} data-testid="total-score">
                 {totalScore}
@@ -2296,7 +2296,7 @@ export const CorrectEssay = () => {
             {/* FEEDBACK */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <h3 className="font-semibold" style={{ color: '#7C1805' }}>Feedback Geral *</h3>
+                <h3 className="font-semibold" style={{ color: 'var(--accent-red)' }}>Feedback Geral *</h3>
                 <div className="flex gap-1">
                   {[
                     { label: '⭐ Ótimo', text: 'Excelente trabalho! Sua redação demonstra ótimo domínio da língua portuguesa e capacidade argumentativa. Continue assim!' },
@@ -2306,7 +2306,7 @@ export const CorrectEssay = () => {
                     <button key={tpl.label} type="button"
                       onClick={() => setFeedback(prev => ({ ...prev, general_feedback: tpl.text }))}
                       className="text-xs px-2 py-0.5 rounded border"
-                      style={{ color: '#6B5B4E', borderColor: '#E8DDD0', backgroundColor: 'white', fontSize: '11px' }}>
+                      style={{ color: 'var(--text-secondary)', borderColor: 'var(--border-color)', backgroundColor: 'white', fontSize: '11px' }}>
                       {tpl.label}
                     </button>
                   ))}
@@ -2337,7 +2337,7 @@ export const CorrectEssay = () => {
           flexDirection: 'column',
           gap: '6px',
           backgroundColor: 'white',
-          border: '2px solid #7C1805',
+          border: '2px solid var(--accent-red)',
           borderRadius: '8px',
           padding: '8px',
           boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
@@ -2345,21 +2345,21 @@ export const CorrectEssay = () => {
         }}>
           {/* Controles de cor e tamanho */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-            <span style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: 600 }}>Cor:</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600 }}>Cor:</span>
             {COLORS.map(c => (
               <button key={c.value} onClick={() => setTextboxInput(prev => ({ ...prev, color: c.value }))}
                 style={{
                   width: '18px', height: '18px', borderRadius: '50%',
                   backgroundColor: c.value,
-                  border: (textboxInput.color || selectedColor) === c.value ? '2px solid #2C1A0E' : '1px solid #ccc',
+                  border: (textboxInput.color || selectedColor) === c.value ? '2px solid var(--text-primary)' : '1px solid #ccc',
                   cursor: 'pointer', flexShrink: 0,
                 }} title={c.name} />
             ))}
-            <span style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: 600, marginLeft: '4px' }}>Tam:</span>
+            <span style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: 600, marginLeft: '4px' }}>Tam:</span>
             <select
               value={textboxInput.fontSize}
               onChange={e => setTextboxInput(prev => ({ ...prev, fontSize: parseInt(e.target.value) }))}
-              style={{ fontSize: '11px', padding: '1px 4px', borderRadius: '4px', border: '1px solid #E8DDD0', color: '#2C1A0E' }}
+              style={{ fontSize: '11px', padding: '1px 4px', borderRadius: '4px', border: '1px solid var(--border-color)', color: 'var(--text-primary)' }}
             >
               {[10, 12, 14, 16, 18, 20, 24, 28, 32].map(s => (
                 <option key={s} value={s}>{s}px</option>
@@ -2394,7 +2394,7 @@ export const CorrectEssay = () => {
               width: '100%',
               padding: '6px 8px',
               borderRadius: '6px',
-              border: '1px solid #E8DDD0',
+              border: '1px solid var(--border-color)',
               fontSize: `${textboxInput.fontSize}px`,
               fontFamily: 'Arial, sans-serif',
               color: textboxInput.color || selectedColor,
@@ -2407,7 +2407,7 @@ export const CorrectEssay = () => {
           <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
             <button onClick={() => setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 })}
               onClick={() => setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 })}
-              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#6B5B4E', cursor: 'pointer', background: 'white' }}>
+              style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', background: 'white' }}>
               Cancelar
             </button>
             <button
@@ -2424,7 +2424,7 @@ export const CorrectEssay = () => {
               disabled={!textboxInput.text.trim()}
               style={{
                 fontSize: '12px', padding: '4px 10px', borderRadius: '6px',
-                backgroundColor: '#7C1805', color: 'white', border: 'none',
+                backgroundColor: 'var(--accent-red)', color: 'white', border: 'none',
                 cursor: textboxInput.text.trim() ? 'pointer' : 'not-allowed',
                 opacity: textboxInput.text.trim() ? 1 : 0.5, fontWeight: 600,
               }}>
@@ -2438,28 +2438,28 @@ export const CorrectEssay = () => {
       {showConfirmPublish && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px]">
-            <h3 className="font-heading font-bold text-lg mb-2" style={{ color: '#7C1805' }}>
+            <h3 className="font-heading font-bold text-lg mb-2" style={{ color: 'var(--accent-red)' }}>
               Publicar correção?
             </h3>
-            <p className="text-sm mb-1" style={{ color: '#2C1A0E' }}>
+            <p className="text-sm mb-1" style={{ color: 'var(--text-primary)' }}>
               <strong>{essay?.student_name}</strong> receberá a correção imediatamente.
             </p>
-            <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>
-              Total: <strong style={{ color: '#7C1805' }}>{prompt?.criteria?.reduce((s, c) => s + (scores[c.id] || 0), 0)} pts</strong>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
+              Total: <strong style={{ color: 'var(--accent-red)' }}>{prompt?.criteria?.reduce((s, c) => s + (scores[c.id] || 0), 0)} pts</strong>
               {' '}de {prompt?.criteria?.reduce((s, c) => s + c.peso_maximo, 0)} pts
             </p>
             <div className="flex gap-3">
               <button
                 onClick={() => setShowConfirmPublish(false)}
                 className="flex-1 py-2 rounded-lg border text-sm font-medium"
-                style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}
+                style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
               >
                 Cancelar
               </button>
               <button
                 onClick={handleConfirmPublish}
                 className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
-                style={{ backgroundColor: '#36555A' }}
+                style={{ backgroundColor: 'var(--accent-green)' }}
               >
                 ✓ Confirmar e publicar
               </button>
@@ -2474,8 +2474,8 @@ export const CorrectEssay = () => {
           onClick={() => setShowClickCommentPopup(false)}>
           <div className="bg-white rounded-xl p-6 w-[480px] shadow-2xl" onClick={e => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold" style={{ color: '#7C1805' }}>💬 Comentário na imagem</h3>
-              <button onClick={() => setShowClickCommentPopup(false)} style={{ color: '#6B5B4E', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
+              <h3 className="font-semibold" style={{ color: 'var(--accent-red)' }}>💬 Comentário na imagem</h3>
+              <button onClick={() => setShowClickCommentPopup(false)} style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '18px' }}>✕</button>
             </div>
             <textarea
               autoFocus
@@ -2483,21 +2483,21 @@ export const CorrectEssay = () => {
               onChange={e => setClickCommentText(e.target.value)}
               rows={4}
               placeholder="Digite seu comentário sobre este trecho..."
-              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #E8DDD0', fontSize: '14px', resize: 'vertical' }}
+              style={{ width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '14px', resize: 'vertical' }}
             />
             {/* Sugestões rápidas */}
             <div className="flex flex-wrap gap-1 mt-2 mb-4">
               {['Atenção à ortografia', 'Revisar pontuação', 'Boa argumentação', 'Desenvolver mais', 'Coesão textual'].map(s => (
                 <button key={s} onClick={() => setClickCommentText(s)}
                   className="text-xs px-2 py-1 rounded-full border"
-                  style={{ borderColor: '#E8DDD0', color: '#6B5B4E', backgroundColor: 'white' }}>
+                  style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)', backgroundColor: 'white' }}>
                   {s}
                 </button>
               ))}
             </div>
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowClickCommentPopup(false)}
-                className="px-4 py-2 rounded text-sm" style={{ border: '1px solid #E8DDD0', color: '#6B5B4E' }}>
+                className="px-4 py-2 rounded text-sm" style={{ border: '1px solid var(--border-color)', color: 'var(--text-secondary)' }}>
                 Cancelar
               </button>
               <button
@@ -2537,7 +2537,7 @@ export const CorrectEssay = () => {
                 }}
                 disabled={!clickCommentText.trim()}
                 className="px-4 py-2 rounded text-sm font-semibold text-white"
-                style={{ backgroundColor: '#7C1805', opacity: clickCommentText.trim() ? 1 : 0.5 }}>
+                style={{ backgroundColor: 'var(--accent-red)', opacity: clickCommentText.trim() ? 1 : 0.5 }}>
                 Salvar comentário
               </button>
             </div>
@@ -2550,7 +2550,7 @@ export const CorrectEssay = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={() => setShowCommentPopup(false)}>
           <div className="bg-white rounded-lg p-6 w-[600px] max-h-[80vh] overflow-y-auto shadow-xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex justify-between items-center mb-4">
-              <h3 className="font-semibold" style={{ color: '#7C1805' }}>Adicionar Comentário</h3>
+              <h3 className="font-semibold" style={{ color: 'var(--accent-red)' }}>Adicionar Comentário</h3>
               <Button variant="ghost" size="sm" onClick={() => setShowCommentPopup(false)}>
                 <X size={18} />
               </Button>
@@ -2571,13 +2571,13 @@ export const CorrectEssay = () => {
 
             {/* Banco de Comentários */}
             <div className="mb-4">
-              <Label className="text-xs mb-2 block font-semibold" style={{ color: '#7C1805' }}>
+              <Label className="text-xs mb-2 block font-semibold" style={{ color: 'var(--accent-red)' }}>
                 Banco de Comentários
               </Label>
 
               {/* Busca */}
               <div className="relative mb-2">
-                <Search size={13} className="absolute left-2.5 top-2.5" style={{ color: '#6B5B4E' }} />
+                <Search size={13} className="absolute left-2.5 top-2.5" style={{ color: 'var(--text-secondary)' }} />
                 <Input
                   value={quickCommentSearch}
                   onChange={(e) => setQuickCommentSearch(e.target.value)}
@@ -2595,9 +2595,9 @@ export const CorrectEssay = () => {
                     onClick={() => setQuickCommentCategory(cat.key)}
                     className="text-xs px-2 py-0.5 rounded-full border transition-all"
                     style={{
-                      backgroundColor: quickCommentCategory === cat.key ? '#7C1805' : 'transparent',
-                      color: quickCommentCategory === cat.key ? '#FDF3E8' : '#6B5B4E',
-                      borderColor: quickCommentCategory === cat.key ? '#7C1805' : '#E8DDD0',
+                      backgroundColor: quickCommentCategory === cat.key ? 'var(--accent-red)' : 'transparent',
+                      color: quickCommentCategory === cat.key ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                      borderColor: quickCommentCategory === cat.key ? 'var(--accent-red)' : 'var(--border-color)',
                     }}
                   >
                     {cat.label}
@@ -2608,11 +2608,11 @@ export const CorrectEssay = () => {
               {/* Usados recentemente */}
               {!quickCommentSearch && quickCommentCategory === 'all' && recentComments.length > 0 && (
                 <div className="mb-2">
-                  <p className="text-xs font-semibold mb-1" style={{ color: '#6B5B4E' }}>Recentes</p>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>Recentes</p>
                   <div className="flex flex-wrap gap-1">
                     {recentComments.map(qc => (
                       <Badge key={qc.id} className="cursor-pointer hover:opacity-80 text-xs"
-                        style={{ backgroundColor: '#FDF3E8', color: '#D66B27', border: '1px solid #D66B27' }}
+                        style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)' }}
                         onClick={() => handleUseQuickComment(qc.id, qc.text)}>
                         {qc.text}
                       </Badge>
@@ -2624,21 +2624,21 @@ export const CorrectEssay = () => {
               {/* Lista filtrada */}
               <div className="space-y-1 max-h-40 overflow-y-auto">
                 {filteredQuickComments.length === 0 ? (
-                  <p className="text-xs text-center py-2" style={{ color: '#6B5B4E' }}>Nenhum comentário encontrado</p>
+                  <p className="text-xs text-center py-2" style={{ color: 'var(--text-secondary)' }}>Nenhum comentário encontrado</p>
                 ) : filteredQuickComments.map(qc => {
                   const isFrequent = topFrequent.find(t => t.id === qc.id);
                   return (
                     <div key={qc.id} className="relative group flex items-center gap-1">
                       <button
-                        className="flex-1 text-left text-xs px-2 py-1.5 rounded border transition-all hover:border-[#D66B27]"
-                        style={{ borderColor: '#E8DDD0', color: '#2C1A0E', backgroundColor: qc.isShared ? '#F9F6FF' : 'white' }}
+                        className="flex-1 text-left text-xs px-2 py-1.5 rounded border transition-all hover:border-[var(--accent-orange)]"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--text-primary)', backgroundColor: qc.isShared ? '#F9F6FF' : 'white' }}
                         onClick={() => handleUseQuickComment(qc.id, qc.text)}
                       >
                         {isFrequent && <span className="mr-1">⭐</span>}
                         {qc.isShared && <span className="mr-1 text-xs" style={{ color: '#D9B2CF' }}>★</span>}
                         {qc.text}
                         {qc.category && qc.category !== 'geral' && (
-                          <span className="ml-1 text-xs px-1 rounded" style={{ backgroundColor: '#F0EBE3', color: '#6B5B4E' }}>
+                          <span className="ml-1 text-xs px-1 rounded" style={{ backgroundColor: '#F0EBE3', color: 'var(--text-secondary)' }}>
                             {qc.category}
                           </span>
                         )}
@@ -2647,7 +2647,7 @@ export const CorrectEssay = () => {
                         <button
                           onClick={() => handleDeleteQuickComment(qc.id)}
                           className="opacity-0 group-hover:opacity-100 text-xs w-5 h-5 rounded-full flex items-center justify-center shrink-0"
-                          style={{ backgroundColor: '#7C1805', color: 'white' }}
+                          style={{ backgroundColor: 'var(--accent-red)', color: 'white' }}
                         >×</button>
                       )}
                     </div>
@@ -2668,7 +2668,7 @@ export const CorrectEssay = () => {
                   <select
                     value={newQuickCommentCategory}
                     onChange={e => setNewQuickCommentCategory(e.target.value)}
-                    style={{ width: '100%', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', color: '#2C1A0E' }}
+                    style={{ width: '100%', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: 'var(--text-primary)' }}
                   >
                     {CATEGORIES.filter(c => c.key !== 'all').map(c => (
                       <option key={c.key} value={c.key}>{c.label}</option>
@@ -2705,15 +2705,15 @@ export const CorrectEssay = () => {
           style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}
           onClick={() => setShowShortcuts(false)}>
           <div className="rounded-xl shadow-2xl p-6 w-full max-w-md mx-4"
-            style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}
+            style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}
             onClick={e => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-heading font-bold text-lg" style={{ color: '#7C1805' }}>
+              <h3 className="font-heading font-bold text-lg" style={{ color: 'var(--accent-red)' }}>
                 ⌨ Atalhos de Teclado
               </h3>
               <button onClick={() => setShowShortcuts(false)}
                 aria-label="Fechar modal de atalhos"
-                style={{ color: '#6B5B4E', fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer' }}>
+                style={{ color: 'var(--text-secondary)', fontSize: '18px', background: 'none', border: 'none', cursor: 'pointer' }}>
                 ✕
               </button>
             </div>
@@ -2739,15 +2739,15 @@ export const CorrectEssay = () => {
               ].map(({ keys, desc }) => (
                 <div key={keys} className="flex items-center justify-between py-1.5 px-2 rounded"
                   style={{ borderBottom: '1px solid #F0EBE3' }}>
-                  <span className="text-sm" style={{ color: '#2C1A0E' }}>{desc}</span>
+                  <span className="text-sm" style={{ color: 'var(--text-primary)' }}>{desc}</span>
                   <span className="text-xs font-mono font-bold px-2 py-0.5 rounded"
-                    style={{ backgroundColor: '#E8DDD0', color: '#7C1805' }}>
+                    style={{ backgroundColor: 'var(--border-color)', color: 'var(--accent-red)' }}>
                     {keys}
                   </span>
                 </div>
               ))}
             </div>
-            <p className="text-xs mt-3" style={{ color: '#6B5B4E' }}>
+            <p className="text-xs mt-3" style={{ color: 'var(--text-secondary)' }}>
               Clique fora ou pressione Esc para fechar
             </p>
           </div>
