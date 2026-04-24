@@ -227,7 +227,7 @@ export const ManagePrompts = () => {
               {prompts.filter(p => p.is_active).length} ativas · {prompts.filter(p => !p.is_active).length} arquivadas
             </p>
           </div>
-          <Button onClick={() => navigate('/create-prompt')}>
+          <Button onClick={() => navigate('/create-prompt')} style={{ minHeight: '44px' }}>
             <Plus size={16} className="mr-2" />
             Nova Proposta
           </Button>
@@ -236,23 +236,24 @@ export const ManagePrompts = () => {
         {/* Filtros */}
         <Card className="p-4 bg-white border">
           <div className="flex flex-wrap gap-3 items-center">
-            <div className="relative flex-1 min-w-[200px]">
+            <div className="relative flex-1 min-w-[140px]">
               <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
               <input
                 value={search}
                 onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Buscar por título ou tema..."
                 style={{
-                  width: '100%', padding: '7px 10px 7px 32px',
+                  width: '100%', padding: '10px 10px 10px 32px',
                   borderRadius: '6px', border: '1px solid var(--border-color)',
-                  fontSize: '13px', color: 'var(--text-primary)', outline: 'none'
+                  fontSize: '16px', color: 'var(--text-primary)', outline: 'none',
+                  minHeight: '44px', boxSizing: 'border-box',
                 }}
               />
             </div>
             <select
               value={filterActive}
               onChange={e => handleActiveFilterChange(e.target.value)}
-              style={{ padding: '7px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-primary)' }}
+              style={{ padding: '10px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '16px', color: 'var(--text-primary)', minHeight: '44px' }}
             >
               <option value="all">Todas</option>
               <option value="active">Ativas</option>
@@ -281,7 +282,7 @@ export const ManagePrompts = () => {
                 {/* Modo visualização */}
                 {editingPrompt !== prompt.id ? (
                   <div className="p-5">
-                    <div className="flex items-start justify-between gap-3">
+                    <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
                           <h3 className="font-heading font-semibold text-base" style={{ color: 'var(--accent-red)' }}>
