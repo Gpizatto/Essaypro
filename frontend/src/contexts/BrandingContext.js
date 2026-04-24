@@ -37,19 +37,39 @@ export const useBranding = () => {
 const applyBrandingCSS = (b) => {
   const root = document.documentElement;
 
-  // Variáveis de branding diretas
-  root.style.setProperty('--brand-primary',   b.primary_color   || BRANDING_DEFAULTS.primary_color);
-  root.style.setProperty('--brand-secondary', b.secondary_color || BRANDING_DEFAULTS.secondary_color);
-  root.style.setProperty('--brand-accent',    b.accent_color    || BRANDING_DEFAULTS.accent_color);
-  root.style.setProperty('--brand-bg',        b.bg_color        || BRANDING_DEFAULTS.bg_color);
-  root.style.setProperty('--brand-bg-card',   b.bg_card_color   || BRANDING_DEFAULTS.bg_card_color);
-  root.style.setProperty('--brand-text',      b.text_color      || BRANDING_DEFAULTS.text_color);
-  root.style.setProperty('--brand-text-soft', b.text_soft_color || BRANDING_DEFAULTS.text_soft_color);
-  root.style.setProperty('--brand-border',    b.border_color    || BRANDING_DEFAULTS.border_color);
+  const primary    = b.primary_color    || BRANDING_DEFAULTS.primary_color;
+  const secondary  = b.secondary_color  || BRANDING_DEFAULTS.secondary_color;
+  const accent     = b.accent_color     || BRANDING_DEFAULTS.accent_color;
+  const bg         = b.bg_color         || BRANDING_DEFAULTS.bg_color;
+  const bgCard     = b.bg_card_color    || BRANDING_DEFAULTS.bg_card_color;
+  const text       = b.text_color       || BRANDING_DEFAULTS.text_color;
+  const textSoft   = b.text_soft_color  || BRANDING_DEFAULTS.text_soft_color;
+  const border     = b.border_color     || BRANDING_DEFAULTS.border_color;
+
+  // Variáveis de branding (--brand-*)
+  root.style.setProperty('--brand-primary',   primary);
+  root.style.setProperty('--brand-secondary', secondary);
+  root.style.setProperty('--brand-accent',    accent);
+  root.style.setProperty('--brand-bg',        bg);
+  root.style.setProperty('--brand-bg-card',   bgCard);
+  root.style.setProperty('--brand-text',      text);
+  root.style.setProperty('--brand-text-soft', textSoft);
+  root.style.setProperty('--brand-border',    border);
+
+  // Variáveis semânticas usadas pelos componentes (--accent-*, --bg-*, --text-*, --border-color)
+  // Estas são as variáveis usadas após o Q-05 em todos os arquivos da plataforma
+  root.style.setProperty('--accent-red',    primary);
+  root.style.setProperty('--accent-orange', secondary);
+  root.style.setProperty('--accent-green',  accent);
+  root.style.setProperty('--bg-primary',    bg);
+  root.style.setProperty('--bg-card',       bgCard);
+  root.style.setProperty('--text-primary',  text);
+  root.style.setProperty('--text-secondary',textSoft);
+  root.style.setProperty('--border-color',  border);
 
   // Aplicar direto no body para garantir propagação imediata
-  document.body.style.backgroundColor = b.bg_color || BRANDING_DEFAULTS.bg_color;
-  document.body.style.color           = b.text_color || BRANDING_DEFAULTS.text_color;
+  document.body.style.backgroundColor = bg;
+  document.body.style.color           = text;
 
   // Favicon
   if (b.favicon_url) {
