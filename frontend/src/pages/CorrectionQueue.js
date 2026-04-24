@@ -21,9 +21,9 @@ const getWaitTime = (submitted_at, deadlineDays = 3) => {
 };
 
 const STATUS_TABS = [
-  { key: 'pending',     label: 'Enviadas',    Icon: Clock,        color: '#6B5B4E' },
-  { key: 'in_progress', label: 'Em correção', Icon: Edit3,        color: '#D66B27' },
-  { key: 'corrected',   label: 'Concluídas',  Icon: CheckCircle2, color: '#36555A' },
+  { key: 'pending',     label: 'Enviadas',    Icon: Clock,        color: 'var(--text-secondary)' },
+  { key: 'in_progress', label: 'Em correção', Icon: Edit3,        color: 'var(--accent-orange)' },
+  { key: 'corrected',   label: 'Concluídas',  Icon: CheckCircle2, color: 'var(--accent-green)' },
 ];
 
 const METHOD_LABEL = { editor: 'Editor', paste: 'Colado', upload: 'Upload' };
@@ -62,19 +62,26 @@ export const CorrectionQueue = () => {
       .catch(() => {});
   }, []);
 
-  const fetchAll = async () => {
+  const fetchAll = async (statusFilter = null, courseId = 'all') => {
+    setLoading(true);
     try {
-      let data = [];
-      try {
-        const res = await axios.get(`${API_URL}/api/essays/all-teacher`, { withCredentials: true });
-        data = res.data;
-      } catch {
-        const res = await axios.get(`${API_URL}/api/essays/queue`, { withCredentials: true });
-        data = res.data;
-      }
-      setAllEssays(data.sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)));
+      const params = new URLSearchParams({ page_size: 200 });
+      if (statusFilter) params.set('status', statusFilter);
+      if (courseId && courseId !== 'all') params.set('course_id', courseId);
+
+      const res = await axios.get(`${API_URL}/api/essays/all-teacher?${params}`, { withCredentials: true });
+      const payload = res.data;
+
+      // Backend pode retornar { essays, total } (paginado) ou array direto (legado)
+      const essays = Array.isArray(payload) ? payload : (payload?.essays || []);
+      setAllEssays(essays.sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)));
     } catch (err) {
       console.error('Error loading queue:', err);
+      // Fallback para endpoint antigo
+      try {
+        const res = await axios.get(`${API_URL}/api/essays/queue`, { withCredentials: true });
+        setAllEssays(Array.isArray(res.data) ? res.data : []);
+      } catch {}
     } finally {
       setLoading(false);
     }
@@ -103,8 +110,8 @@ export const CorrectionQueue = () => {
 
   const selectStyle = {
     padding: '6px 10px', borderRadius: '8px',
-    border: '1px solid #E8DDD0', fontSize: '13px',
-    color: '#2C1A0E', backgroundColor: '#FFF', outline: 'none',
+    border: '1px solid var(--border-color)', fontSize: '13px',
+    color: 'var(--text-primary)', backgroundColor: '#FFF', outline: 'none',
   };
 
   if (loading) return (
@@ -123,13 +130,13 @@ export const CorrectionQueue = () => {
         <div>
           <h1
             className="font-heading font-bold"
-            style={{ fontSize: '28px', color: '#7C1805', letterSpacing: '-0.02em' }}
+            style={{ fontSize: '28px', color: 'var(--accent-red)', letterSpacing: '-0.02em' }}
             data-testid="correction-queue-title"
           >
             Correções
           </h1>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '4px', flexWrap: 'wrap' }}>
-            <p style={{ fontSize: '13px', color: '#6B5B4E' }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
               {byStatus.pending.length} pendente{byStatus.pending.length !== 1 ? 's' : ''}
               {byStatus.in_progress.length > 0 && ` · ${byStatus.in_progress.length} em andamento`}
             </p>
@@ -137,7 +144,7 @@ export const CorrectionQueue = () => {
               <span style={{
                 display: 'inline-flex', alignItems: 'center', gap: '4px',
                 fontSize: '11.5px', fontWeight: 600, padding: '2px 9px', borderRadius: '99px',
-                backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #7C180533',
+                backgroundColor: '#FEF2F2', color: 'var(--accent-red)', border: '1px solid var(--accent-red)33',
               }}>
                 <AlertCircle size={12} />
                 {urgentCount} atrasada{urgentCount !== 1 ? 's' : ''}
@@ -156,8 +163,8 @@ export const CorrectionQueue = () => {
                 display: 'flex', alignItems: 'center', gap: '6px',
                 padding: '8px 16px', borderRadius: '7px',
                 fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
-                backgroundColor: activeTab === tab.key ? '#7C1805' : 'transparent',
-                color: activeTab === tab.key ? '#FDF3E8' : '#6B5B4E',
+                backgroundColor: activeTab === tab.key ? 'var(--accent-red)' : 'transparent',
+                color: activeTab === tab.key ? 'var(--bg-primary)' : 'var(--text-secondary)',
                 transition: 'all 0.15s',
               }}
             >
@@ -165,8 +172,8 @@ export const CorrectionQueue = () => {
               {tab.label}
               <span style={{
                 fontSize: '11px', padding: '1px 6px', borderRadius: '99px',
-                backgroundColor: activeTab === tab.key ? 'rgba(253,243,232,0.25)' : '#E8DDD0',
-                color: activeTab === tab.key ? '#FDF3E8' : '#6B5B4E',
+                backgroundColor: activeTab === tab.key ? 'rgba(253,243,232,0.25)' : 'var(--border-color)',
+                color: activeTab === tab.key ? 'var(--bg-primary)' : 'var(--text-secondary)',
               }}>
                 {byStatus[tab.key]?.length || 0}
               </span>
@@ -177,20 +184,20 @@ export const CorrectionQueue = () => {
         {/* Filtros */}
         <Card
           className="bg-white border"
-          style={{ padding: '12px 14px', borderRadius: '12px', borderColor: '#E8DDD0' }}
+          style={{ padding: '12px 14px', borderRadius: '12px', borderColor: 'var(--border-color)' }}
         >
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
             {/* Busca */}
             <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
-              <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: '#6B5B4E' }} />
+              <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar aluno ou proposta..."
                 style={{
                   width: '100%', padding: '7px 10px 7px 30px',
-                  borderRadius: '8px', border: '1px solid #E8DDD0',
-                  fontSize: '13px', color: '#2C1A0E', outline: 'none',
+                  borderRadius: '8px', border: '1px solid var(--border-color)',
+                  fontSize: '13px', color: 'var(--text-primary)', outline: 'none',
                   boxSizing: 'border-box',
                 }}
               />
@@ -224,7 +231,7 @@ export const CorrectionQueue = () => {
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '4px',
                   fontSize: '12px', fontWeight: 600, padding: '6px 10px', borderRadius: '8px',
-                  backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27', cursor: 'pointer',
+                  backgroundColor: 'var(--bg-primary)', color: 'var(--accent-red)', border: '1px solid var(--accent-orange)', cursor: 'pointer',
                 }}
               >
                 ✕ Limpar
@@ -232,7 +239,7 @@ export const CorrectionQueue = () => {
             )}
 
             {filtered.length !== currentList.length && (
-              <span style={{ fontSize: '12px', color: '#6B5B4E', marginLeft: 'auto' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
                 {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
               </span>
             )}
@@ -242,8 +249,8 @@ export const CorrectionQueue = () => {
         {/* Lista */}
         {filtered.length === 0 ? (
           <Card className="p-10 text-center bg-white" style={{ borderRadius: '14px' }}>
-            <FileText size={40} className="mx-auto mb-3" style={{ color: '#D66B27' }} />
-            <p style={{ color: '#6B5B4E' }}>
+            <FileText size={40} className="mx-auto mb-3" style={{ color: 'var(--accent-orange)' }} />
+            <p style={{ color: 'var(--text-secondary)' }}>
               {currentList.length === 0
                 ? activeTab === 'pending' ? 'Nenhuma redação pendente 🎉' : 'Nenhuma redação aqui'
                 : 'Nenhum resultado encontrado'}
@@ -260,9 +267,9 @@ export const CorrectionQueue = () => {
                   style={{
                     padding: '18px 20px',
                     borderRadius: '14px',
-                    borderColor: wait.urgent ? '#7C180533' : '#E8DDD0',
+                    borderColor: wait.urgent ? 'var(--accent-red)33' : 'var(--border-color)',
                     boxShadow: '0 1px 4px rgba(44,26,14,0.05)',
-                    borderLeft: wait.urgent ? '3px solid #7C1805' : undefined,
+                    borderLeft: wait.urgent ? '3px solid var(--accent-red)' : undefined,
                     transition: 'box-shadow 0.15s',
                   }}
                   data-testid={`queue-essay-${essay.id}`}
@@ -270,19 +277,19 @@ export const CorrectionQueue = () => {
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                        <h3 className="font-heading font-semibold" style={{ fontSize: '15px', color: '#2C1A0E' }}>
+                        <h3 className="font-heading font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
                           {essay.prompt_title || 'Redação'}
                         </h3>
                         {essay.is_rewrite && (
                           <span style={{
                             fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px',
-                            backgroundColor: '#FFF0E0', color: '#D66B27', border: '1px solid #D66B27',
+                            backgroundColor: '#FFF0E0', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)',
                           }}>
                             ✏️ Reescrita
                           </span>
                         )}
                       </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '12.5px', color: '#6B5B4E' }}>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
                         <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                           <User size={13} /> {essay.student_name || 'Aluno'}
                         </span>
@@ -294,7 +301,7 @@ export const CorrectionQueue = () => {
                         {activeTab === 'pending' && (
                           <span style={{
                             display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600,
-                            color: wait.urgent ? '#7C1805' : '#6B5B4E',
+                            color: wait.urgent ? 'var(--accent-red)' : 'var(--text-secondary)',
                           }}>
                             <AlertCircle size={13} />
                             Esperando {wait.label || ''}
@@ -311,8 +318,8 @@ export const CorrectionQueue = () => {
                           style={{
                             display: 'inline-flex', alignItems: 'center', gap: '5px',
                             padding: '8px 14px', borderRadius: '8px', cursor: 'pointer',
-                            backgroundColor: 'transparent', color: '#6B5B4E',
-                            border: '1px solid #E8DDD0', fontSize: '12.5px', fontWeight: 600,
+                            backgroundColor: 'transparent', color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-color)', fontSize: '12.5px', fontWeight: 600,
                           }}
                         >
                           <History size={14} /> Ver correção
@@ -323,8 +330,8 @@ export const CorrectionQueue = () => {
                           style={{
                             display: 'inline-flex', alignItems: 'center', gap: '5px',
                             padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                            backgroundColor: essay.status === 'in_progress' ? '#D66B27' : '#36555A',
-                            color: '#FDF3E8', fontSize: '12.5px', fontWeight: 600,
+                            backgroundColor: essay.status === 'in_progress' ? 'var(--accent-orange)' : 'var(--accent-green)',
+                            color: 'var(--bg-primary)', fontSize: '12.5px', fontWeight: 600,
                           }}
                           data-testid={`correct-button-${essay.id}`}
                         >
