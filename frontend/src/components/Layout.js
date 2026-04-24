@@ -154,16 +154,16 @@ export const Layout = ({ children }) => {
   const initials = getInitials(user.name);
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--brand-bg, #FDF3E8)' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: '#FDF3E8' }}>
       {/* Sidebar */}
-      <aside className="w-60 flex flex-col flex-shrink-0" style={{ backgroundColor: 'var(--bg-sidebar, #7C1805)' }}>
+      <aside className="w-64 flex flex-col flex-shrink-0" style={{ backgroundColor: '#7C1805' }}>
 
         {/* Logo */}
         <div style={{ padding: '28px 24px 20px' }}>
-          <h1 className="font-script text-4xl leading-tight" style={{ color: '#FDF3E8' }} data-testid="app-logo">
+          <h1 className="font-script text-3xl leading-tight" style={{ color: '#FDF3E8' }} data-testid="app-logo">
             redação
           </h1>
-          <h1 className="font-script text-4xl leading-tight" style={{ color: '#DAB257' }}>
+          <h1 className="font-script text-3xl leading-tight" style={{ color: '#DAB257' }}>
             com nicolle
           </h1>
           <p className="text-xs mt-2 font-body" style={{ color: 'rgba(253,243,232,0.5)', letterSpacing: '0.05em' }}>
@@ -402,7 +402,7 @@ export const Layout = ({ children }) => {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto" style={{ backgroundColor: 'var(--brand-bg, #FDF3E8)' }}>
+      <main className="flex-1 overflow-auto" style={{ backgroundColor: '#FDF3E8' }}>
         <div style={{ padding: '32px 40px' }}>{children}</div>
       </main>
     </div>
