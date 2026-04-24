@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
@@ -201,10 +201,11 @@ export const ManagePrompts = () => {
     } catch (e) { toast.error('Erro ao copiar grade'); }
   };
 
-  const filtered = prompts; // P-08: busca e filtro feitos server-side
+  // Q-06: memoizar lista filtrada localmente (filtro de status ativo, se houver)
+  const filtered = useMemo(() => prompts, [prompts]);
 
   const inputStyle = { marginTop: '4px' };
-  const labelStyle = { color: '#2C1A0E', fontSize: '13px', fontWeight: 600 };
+  const labelStyle = { color: 'var(--text-primary)', fontSize: '13px', fontWeight: 600 };
 
   if (loading) return (
     <Layout>
@@ -219,10 +220,10 @@ export const ManagePrompts = () => {
       <div className="space-y-5">
         <div className="flex items-center justify-between flex-wrap gap-3">
           <div>
-            <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }}>
+            <h1 className="font-heading font-bold text-3xl" style={{ color: 'var(--accent-red)' }}>
               Gestão de Propostas
             </h1>
-            <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               {prompts.filter(p => p.is_active).length} ativas · {prompts.filter(p => !p.is_active).length} arquivadas
             </p>
           </div>
@@ -236,22 +237,22 @@ export const ManagePrompts = () => {
         <Card className="p-4 bg-white border">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B5B4E' }} />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
               <input
                 value={search}
                 onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Buscar por título ou tema..."
                 style={{
                   width: '100%', padding: '7px 10px 7px 32px',
-                  borderRadius: '6px', border: '1px solid #E8DDD0',
-                  fontSize: '13px', color: '#2C1A0E', outline: 'none'
+                  borderRadius: '6px', border: '1px solid var(--border-color)',
+                  fontSize: '13px', color: 'var(--text-primary)', outline: 'none'
                 }}
               />
             </div>
             <select
               value={filterActive}
               onChange={e => handleActiveFilterChange(e.target.value)}
-              style={{ padding: '7px 12px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E' }}
+              style={{ padding: '7px 12px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-primary)' }}
             >
               <option value="all">Todas</option>
               <option value="active">Ativas</option>
@@ -260,7 +261,7 @@ export const ManagePrompts = () => {
             {(search || filterActive !== 'all') && (
               <button onClick={() => { setSearch(''); setFilterActive('all'); }}
                 className="text-xs flex items-center gap-1 px-2 py-1 rounded"
-                style={{ backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27' }}>
+                style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-red)', border: '1px solid var(--accent-orange)' }}>
                 <X size={12} /> Limpar
               </button>
             )}
@@ -270,8 +271,8 @@ export const ManagePrompts = () => {
         {/* Lista de propostas */}
         {filtered.length === 0 ? (
           <Card className="p-10 text-center bg-white">
-            <BookOpen size={40} className="mx-auto mb-3" style={{ color: '#D66B27' }} />
-            <p style={{ color: '#6B5B4E' }}>Nenhuma proposta encontrada</p>
+            <BookOpen size={40} className="mx-auto mb-3" style={{ color: 'var(--accent-orange)' }} />
+            <p style={{ color: 'var(--text-secondary)' }}>Nenhuma proposta encontrada</p>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -283,12 +284,12 @@ export const ManagePrompts = () => {
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap mb-1">
-                          <h3 className="font-heading font-semibold text-base" style={{ color: '#7C1805' }}>
+                          <h3 className="font-heading font-semibold text-base" style={{ color: 'var(--accent-red)' }}>
                             {prompt.title}
                           </h3>
                           <Badge style={{
-                            backgroundColor: prompt.is_active ? '#36555A' : '#6B5B4E',
-                            color: '#FDF3E8', fontSize: '10px'
+                            backgroundColor: prompt.is_active ? 'var(--accent-green)' : 'var(--text-secondary)',
+                            color: 'var(--bg-primary)', fontSize: '10px'
                           }}>
                             {prompt.is_active ? 'Ativa' : 'Arquivada'}
                           </Badge>
@@ -296,25 +297,25 @@ export const ManagePrompts = () => {
                             const course = availableCourses.find(c => c.id === cid);
                             return course ? (
                               <span key={cid} className="text-xs px-2 py-0.5 rounded-full"
-                                style={{ backgroundColor: '#EDF4F5', color: '#36555A', border: '1px solid #36555A' }}>
+                                style={{ backgroundColor: '#EDF4F5', color: 'var(--accent-green)', border: '1px solid var(--accent-green)' }}>
                                 🎓 {course.name}
                               </span>
                             ) : null;
                           })}
                           {(prompt.course_ids || []).length === 0 && (
                             <span className="text-xs px-2 py-0.5 rounded-full"
-                              style={{ backgroundColor: '#FDF3E8', color: '#D66B27', border: '1px solid #D66B27' }}>
+                              style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)' }}>
                               Todos os alunos
                             </span>
                           )}
                         </div>
-                        <p className="text-sm truncate" style={{ color: '#6B5B4E' }}>{prompt.theme}</p>
+                        <p className="text-sm truncate" style={{ color: 'var(--text-secondary)' }}>{prompt.theme}</p>
                         {(prompt.supporting_files || []).length > 0 && (
-                          <p className="text-xs mt-0.5" style={{ color: '#36555A' }}>
+                          <p className="text-xs mt-0.5" style={{ color: 'var(--accent-green)' }}>
                             📎 {prompt.supporting_files.length} arquivo{prompt.supporting_files.length !== 1 ? 's' : ''} anexado{prompt.supporting_files.length !== 1 ? 's' : ''}
                           </p>
                         )}
-                        <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
+                        <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                           {prompt.criteria?.length || 0} critérios · criada em {new Date(prompt.created_at).toLocaleDateString('pt-BR')}
                         </p>
                       </div>
@@ -329,7 +330,7 @@ export const ManagePrompts = () => {
                           variant="ghost" size="sm"
                           onClick={() => setConfirmArchive(prompt.id)}
                           title={prompt.is_active ? 'Arquivar' : 'Reativar'}
-                          style={{ color: prompt.is_active ? '#D97706' : '#36555A' }}
+                          style={{ color: prompt.is_active ? '#D97706' : 'var(--accent-green)' }}
                         >
                           <Archive size={15} />
                         </Button>
@@ -337,7 +338,7 @@ export const ManagePrompts = () => {
                           variant="ghost" size="sm"
                           onClick={() => setConfirmDelete(prompt.id)}
                           title="Apagar permanentemente"
-                          style={{ color: '#7C1805' }}
+                          style={{ color: 'var(--accent-red)' }}
                         >
                           <Trash2 size={15} />
                         </Button>
@@ -347,7 +348,7 @@ export const ManagePrompts = () => {
                     {/* Confirmação de apagar */}
                     {confirmDelete === prompt.id && (
                       <div className="mt-3 pt-3 border-t" style={{ borderColor: '#FCA5A5' }}>
-                        <p className="text-sm font-semibold mb-2" style={{ color: '#7C1805' }}>
+                        <p className="text-sm font-semibold mb-2" style={{ color: 'var(--accent-red)' }}>
                           ⚠️ Apagar permanentemente? Esta ação não pode ser desfeita.
                         </p>
                         <div className="flex items-center gap-2">
@@ -355,7 +356,7 @@ export const ManagePrompts = () => {
                             Cancelar
                           </Button>
                           <Button size="sm"
-                            style={{ backgroundColor: '#7C1805' }}
+                            style={{ backgroundColor: 'var(--accent-red)' }}
                             onClick={() => deletePrompt(prompt.id)}>
                             Apagar permanentemente
                           </Button>
@@ -365,8 +366,8 @@ export const ManagePrompts = () => {
 
                     {/* Confirmação de arquivar */}
                     {confirmArchive === prompt.id && (
-                      <div className="mt-3 pt-3 border-t flex items-center gap-3" style={{ borderColor: '#E8DDD0' }}>
-                        <p className="text-sm flex-1" style={{ color: '#2C1A0E' }}>
+                      <div className="mt-3 pt-3 border-t flex items-center gap-3" style={{ borderColor: 'var(--border-color)' }}>
+                        <p className="text-sm flex-1" style={{ color: 'var(--text-primary)' }}>
                           {prompt.is_active ? 'Arquivar esta proposta?' : 'Reativar esta proposta?'}
                         </p>
                         <Button size="sm" variant="outline" onClick={() => setConfirmArchive(null)}>
@@ -382,7 +383,7 @@ export const ManagePrompts = () => {
                   /* Modo edição inline */
                   <div className="p-5 space-y-4" style={{ backgroundColor: '#FFFBF5' }}>
                     <div className="flex items-center justify-between">
-                      <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>Editando proposta</p>
+                      <p className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>Editando proposta</p>
                       <Button variant="ghost" size="sm" onClick={() => setEditingPrompt(null)}>
                         <X size={15} />
                       </Button>
@@ -412,16 +413,16 @@ export const ManagePrompts = () => {
                       <label style={labelStyle}>Período de disponibilidade</label>
                       <div className="flex gap-2 mt-1">
                         <div className="flex-1">
-                          <label style={{ fontSize: '11px', color: '#6B5B4E' }}>Início</label>
+                          <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Início</label>
                           <input type="date" value={editForm.start_date || ''}
                             onChange={e => setEditForm({ ...editForm, start_date: e.target.value })}
-                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', color: '#2C1A0E' }} />
+                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: 'var(--text-primary)' }} />
                         </div>
                         <div className="flex-1">
-                          <label style={{ fontSize: '11px', color: '#6B5B4E' }}>Fim</label>
+                          <label style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Fim</label>
                           <input type="date" value={editForm.end_date || ''}
                             onChange={e => setEditForm({ ...editForm, end_date: e.target.value })}
-                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', color: '#2C1A0E' }} />
+                            style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', color: 'var(--text-primary)' }} />
                         </div>
                       </div>
                     </div>
@@ -434,9 +435,9 @@ export const ManagePrompts = () => {
                           {availableCourses.filter(c => c.is_active).map(c => (
                             <label key={c.id} className="flex items-center gap-1.5 cursor-pointer text-xs px-2 py-1 rounded-full border"
                               style={{
-                                backgroundColor: (editForm.course_ids || []).includes(c.id) ? '#7C1805' : 'transparent',
-                                color: (editForm.course_ids || []).includes(c.id) ? '#FDF3E8' : '#6B5B4E',
-                                borderColor: (editForm.course_ids || []).includes(c.id) ? '#7C1805' : '#E8DDD0',
+                                backgroundColor: (editForm.course_ids || []).includes(c.id) ? 'var(--accent-red)' : 'transparent',
+                                color: (editForm.course_ids || []).includes(c.id) ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                                borderColor: (editForm.course_ids || []).includes(c.id) ? 'var(--accent-red)' : 'var(--border-color)',
                               }}>
                               <input type="checkbox" style={{ display: 'none' }}
                                 checked={(editForm.course_ids || []).includes(c.id)}
@@ -461,32 +462,32 @@ export const ManagePrompts = () => {
                       <div className="flex items-center justify-between mb-2">
                         <label style={labelStyle}>Grade de Correção</label>
                         <button onClick={addCriterion}
-                          style={{ fontSize: '11px', color: '#7C1805', background: 'none', border: '1px solid #7C1805', borderRadius: '6px', padding: '2px 8px', cursor: 'pointer' }}>
+                          style={{ fontSize: '11px', color: 'var(--accent-red)', background: 'none', border: '1px solid var(--accent-red)', borderRadius: '6px', padding: '2px 8px', cursor: 'pointer' }}>
                           + Critério
                         </button>
                       </div>
                       {(editForm.criteria || []).map((crit, ci) => (
-                        <div key={ci} className="mb-4 p-3 rounded-lg" style={{ border: '1px solid #E8DDD0', backgroundColor: '#FFFBF5' }}>
+                        <div key={ci} className="mb-4 p-3 rounded-lg" style={{ border: '1px solid var(--border-color)', backgroundColor: '#FFFBF5' }}>
                           <div className="flex items-start gap-2 mb-2">
                             <div className="flex-1">
                               <input
                                 placeholder="Nome do critério"
                                 value={crit.nome}
                                 onChange={e => updateCriterion(ci, 'nome', e.target.value)}
-                                style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', marginBottom: '4px' }}
+                                style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', marginBottom: '4px' }}
                               />
                               <input
                                 placeholder="Descrição"
                                 value={crit.descricao}
                                 onChange={e => updateCriterion(ci, 'descricao', e.target.value)}
-                                style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px', marginBottom: '4px' }}
+                                style={{ width: '100%', padding: '5px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px', marginBottom: '4px' }}
                               />
                               <div className="flex items-center gap-2">
-                                <span style={{ fontSize: '11px', color: '#6B5B4E' }}>Pontuação máx:</span>
+                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Pontuação máx:</span>
                                 <input type="number" min="1"
                                   value={crit.max}
                                   onChange={e => updateCriterion(ci, 'max', Number(e.target.value))}
-                                  style={{ width: '70px', padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px' }}
+                                  style={{ width: '70px', padding: '3px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}
                                 />
                               </div>
                             </div>
@@ -497,9 +498,9 @@ export const ManagePrompts = () => {
                           {/* Níveis */}
                           <div className="space-y-1 mt-2">
                             <div className="flex items-center justify-between">
-                              <p style={{ fontSize: '11px', color: '#6B5B4E', fontWeight: '600' }}>Níveis:</p>
+                              <p style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600' }}>Níveis:</p>
                               <button onClick={() => addLevelToEdit(ci)}
-                                style={{ fontSize: '11px', color: '#36555A', background: 'none', border: '1px solid #36555A', borderRadius: '4px', padding: '1px 6px', cursor: 'pointer' }}>
+                                style={{ fontSize: '11px', color: 'var(--accent-green)', background: 'none', border: '1px solid var(--accent-green)', borderRadius: '4px', padding: '1px 6px', cursor: 'pointer' }}>
                                 + Nível
                               </button>
                             </div>
@@ -508,19 +509,19 @@ export const ManagePrompts = () => {
                                 <input type="number" min="0"
                                   value={lv.pontuacao}
                                   onChange={e => updateLevel(ci, li, 'pontuacao', Number(e.target.value))}
-                                  style={{ width: '60px', padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '11px' }}
+                                  style={{ width: '60px', padding: '3px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11px' }}
                                   placeholder="Pts"
                                 />
                                 <input
                                   value={lv.proficiencia || ''}
                                   onChange={e => updateLevel(ci, li, 'proficiencia', e.target.value)}
-                                  style={{ width: '90px', padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '11px' }}
+                                  style={{ width: '90px', padding: '3px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11px' }}
                                   placeholder="Nome nível"
                                 />
                                 <input
                                   value={lv.descricao || ''}
                                   onChange={e => updateLevel(ci, li, 'descricao', e.target.value)}
-                                  style={{ flex: 1, padding: '3px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '11px' }}
+                                  style={{ flex: 1, padding: '3px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11px' }}
                                   placeholder="Descrição do nível"
                                 />
                                 <button onClick={() => removeLevelFromEdit(ci, li)}
@@ -549,14 +550,14 @@ export const ManagePrompts = () => {
 
                     {/* Modal copiar grade */}
                     {showCopyCriteria === prompt.id && (
-                      <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: '#FDF3E8', border: '1px solid #DAB257' }}>
-                        <p className="text-xs font-semibold mb-2" style={{ color: '#7C1805' }}>
+                      <div className="mt-3 p-3 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid #DAB257' }}>
+                        <p className="text-xs font-semibold mb-2" style={{ color: 'var(--accent-red)' }}>
                           Copiar critérios de qual proposta?
                         </p>
                         <select
                           value={copySource}
                           onChange={e => setCopySource(e.target.value)}
-                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E', marginBottom: '8px' }}
+                          style={{ width: '100%', padding: '6px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-primary)', marginBottom: '8px' }}
                         >
                           <option value="">Selecione a proposta de origem...</option>
                           {prompts.filter(p => p.id !== prompt.id && p.criteria?.length).map(p => (
