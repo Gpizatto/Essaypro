@@ -3,7 +3,7 @@ import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { BookOpen, Calendar, CheckCircle, Clock, RefreshCw } from 'lucide-react';
+import { BookOpen, Calendar, CheckCircle, Clock, RefreshCw, PenLine } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
@@ -12,7 +12,7 @@ export const PromptsList = () => {
   const [prompts, setPrompts] = useState([]);
   const [myEssays, setMyEssays] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState('all'); // all | pending | done
+  const [filter, setFilter] = useState('all');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -26,7 +26,6 @@ export const PromptsList = () => {
       .finally(() => setLoading(false));
   }, []);
 
-  // Mapear prompt_id → essays do aluno
   const essaysByPrompt = {};
   myEssays.forEach(e => {
     if (!essaysByPrompt[e.prompt_id]) essaysByPrompt[e.prompt_id] = [];
@@ -64,38 +63,53 @@ export const PromptsList = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="prompts-title">
+          <h1
+            className="font-heading font-black"
+            style={{ fontSize: '28px', color: '#7C1805', letterSpacing: '-0.02em' }}
+            data-testid="prompts-title"
+          >
             Temas Disponíveis
           </h1>
-          <p className="text-lg mt-2 text-slate-600">Escolha um tema e escreva sua redação</p>
+          <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
+            Escolha um tema e escreva sua redação
+          </p>
         </div>
 
-        {/* Filtros */}
-        <div className="flex gap-2 flex-wrap">
+        {/* Filtros como pills */}
+        <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
           {[
             { key: 'all', label: `Todos (${prompts.length})` },
             { key: 'pending', label: `Pendentes (${pendingCount})` },
             { key: 'done', label: `Enviados (${doneCount})` },
           ].map(f => (
-            <button key={f.key} onClick={() => setFilter(f.key)}
-              className="px-4 py-1.5 rounded-full text-sm font-semibold transition-all"
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
               style={{
-                backgroundColor: filter === f.key ? '#7C1805' : 'white',
-                color: filter === f.key ? 'white' : '#6B5B4E',
-                border: `1px solid ${filter === f.key ? '#7C1805' : '#E8DDD0'}`,
-              }}>
+                padding: '6px 14px',
+                borderRadius: '99px',
+                fontSize: '12.5px',
+                fontWeight: 600,
+                cursor: 'pointer',
+                border: 'none',
+                backgroundColor: filter === f.key ? '#7C1805' : '#FFFFFF',
+                color: filter === f.key ? '#FFFFFF' : '#6B5B4E',
+                boxShadow: filter === f.key ? 'none' : '0 1px 3px rgba(44,26,14,0.08)',
+                transition: 'all 0.15s ease',
+              }}
+            >
               {f.label}
             </button>
           ))}
         </div>
 
         {filteredPrompts.length === 0 ? (
-          <Card className="p-12 text-center bg-white">
-            <BookOpen size={48} className="mx-auto mb-4" style={{ color: '#525252' }} />
-            <p className="text-lg text-slate-600">Nenhum tema encontrado</p>
+          <Card className="p-12 text-center bg-white" style={{ borderRadius: '14px' }}>
+            <BookOpen size={48} className="mx-auto mb-4" style={{ color: '#D66B27' }} />
+            <p className="text-lg" style={{ color: '#6B5B4E' }}>Nenhum tema encontrado</p>
           </Card>
         ) : (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {filteredPrompts.map(prompt => {
               const status = getPromptStatus(prompt.id);
               const essays = essaysByPrompt[prompt.id] || [];
@@ -105,89 +119,132 @@ export const PromptsList = () => {
               const isSubmitted = status === 'submitted';
 
               return (
-                <Card key={prompt.id}
-                  className="p-6 bg-white border shadow-sm transition-shadow"
+                <Card
+                  key={prompt.id}
+                  className="bg-white border"
                   style={{
-                    borderLeft: `4px solid ${isCorrected ? '#36555A' : isSubmitted ? '#D66B27' : '#7C1805'}`,
-                    opacity: 1,
+                    borderRadius: '14px',
+                    padding: '20px 20px',
+                    boxShadow: '0 1px 4px rgba(44,26,14,0.05)',
+                    borderColor: '#E8DDD0',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '10px',
                   }}
-                  data-testid={`prompt-card-${prompt.id}`}>
-                  <div className="flex items-start justify-between gap-4">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2 flex-wrap">
-                        <h3 className="font-heading text-xl font-semibold" style={{ color: '#7C1805' }}>
+                  data-testid={`prompt-card-${prompt.id}`}
+                >
+                  {/* Cabeçalho */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '6px', flexWrap: 'wrap' }}>
+                        <h3
+                          className="font-heading font-bold"
+                          style={{ fontSize: '15px', color: '#2C1A0E' }}
+                        >
                           {prompt.title}
                         </h3>
-                        {/* Badge de status */}
                         {isCorrected && (
-                          <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold"
-                            style={{ backgroundColor: '#EAF3DE', color: '#27500A' }}>
-                            <CheckCircle size={12} /> Corrigida
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            fontSize: '11px', fontWeight: 600,
+                            padding: '2px 8px', borderRadius: '99px',
+                            backgroundColor: '#EAF3DE', color: '#27500A',
+                          }}>
+                            <CheckCircle size={11} /> Corrigida
                           </span>
                         )}
                         {isSubmitted && (
-                          <span className="flex items-center gap-1 text-xs px-2 py-1 rounded-full font-semibold"
-                            style={{ backgroundColor: '#FFF0E0', color: '#7C3A00' }}>
-                            <Clock size={12} /> Aguardando correção
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            fontSize: '11px', fontWeight: 600,
+                            padding: '2px 8px', borderRadius: '99px',
+                            backgroundColor: '#FFF0E0', color: '#7C3A00',
+                          }}>
+                            <Clock size={11} /> Aguardando correção
                           </span>
                         )}
                       </div>
+                      <p style={{ fontSize: '13px', color: '#6B5B4E', lineHeight: 1.6 }}>
+                        {prompt.theme}
+                      </p>
+                    </div>
+                  </div>
 
-                      <p className="text-slate-700 mb-3 leading-relaxed">{prompt.theme}</p>
-
-                      <div className="flex items-center gap-4 text-sm text-slate-500 flex-wrap">
-                        <span className="flex items-center gap-1">
-                          <Calendar size={14} />
-                          {new Date(prompt.created_at).toLocaleDateString('pt-BR')}
+                  {/* Rodapé: metadata + botão */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '14px', fontSize: '11.5px', color: '#6B5B4E', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Calendar size={13} />
+                        {new Date(prompt.created_at).toLocaleDateString('pt-BR')}
+                      </span>
+                      {latest && (
+                        <span>
+                          Enviada em {new Date(latest.submitted_at).toLocaleDateString('pt-BR')}
                         </span>
-                        {latest && (
-                          <span className="text-xs" style={{ color: '#6B5B4E' }}>
-                            Enviada em {new Date(latest.submitted_at).toLocaleDateString('pt-BR')}
-                          </span>
-                        )}
-                        {essays.length > 1 && (
-                          <span className="text-xs" style={{ color: '#D66B27' }}>
-                            {essays.length} tentativas
-                          </span>
-                        )}
-                      </div>
+                      )}
+                      {essays.length > 1 && (
+                        <span style={{ color: '#D66B27', fontWeight: 600 }}>
+                          {essays.length} tentativas
+                        </span>
+                      )}
                     </div>
 
-                    {/* Botão de ação */}
-                    <div className="flex flex-col gap-2 shrink-0">
+                    <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
                       {isPending && (
-                        <Button
+                        <button
                           onClick={() => navigate(`/submit-essay/${prompt.id}`)}
-                          style={{ backgroundColor: '#7C1805' }}
-                          data-testid={`submit-essay-button-${prompt.id}`}>
-                          Escrever Redação
-                        </Button>
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                            padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                            backgroundColor: '#7C1805', color: '#FDF3E8',
+                            fontSize: '12px', fontWeight: 600,
+                            transition: 'opacity 0.15s',
+                          }}
+                          data-testid={`submit-essay-button-${prompt.id}`}
+                        >
+                          <PenLine size={13} /> Escrever Redação
+                        </button>
                       )}
                       {isSubmitted && (
-                        <div className="text-center">
-                          <p className="text-xs mb-1 font-semibold" style={{ color: '#D66B27' }}>
-                            ⏳ Aguardando correção
-                          </p>
-                          <Button variant="outline" size="sm"
-                            onClick={() => navigate(`/submit-essay/${prompt.id}`)}
-                            style={{ borderColor: '#D66B27', color: '#D66B27', fontSize: '12px' }}>
-                            <RefreshCw size={12} className="mr-1" /> Reescrever
-                          </Button>
-                        </div>
+                        <button
+                          onClick={() => navigate(`/submit-essay/${prompt.id}`)}
+                          style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '5px',
+                            padding: '8px 16px', borderRadius: '8px', cursor: 'pointer',
+                            backgroundColor: 'transparent', color: '#D66B27',
+                            fontSize: '12px', fontWeight: 600,
+                            border: '1px solid #D66B27',
+                          }}
+                        >
+                          <RefreshCw size={12} /> Reescrever
+                        </button>
                       )}
                       {isCorrected && (
-                        <div className="flex flex-col gap-1">
-                          <Button size="sm"
+                        <>
+                          <button
                             onClick={() => navigate(`/essay/${latest.id}/correction`)}
-                            style={{ backgroundColor: '#36555A' }}>
-                            <CheckCircle size={14} className="mr-1" /> Ver Correção
-                          </Button>
-                          <Button variant="outline" size="sm"
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                              backgroundColor: '#36555A', color: '#FDF3E8',
+                              fontSize: '12px', fontWeight: 600,
+                            }}
+                          >
+                            <CheckCircle size={13} /> Ver Correção
+                          </button>
+                          <button
                             onClick={() => navigate(`/submit-essay/${prompt.id}`)}
-                            style={{ borderColor: '#7C1805', color: '#7C1805', fontSize: '12px' }}>
-                            <RefreshCw size={12} className="mr-1" /> Reescrever
-                          </Button>
-                        </div>
+                            style={{
+                              display: 'inline-flex', alignItems: 'center', gap: '5px',
+                              padding: '8px 14px', borderRadius: '8px', cursor: 'pointer',
+                              backgroundColor: 'transparent', color: '#7C1805',
+                              fontSize: '12px', fontWeight: 600,
+                              border: '1px solid #7C1805',
+                            }}
+                          >
+                            <RefreshCw size={12} /> Reescrever
+                          </button>
+                        </>
                       )}
                     </div>
                   </div>
