@@ -103,14 +103,14 @@ async def get_current_user(request: Request) -> dict:
         raise HTTPException(status_code=401, detail="Invalid token")
 
 class UserRegister(BaseModel):
-    name: str
+    name: str = Field(..., max_length=120, min_length=2)
     email: EmailStr
-    password: str
-    role: str = "student"
+    password: str = Field(..., max_length=128, min_length=6)
+    role: str = Field("student", max_length=20)
 
 class UserLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., max_length=128)
 
 class UserResponse(BaseModel):
     model_config = ConfigDict(extra="ignore")
@@ -136,14 +136,14 @@ class Criterion(BaseModel):
     level_descriptions: Optional[List[LevelDescription]] = []
 
 class PromptCreate(BaseModel):
-    title: Optional[str] = ""
-    theme: Optional[str] = ""
-    supporting_texts: Optional[str] = ""
-    instructions: Optional[str] = ""
+    title: Optional[str] = Field("", max_length=300)
+    theme: Optional[str] = Field("", max_length=300)
+    supporting_texts: Optional[str] = Field("", max_length=50000)
+    instructions: Optional[str] = Field("", max_length=10000)
     criteria: Optional[List[Criterion]] = None
     course_ids: Optional[List[str]] = []
-    start_date: Optional[str] = None
-    end_date: Optional[str] = None
+    start_date: Optional[str] = Field(None, max_length=30)
+    end_date: Optional[str] = Field(None, max_length=30)
     supporting_files: Optional[List[dict]] = []
 
 class PromptResponse(BaseModel):
@@ -163,12 +163,12 @@ class PromptResponse(BaseModel):
     supporting_files: Optional[List[dict]] = []
 
 class EssaySubmit(BaseModel):
-    prompt_id: str
-    content: Optional[str] = ""
-    submission_method: str
-    file_url: Optional[str] = None
-    student_note: Optional[str] = None
-    parent_essay_id: Optional[str] = None
+    prompt_id: str = Field(..., max_length=100)
+    content: Optional[str] = Field("", max_length=100000)
+    submission_method: str = Field(..., max_length=20)
+    file_url: Optional[str] = Field(None, max_length=2000)
+    student_note: Optional[str] = Field(None, max_length=1000)
+    parent_essay_id: Optional[str] = Field(None, max_length=100)
     is_rewrite: bool = False
 
 class EssayResponse(BaseModel):
@@ -195,17 +195,17 @@ class CriteriaScore(BaseModel):
 
 class InlineComment(BaseModel):
     id: int
-    selected_text: str
-    comment: str
-    color: str
+    selected_text: str = Field(..., max_length=1000)
+    comment: str = Field(..., max_length=2000)
+    color: str = Field(..., max_length=20)
 
 class CorrectionSubmit(BaseModel):
-    essay_id: str
+    essay_id: str = Field(..., max_length=100)
     criteria_scores: List[CriteriaScore]
     total_score: float = Field(..., ge=0)
-    general_feedback: str
-    strengths: Optional[str] = ""
-    improvements: Optional[str] = ""
+    general_feedback: str = Field(..., max_length=10000)
+    strengths: Optional[str] = Field("", max_length=5000)
+    improvements: Optional[str] = Field("", max_length=5000)
     inline_comments: Optional[List[InlineComment]] = None
     canvas_annotations: Optional[dict] = None
     pdf_annotations: Optional[dict] = None  # {page_num: dataUrl}
@@ -232,11 +232,42 @@ class CorrectionResponse(BaseModel):
     mark_important: bool = False
     extra_material: Optional[str] = None
 
+# ── RATE LIMITING (S-01 / S-02) ─────────────────────────────────────────────
+from collections import defaultdict
+
+_rate_store: dict = defaultdict(list)
+
+def _get_ip(request: Request) -> str:
+    """Pega o IP real considerando proxies (Render.com usa X-Forwarded-For)."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+def check_rate_limit(request: Request, max_calls: int, window_seconds: int) -> None:
+    """Levanta HTTP 429 se o IP ultrapassar max_calls na janela window_seconds."""
+    ip = _get_ip(request)
+    now = time.time()
+    window_start = now - window_seconds
+    _rate_store[ip] = [t for t in _rate_store[ip] if t > window_start]
+    if len(_rate_store[ip]) >= max_calls:
+        retry_after = int(window_seconds - (now - _rate_store[ip][0]))
+        raise HTTPException(
+            status_code=429,
+            detail=f"Muitas tentativas. Tente novamente em {retry_after} segundos.",
+            headers={"Retry-After": str(retry_after)},
+        )
+    _rate_store[ip].append(now)
+
+# ─────────────────────────────────────────────────────────────────────────────
+
 app = FastAPI()
 api_router = APIRouter(prefix="/api")
 
 @api_router.post("/auth/register")
-async def register(user_data: UserRegister):
+async def register(user_data: UserRegister, request: Request):
+    # S-01: max 5 cadastros por hora por IP
+    check_rate_limit(request, max_calls=5, window_seconds=3600)
     email = user_data.email.lower()
     existing = await db.users.find_one({"email": email})
     if existing:
@@ -262,7 +293,9 @@ async def register(user_data: UserRegister):
     return {"message": "Cadastro realizado! Aguarde a aprovação do administrador para acessar a plataforma."}
 
 @api_router.post("/auth/login", response_model=UserResponse)
-async def login(login_data: UserLogin, response: Response):
+async def login(login_data: UserLogin, response: Response, request: Request):
+    # S-01: max 10 tentativas de login por minuto por IP
+    check_rate_limit(request, max_calls=10, window_seconds=60)
     email = login_data.email.lower()
     user = await db.users.find_one({"email": email})
     if not user:
@@ -1960,7 +1993,9 @@ async def send_rewrite_requested_email(to_email: str, to_name: str, teacher_name
     await send_email(to_email, "Reescrita solicitada ✏️", _email_wrapper("Seu professor quer uma nova versão", body))
 
 @api_router.post("/auth/forgot-password")
-async def forgot_password(body: dict):
+async def forgot_password(body: dict, request: Request):
+    # S-01: max 5 tentativas de reset por hora por IP
+    check_rate_limit(request, max_calls=5, window_seconds=3600)
     email = body.get("email", "").lower().strip()
     if not email:
         raise HTTPException(status_code=400, detail="Email obrigatório")
@@ -2204,9 +2239,9 @@ async def get_prompt_stats(current_user: dict = Depends(get_current_user)):
 # ============================================================
 
 class CourseCreate(BaseModel):
-    name: str
-    description: Optional[str] = ""
-    modality: Optional[str] = "online"
+    name: str = Field(..., max_length=200, min_length=2)
+    description: Optional[str] = Field("", max_length=1000)
+    modality: Optional[str] = Field("online", max_length=20)
     is_active: bool = True
 
 class CourseResponse(BaseModel):
@@ -2702,6 +2737,26 @@ ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://localhost:3001",
 ]
+
+# S-02: Rate limiting geral — 300 requests por minuto por IP
+@app.middleware("http")
+async def global_rate_limit_middleware(request: Request, call_next):
+    # Ignorar rotas estáticas e de saúde
+    if request.url.path in ("/", "/health", "/docs", "/openapi.json"):
+        return await call_next(request)
+    ip = _get_ip(request)
+    now = time.time()
+    window_start = now - 60  # janela de 1 minuto
+    _rate_store[f"global:{ip}"] = [t for t in _rate_store[f"global:{ip}"] if t > window_start]
+    if len(_rate_store[f"global:{ip}"]) >= 300:
+        from fastapi.responses import JSONResponse
+        return JSONResponse(
+            status_code=429,
+            content={"detail": "Muitas requisições. Tente novamente em instantes."},
+            headers={"Retry-After": "60"},
+        )
+    _rate_store[f"global:{ip}"].append(now)
+    return await call_next(request)
 
 # Middleware CORS manual — cobre TODAS as respostas inclusive erros de dependências (401, 403)
 @app.middleware("http")
