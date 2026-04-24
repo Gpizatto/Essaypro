@@ -42,60 +42,61 @@ export const ResetPassword = () => {
   };
 
   const inputStyle = {
-    width: '100%', padding: '10px 12px', borderRadius: '8px',
-    border: '1px solid #E8DDD0', fontSize: '14px', outline: 'none',
-    color: '#2C1A0E', backgroundColor: '#FDFAF6'
+    width: '100%', padding: '12px 14px', borderRadius: '8px',
+    border: '1px solid var(--border-color)', fontSize: '16px', outline: 'none',
+    color: 'var(--text-primary)', backgroundColor: '#FDFAF6',
+    minHeight: '44px', boxSizing: 'border-box',
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: '#FDF3E8' }}>
+    <div className="min-h-screen flex items-center justify-center px-4 py-8" style={{ backgroundColor: 'var(--bg-primary)' }}>
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="font-logo text-4xl" style={{ color: '#7C1805' }}>redação com nicolle</h1>
+          <h1 className="font-logo text-4xl" style={{ color: 'var(--accent-red)' }}>redação com nicolle</h1>
         </div>
 
-        <div className="bg-white rounded-2xl shadow-lg p-8">
+        <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
           {validating ? (
             <div className="text-center py-8">
-              <p style={{ color: '#6B5B4E' }}>Validando link...</p>
+              <p style={{ color: 'var(--text-secondary)' }}>Validando link...</p>
             </div>
           ) : !token || !tokenValid ? (
             <div className="text-center">
               <div className="text-5xl mb-4">⚠️</div>
-              <h2 className="font-heading font-bold text-xl mb-2" style={{ color: '#7C1805' }}>
+              <h2 className="font-heading font-bold text-xl mb-2" style={{ color: 'var(--accent-red)' }}>
                 Link inválido ou expirado
               </h2>
-              <p className="text-sm mb-5" style={{ color: '#6B5B4E' }}>
+              <p className="text-sm mb-5" style={{ color: 'var(--text-secondary)' }}>
                 Este link de redefinição é inválido ou já foi utilizado. Solicite um novo.
               </p>
               <Link to="/forgot-password"
                 className="text-sm font-semibold hover:underline"
-                style={{ color: '#7C1805' }}>
+                style={{ color: 'var(--accent-red)' }}>
                 Solicitar novo link
               </Link>
             </div>
           ) : done ? (
             <div className="text-center">
               <div className="text-5xl mb-4">✅</div>
-              <h2 className="font-heading font-bold text-xl mb-2" style={{ color: '#7C1805' }}>
+              <h2 className="font-heading font-bold text-xl mb-2" style={{ color: 'var(--accent-red)' }}>
                 Senha redefinida!
               </h2>
-              <p className="text-sm" style={{ color: '#6B5B4E' }}>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 Sua senha foi alterada com sucesso. Redirecionando para o login...
               </p>
             </div>
           ) : (
             <>
-              <h2 className="font-heading font-bold text-2xl mb-1" style={{ color: '#7C1805' }}>
+              <h2 className="font-heading font-bold text-2xl mb-1" style={{ color: 'var(--accent-red)' }}>
                 Nova senha
               </h2>
-              <p className="text-sm mb-6" style={{ color: '#6B5B4E' }}>
+              <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
                 Digite sua nova senha abaixo.
               </p>
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-semibold mb-1" style={{ color: '#2C1A0E' }}>
+                  <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                     Nova senha
                   </label>
                   <input
@@ -107,7 +108,7 @@ export const ResetPassword = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-semibold mb-1" style={{ color: '#2C1A0E' }}>
+                  <label className="block text-sm font-semibold mb-1" style={{ color: 'var(--text-primary)' }}>
                     Confirmar senha
                   </label>
                   <input
@@ -122,8 +123,8 @@ export const ResetPassword = () => {
                 <button
                   type="submit" disabled={loading}
                   style={{
-                    width: '100%', padding: '11px', borderRadius: '8px',
-                    backgroundColor: '#7C1805', color: 'white',
+                    width: '100%', padding: '12px', borderRadius: '8px', minHeight: '44px',
+                    backgroundColor: 'var(--accent-red)', color: 'white',
                     fontWeight: '600', fontSize: '15px', border: 'none',
                     cursor: loading ? 'not-allowed' : 'pointer',
                     opacity: loading ? 0.7 : 1,
