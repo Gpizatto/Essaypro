@@ -98,10 +98,10 @@ export const Layout = ({ children }) => {
   };
 
   const NOTIF_COLORS = {
-    success: '#36555A',
+    success: 'var(--accent-green)',
     warning: '#D97706',
-    essay:   '#7C1805',
-    info:    '#6B5B4E',
+    essay:   'var(--accent-red)',
+    info:    'var(--text-secondary)',
   };
 
   const handleLogout = async () => {
@@ -148,17 +148,17 @@ export const Layout = ({ children }) => {
 
   const menuItems = getMenuItems();
   const roleLabel = user.role === 'student' ? 'ALUNA' : user.role === 'teacher' ? 'PROF.' : 'ADMIN';
-  const roleColor = user.role === 'student' ? '#36555A' : user.role === 'teacher' ? '#D66B27' : '#7C1805';
+  const roleColor = user.role === 'student' ? 'var(--accent-green)' : user.role === 'teacher' ? 'var(--accent-orange)' : 'var(--accent-red)';
   const initials = getInitials(user.name);
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#FDF3E8' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
       {/* Sidebar */}
-      <aside className="w-64 flex flex-col flex-shrink-0" style={{ backgroundColor: '#7C1805' }}>
+      <aside className="w-64 flex flex-col flex-shrink-0" style={{ backgroundColor: 'var(--accent-red)' }}>
 
         {/* Logo */}
         <div style={{ padding: '28px 24px 20px' }}>
-          <h1 className="font-script text-3xl leading-tight" style={{ color: '#FDF3E8' }} data-testid="app-logo">
+          <h1 className="font-script text-3xl leading-tight" style={{ color: 'var(--bg-primary)' }} data-testid="app-logo">
             redação
           </h1>
           <h1 className="font-script text-3xl leading-tight" style={{ color: '#DAB257' }}>
@@ -190,7 +190,7 @@ export const Layout = ({ children }) => {
                   borderRadius: '10px',
                   textDecoration: 'none',
                   backgroundColor: isActive ? 'rgba(253,243,232,0.15)' : 'transparent',
-                  color: isActive ? '#FDF3E8' : 'rgba(253,243,232,0.6)',
+                  color: isActive ? 'var(--bg-primary)' : 'rgba(253,243,232,0.6)',
                   transition: 'all 0.15s ease',
                 }}
               >
@@ -227,14 +227,14 @@ export const Layout = ({ children }) => {
               justifyContent: 'center',
               fontSize: '13px',
               fontWeight: 700,
-              color: '#7C1805',
+              color: 'var(--accent-red)',
               flexShrink: 0,
               letterSpacing: '0.02em',
             }}>
               {initials}
             </div>
             <div style={{ minWidth: 0, flex: 1 }}>
-              <p style={{ fontSize: '13px', fontWeight: 600, color: '#FDF3E8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--bg-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
                 {user.name}
               </p>
               <p style={{ fontSize: '11px', color: 'rgba(253,243,232,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -248,7 +248,7 @@ export const Layout = ({ children }) => {
               padding: '2px 7px',
               borderRadius: '99px',
               backgroundColor: roleColor,
-              color: '#FDF3E8',
+              color: 'var(--bg-primary)',
               letterSpacing: '0.03em',
             }}>
               {roleLabel}
@@ -289,8 +289,8 @@ export const Layout = ({ children }) => {
                     width: '7px',
                     height: '7px',
                     borderRadius: '50%',
-                    backgroundColor: '#D66B27',
-                    border: '1.5px solid var(--bg-sidebar, #7C1805)',
+                    backgroundColor: 'var(--accent-orange)',
+                    border: '1.5px solid var(--bg-sidebar, var(--accent-red))',
                   }} />
                 )}
               </div>
@@ -336,16 +336,16 @@ export const Layout = ({ children }) => {
                 flexDirection: 'column',
               }}>
                 <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid #F0EBE3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ fontSize: '13px', fontWeight: 700, color: '#7C1805' }}>Notificações</span>
+                  <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-red)' }}>Notificações</span>
                   {unread > 0 && (
-                    <button onClick={markAllRead} style={{ fontSize: '11px', color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer' }}>
+                    <button onClick={markAllRead} style={{ fontSize: '11px', color: 'var(--accent-orange)', background: 'none', border: 'none', cursor: 'pointer' }}>
                       Marcar tudo como lido
                     </button>
                   )}
                 </div>
                 <div style={{ overflowY: 'auto', flex: 1 }}>
                   {notifications.length === 0 ? (
-                    <div style={{ padding: '24px', textAlign: 'center', color: '#6B5B4E', fontSize: '13px' }}>
+                    <div style={{ padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '13px' }}>
                       Nenhuma notificação
                     </div>
                   ) : notifications.map(notif => (
@@ -357,12 +357,12 @@ export const Layout = ({ children }) => {
                         borderBottom: '1px solid #F9F6F3',
                         cursor: notif.link ? 'pointer' : 'default',
                         backgroundColor: notif.read ? '#FFF' : '#FFFBF5',
-                        borderLeft: notif.read ? 'none' : `3px solid ${NOTIF_COLORS[notif.type] || '#D66B27'}`,
+                        borderLeft: notif.read ? 'none' : `3px solid ${NOTIF_COLORS[notif.type] || 'var(--accent-orange)'}`,
                       }}
                     >
-                      <p style={{ fontSize: '12px', fontWeight: 600, color: '#2C1A0E', marginBottom: '2px' }}>{notif.title}</p>
-                      <p style={{ fontSize: '11px', color: '#6B5B4E', lineHeight: '1.4' }}>{notif.message}</p>
-                      <p style={{ fontSize: '10px', color: '#6B5B4E', marginTop: '4px' }}>
+                      <p style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '2px' }}>{notif.title}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', lineHeight: '1.4' }}>{notif.message}</p>
+                      <p style={{ fontSize: '10px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                         {new Date(notif.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
                       </p>
                     </div>
@@ -375,7 +375,7 @@ export const Layout = ({ children }) => {
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto" style={{ backgroundColor: '#FDF3E8' }}>
+      <main className="flex-1 overflow-auto" style={{ backgroundColor: 'var(--bg-primary)' }}>
         <div style={{ padding: '32px 40px' }}>{children}</div>
       </main>
     </div>
