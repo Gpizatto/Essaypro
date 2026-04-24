@@ -72,9 +72,16 @@ export const CorrectionQueue = () => {
       const res = await axios.get(`${API_URL}/api/essays/all-teacher?${params}`, { withCredentials: true });
       const payload = res.data;
 
-      // Backend pode retornar { essays, total } (paginado) ou array direto (legado)
-      const essays = Array.isArray(payload) ? payload : (payload?.essays || []);
-      setAllEssays(essays.sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)));
+      // Normalizar resposta — pode ser array direto ou { essays: [...], total }
+      let essays = [];
+      if (Array.isArray(payload)) {
+        essays = payload;
+      } else if (payload && Array.isArray(payload.essays)) {
+        essays = payload.essays;
+      } else {
+        essays = [];
+      }
+      setAllEssays([...essays].sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)));
     } catch (err) {
       console.error('Error loading queue:', err);
       // Fallback para endpoint antigo
@@ -154,31 +161,33 @@ export const CorrectionQueue = () => {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: '4px', padding: '4px', borderRadius: '10px', backgroundColor: '#F0EBE3', width: 'fit-content' }}>
-          {STATUS_TABS.map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => setActiveTab(tab.key)}
-              style={{
-                display: 'flex', alignItems: 'center', gap: '6px',
-                padding: '8px 16px', borderRadius: '7px',
-                fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
-                backgroundColor: activeTab === tab.key ? 'var(--accent-red)' : 'transparent',
-                color: activeTab === tab.key ? 'var(--bg-primary)' : 'var(--text-secondary)',
-                transition: 'all 0.15s',
-              }}
-            >
-              <tab.Icon size={14} />
-              {tab.label}
-              <span style={{
-                fontSize: '11px', padding: '1px 6px', borderRadius: '99px',
-                backgroundColor: activeTab === tab.key ? 'rgba(253,243,232,0.25)' : 'var(--border-color)',
-                color: activeTab === tab.key ? 'var(--bg-primary)' : 'var(--text-secondary)',
-              }}>
-                {byStatus[tab.key]?.length || 0}
-              </span>
-            </button>
-          ))}
+        <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '2px' }}>
+          <div style={{ display: 'flex', gap: '4px', padding: '4px', borderRadius: '10px', backgroundColor: '#F0EBE3', width: 'fit-content', minWidth: '100%' }}>
+            {STATUS_TABS.map(tab => (
+              <button
+                key={tab.key}
+                onClick={() => setActiveTab(tab.key)}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                  padding: '8px 14px', borderRadius: '7px',
+                  fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
+                  backgroundColor: activeTab === tab.key ? 'var(--accent-red)' : 'transparent',
+                  color: activeTab === tab.key ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                  transition: 'all 0.15s', whiteSpace: 'nowrap', minHeight: '40px',
+                }}
+              >
+                <tab.Icon size={14} />
+                {tab.label}
+                <span style={{
+                  fontSize: '11px', padding: '1px 6px', borderRadius: '99px',
+                  backgroundColor: activeTab === tab.key ? 'rgba(253,243,232,0.25)' : 'var(--border-color)',
+                  color: activeTab === tab.key ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                }}>
+                  {byStatus[tab.key]?.length || 0}
+                </span>
+              </button>
+            ))}
+          </div>
         </div>
 
         {/* Filtros */}
@@ -195,10 +204,10 @@ export const CorrectionQueue = () => {
                 onChange={e => setSearch(e.target.value)}
                 placeholder="Buscar aluno ou proposta..."
                 style={{
-                  width: '100%', padding: '7px 10px 7px 30px',
+                  width: '100%', padding: '10px 10px 10px 30px',
                   borderRadius: '8px', border: '1px solid var(--border-color)',
-                  fontSize: '13px', color: 'var(--text-primary)', outline: 'none',
-                  boxSizing: 'border-box',
+                  fontSize: '16px', color: 'var(--text-primary)', outline: 'none',
+                  boxSizing: 'border-box', minHeight: '44px',
                 }}
               />
             </div>
@@ -274,7 +283,8 @@ export const CorrectionQueue = () => {
                   }}
                   data-testid={`queue-essay-${essay.id}`}
                 >
-                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '16px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
                         <h3 className="font-heading font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
@@ -311,6 +321,7 @@ export const CorrectionQueue = () => {
                       </div>
                     </div>
 
+                    </div>{/* info */}
                     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
                       {essay.status === 'corrected' ? (
                         <button
