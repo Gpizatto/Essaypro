@@ -254,6 +254,11 @@ async def register(user_data: UserRegister):
         "created_at": datetime.now(timezone.utc)
     }
     await db.users.insert_one(user_doc)
+    # Enviar email de boas-vindas (não bloqueia o cadastro se falhar)
+    try:
+        await send_welcome_email(email, user_data.name)
+    except Exception as e:
+        logger.warning(f"Welcome email failed: {str(e)}")
     return {"message": "Cadastro realizado! Aguarde a aprovação do administrador para acessar a plataforma."}
 
 @api_router.post("/auth/login", response_model=UserResponse)
@@ -652,31 +657,23 @@ async def get_all_teacher_essays(
     status: Optional[str] = Query(None, description="Filtrar por status: pending, in_progress, corrected"),
     page: int = Query(1, ge=1, description="Página (começa em 1)"),
     page_size: int = Query(100, ge=1, le=500, description="Itens por página (máx 500)"),
-    course_id: Optional[str] = Query(None, description="Filtrar por turma (id do curso)"),
 ):
-    """Retorna redações paginadas com filtro por status e turma. P-01 + BUG1."""
+    """Retorna redações paginadas com filtro por status. P-01: evita carregar 5000 docs de uma vez."""
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
+    # Filtro por turma para professores
     query: dict = {}
-
-    # Determinar quais turmas usar para filtrar alunos
-    if course_id and course_id != "all":
-        # Filtro explícito de turma (frontend selecionou uma turma)
-        filter_courses = [course_id]
-    elif current_user["role"] == "teacher":
-        # Professor vê apenas alunos das suas turmas
-        filter_courses = current_user.get("course_ids", [])
-    else:
-        filter_courses = []
-
-    if filter_courses:
-        students = await db.users.find(
-            {"role": "student", "course_ids": {"$in": filter_courses}},
-            {"_id": 1}
-        ).to_list(10000)
-        student_ids = [str(s["_id"]) for s in students]
-        query["student_id"] = {"$in": student_ids}
+    if current_user["role"] == "teacher":
+        teacher_courses = current_user.get("course_ids", [])
+        if teacher_courses:
+            # Buscar alunos das turmas do professor
+            students = await db.users.find(
+                {"role": "student", "course_ids": {"$in": teacher_courses}},
+                {"_id": 1}
+            ).to_list(10000)
+            student_ids = [str(s["_id"]) for s in students]
+            query["student_id"] = {"$in": student_ids}
 
     if status:
         query["status"] = status
@@ -770,6 +767,18 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
             "read": False,
             "created_at": datetime.now(timezone.utc)
         })
+        # Enviar email ao aluno
+        try:
+            student = await db.users.find_one({"_id": ObjectId(essay_data["student_id"])}, {"_id": 0, "email": 1, "name": 1})
+            if student:
+                await send_correction_ready_email(
+                    to_email=student["email"],
+                    to_name=student["name"],
+                    prompt_title=essay_data.get("prompt_title", "sua redação"),
+                    essay_id=correction_data.essay_id,
+                )
+        except Exception as e:
+            logger.warning(f"Correction email failed: {str(e)}")
 
 
     # Salvar no histórico de versões
@@ -1224,6 +1233,19 @@ async def save_teacher_intervention(essay_id: str, body: dict, current_user: dic
                 type="warning",
                 link=f"/essay/{essay_id}/correction"
             )
+            # Enviar email ao aluno
+            try:
+                student = await db.users.find_one({"_id": ObjectId(essay_doc["student_id"])}, {"_id": 0, "email": 1, "name": 1})
+                if student:
+                    await send_rewrite_requested_email(
+                        to_email=student["email"],
+                        to_name=student["name"],
+                        teacher_name=teacher_name,
+                        prompt_title=prompt_title,
+                        essay_id=essay_id,
+                    )
+            except Exception as e:
+                logger.warning(f"Rewrite email failed: {str(e)}")
 
     return {"message": "Intervenção salva", **update}
 
@@ -1805,51 +1827,137 @@ def invalidate_cache(key: str = None):
     else:
         _settings_cache.clear()
 
-async def send_reset_email(to_email: str, to_name: str, reset_token: str):
+# ── HELPERS DE EMAIL (Resend) ────────────────────────────────────────────────
+
+def _email_wrapper(title: str, body_html: str) -> str:
+    """Template base para todos os emails da plataforma."""
+    platform = os.getenv("PLATFORM_NAME", "redação com nicolle")
+    return f"""
+    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #FDF3E8; border-radius: 12px; overflow: hidden;">
+      <div style="background: #7C1805; padding: 24px 32px;">
+        <p style="color: #DAB257; font-size: 22px; margin: 0; font-weight: bold;">{platform}</p>
+      </div>
+      <div style="padding: 32px;">
+        <h2 style="color: #7C1805; font-size: 20px; margin: 0 0 16px 0;">{title}</h2>
+        {body_html}
+        <hr style="border: none; border-top: 1px solid #E8DDD0; margin: 28px 0 16px 0;">
+        <p style="color: #A89080; font-size: 11px; text-align: center; margin: 0;">{platform}</p>
+      </div>
+    </div>
+    """
+
+async def send_email(to_email: str, subject: str, html: str) -> bool:
+    """Envia email via Resend. Retorna True se enviou, False se não há chave configurada."""
     resend_key = os.getenv("RESEND_API_KEY")
     if not resend_key:
-        raise Exception("RESEND_API_KEY não configurada")
+        logger.warning("RESEND_API_KEY não configurada — email não enviado")
+        return False
 
+    email_from = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
+
+    import httpx
+    try:
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.post(
+                "https://api.resend.com/emails",
+                json={"from": email_from, "to": [to_email], "subject": subject, "html": html},
+                headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}
+            )
+            if resp.status_code not in (200, 201):
+                logger.error(f"Resend error {resp.status_code}: {resp.text}")
+                return False
+            return True
+    except Exception as e:
+        logger.error(f"Email send exception: {str(e)}")
+        return False
+
+async def send_reset_email(to_email: str, to_name: str, reset_token: str):
     frontend_url = os.getenv("FRONTEND_URL", "https://essaypro-frontend.onrender.com")
     reset_link = f"{frontend_url}/reset-password?token={reset_token}"
 
-    payload = {
-        "from": os.getenv("RESEND_FROM_EMAIL", "RcN <onboarding@resend.dev>"),
-        "to": [to_email],
-        "subject": "Redefinição de senha — RcN",
-        "html": f"""
-        <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px; background: #FDF3E8;">
-          <h2 style="color: #7C1805; font-size: 22px; margin-bottom: 8px;">Redefinir sua senha</h2>
-          <p style="color: #6B5B4E; font-size: 15px;">Olá, <strong>{to_name}</strong>!</p>
-          <p style="color: #6B5B4E; font-size: 14px;">
-            Recebemos uma solicitação para redefinir a senha da sua conta no <strong>RcN</strong>.
-            Clique no botão abaixo para criar uma nova senha:
-          </p>
-          <div style="text-align: center; margin: 28px 0;">
-            <a href="{reset_link}"
-              style="background-color: #7C1805; color: white; padding: 12px 28px; border-radius: 8px;
-                     text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
-              Redefinir senha
-            </a>
-          </div>
-          <p style="color: #6B5B4E; font-size: 12px;">
-            Este link expira em <strong>1 hora</strong>. Se você não solicitou a redefinição, ignore este email.
-          </p>
-          <hr style="border: none; border-top: 1px solid #E8DDD0; margin: 24px 0;">
-          <p style="color: #A89080; font-size: 11px; text-align: center;">redação com nicolle</p>
+    body = f"""
+        <p style="color: #6B5B4E; font-size: 15px; margin: 0 0 12px 0;">Olá, <strong>{to_name}</strong>!</p>
+        <p style="color: #6B5B4E; font-size: 14px; margin: 0 0 24px 0;">
+          Recebemos uma solicitação para redefinir a senha da sua conta.
+          Clique no botão abaixo para criar uma nova senha:
+        </p>
+        <div style="text-align: center; margin: 0 0 24px 0;">
+          <a href="{reset_link}"
+            style="background: #7C1805; color: white; padding: 12px 32px; border-radius: 8px;
+                   text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
+            Redefinir senha
+          </a>
         </div>
-        """
-    }
+        <p style="color: #6B5B4E; font-size: 12px; margin: 0;">
+          Este link expira em <strong>1 hora</strong>.
+          Se você não solicitou a redefinição, ignore este email.
+        </p>
+    """
+    ok = await send_email(to_email, "Redefinição de senha", _email_wrapper("Redefinir sua senha", body))
+    if not ok:
+        raise Exception("Falha ao enviar email de redefinição")
 
-    import httpx
-    async with httpx.AsyncClient() as client:
-        resp = await client.post(
-            "https://api.resend.com/emails",
-            json=payload,
-            headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}
-        )
-        if resp.status_code not in (200, 201):
-            raise Exception(f"Resend error: {resp.text}")
+async def send_welcome_email(to_email: str, to_name: str):
+    """Email de boas-vindas após cadastro."""
+    platform = os.getenv("PLATFORM_NAME", "redação com nicolle")
+    body = f"""
+        <p style="color: #6B5B4E; font-size: 15px; margin: 0 0 12px 0;">
+          Olá, <strong>{to_name}</strong>! Seja bem-vinda 🎉
+        </p>
+        <p style="color: #6B5B4E; font-size: 14px; margin: 0 0 16px 0;">
+          Seu cadastro no <strong>{platform}</strong> foi recebido com sucesso.
+          Assim que o administrador aprovar sua conta, você receberá acesso à plataforma.
+        </p>
+        <p style="color: #6B5B4E; font-size: 14px; margin: 0;">
+          Fique de olho neste email — você será notificada quando sua conta for aprovada.
+        </p>
+    """
+    await send_email(to_email, f"Bem-vinda ao {platform}!", _email_wrapper("Cadastro recebido ✅", body))
+
+async def send_correction_ready_email(to_email: str, to_name: str, prompt_title: str, essay_id: str):
+    """Email notificando que a correção ficou pronta."""
+    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro-frontend.onrender.com")
+    link = f"{frontend_url}/essay/{essay_id}/correction"
+    body = f"""
+        <p style="color: #6B5B4E; font-size: 15px; margin: 0 0 12px 0;">Olá, <strong>{to_name}</strong>!</p>
+        <p style="color: #6B5B4E; font-size: 14px; margin: 0 0 16px 0;">
+          Sua redação sobre <strong>"{prompt_title}"</strong> foi corrigida e já está disponível para você visualizar.
+        </p>
+        <div style="text-align: center; margin: 0 0 24px 0;">
+          <a href="{link}"
+            style="background: #36555A; color: white; padding: 12px 32px; border-radius: 8px;
+                   text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
+            Ver correção
+          </a>
+        </div>
+        <p style="color: #6B5B4E; font-size: 12px; margin: 0;">
+          Acesse a plataforma para ver sua nota, anotações e feedback do professor.
+        </p>
+    """
+    await send_email(to_email, "Sua redação foi corrigida! ✅", _email_wrapper("Correção disponível 📝", body))
+
+async def send_rewrite_requested_email(to_email: str, to_name: str, teacher_name: str, prompt_title: str, essay_id: str):
+    """Email notificando que o professor solicitou reescrita."""
+    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro-frontend.onrender.com")
+    link = f"{frontend_url}/essay/{essay_id}/correction"
+    body = f"""
+        <p style="color: #6B5B4E; font-size: 15px; margin: 0 0 12px 0;">Olá, <strong>{to_name}</strong>!</p>
+        <p style="color: #6B5B4E; font-size: 14px; margin: 0 0 16px 0;">
+          <strong>{teacher_name}</strong> solicitou que você reescreva sua redação sobre
+          <strong>"{prompt_title}"</strong>.
+        </p>
+        <p style="color: #6B5B4E; font-size: 14px; margin: 0 0 24px 0;">
+          Acesse a plataforma, leia o feedback da correção e envie sua nova versão.
+        </p>
+        <div style="text-align: center; margin: 0 0 24px 0;">
+          <a href="{link}"
+            style="background: #D66B27; color: white; padding: 12px 32px; border-radius: 8px;
+                   text-decoration: none; font-weight: bold; font-size: 15px; display: inline-block;">
+            Ver correção e reescrever
+          </a>
+        </div>
+    """
+    await send_email(to_email, "Reescrita solicitada ✏️", _email_wrapper("Seu professor quer uma nova versão", body))
 
 @api_router.post("/auth/forgot-password")
 async def forgot_password(body: dict):
