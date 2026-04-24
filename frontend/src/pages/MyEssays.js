@@ -5,27 +5,25 @@ import { toast } from 'sonner';
 import { useAuth } from '../contexts/AuthContext';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
-import { Badge } from '../components/ui/badge';
 import { Button } from '../components/ui/button';
-import { FileText, Clock, Filter, X, Trash2 } from 'lucide-react';
+import { FileText, Clock, Eye, Trash2 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const STATUS_MAP = {
-  pending:     { label: 'Enviada',      bg: '#6B5B4E', icon: '📤' },
-  in_progress: { label: 'Em correção',  bg: '#D66B27', icon: '✏️' },
-  corrected:   { label: 'Corrigida',    bg: '#36555A', icon: '✅' },
-  returned:    { label: 'Devolvida',    bg: '#DAB257', icon: '↩️' },
+  pending:     { label: 'Enviada',      bg: '#6B5B4E', col: '#FDF3E8' },
+  in_progress: { label: 'Em correção',  bg: '#D66B27', col: '#FDF3E8' },
+  corrected:   { label: 'Corrigida',    bg: '#36555A', col: '#FDF3E8' },
+  returned:    { label: 'Devolvida',    bg: '#DAB257', col: '#2C1A0E' },
 };
 
-const getStatusBadge = (status) => {
-  const config = STATUS_MAP[status] || STATUS_MAP.pending;
-  return (
-    <Badge style={{ backgroundColor: config.bg, color: '#FDF3E8', fontSize: '11px' }} data-testid={`status-badge-${status}`}>
-      {config.icon} {config.label}
-    </Badge>
-  );
-};
+const FILTER_PILLS = [
+  { key: 'all',         label: 'Todos' },
+  { key: 'pending',     label: '📤 Enviada' },
+  { key: 'in_progress', label: '✏️ Em correção' },
+  { key: 'corrected',   label: '✅ Corrigida' },
+  { key: 'returned',    label: '↩️ Devolvida' },
+];
 
 export const MyEssays = () => {
   const [essays, setEssays] = useState([]);
@@ -36,14 +34,11 @@ export const MyEssays = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  useEffect(() => {
-    fetchEssays();
-  }, []);
+  useEffect(() => { fetchEssays(); }, []);
 
   const fetchEssays = async () => {
     try {
       const { data } = await axios.get(`${API_URL}/api/essays/my`, { withCredentials: true });
-      // Ordenar do mais recente para o mais antigo
       data.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
       setEssays(data);
     } catch (error) {
@@ -54,24 +49,18 @@ export const MyEssays = () => {
   };
 
   const deleteEssay = async (essayId, promptTitle) => {
-    if (!window.confirm(`Deletar permanentemente a redação "${promptTitle}"?\n\nEsta ação não pode ser desfeita.`)) {
-      return;
-    }
-    
+    if (!window.confirm(`Deletar permanentemente a redação "${promptTitle}"?\n\nEsta ação não pode ser desfeita.`)) return;
     try {
       await axios.delete(`${API_URL}/api/admin/essays/${essayId}`, { withCredentials: true });
       setEssays(prev => prev.filter(e => e.id !== essayId));
       toast.success('Redação deletada com sucesso!');
     } catch (error) {
-      console.error('Error deleting essay:', error);
       toast.error('Erro ao deletar redação: ' + (error.response?.data?.detail || error.message));
     }
   };
 
-  // Opções únicas para os filtros
   const promptOptions = useMemo(() => {
-    const titles = [...new Set(essays.map(e => e.prompt_title).filter(Boolean))];
-    return titles;
+    return [...new Set(essays.map(e => e.prompt_title).filter(Boolean))];
   }, [essays]);
 
   const monthOptions = useMemo(() => {
@@ -102,31 +91,25 @@ export const MyEssays = () => {
   }, [essays, filterStatus, filterMonth, filterPrompt]);
 
   const hasActiveFilters = filterStatus !== 'all' || filterMonth !== 'all' || filterPrompt !== 'all';
+  const clearFilters = () => { setFilterStatus('all'); setFilterMonth('all'); setFilterPrompt('all'); };
 
-  const clearFilters = () => {
-    setFilterStatus('all');
-    setFilterMonth('all');
-    setFilterPrompt('all');
+  const pillBase = {
+    padding: '5px 13px', borderRadius: '99px', border: 'none',
+    cursor: 'pointer', fontSize: '12.5px', fontWeight: 600,
+    transition: 'all 0.15s ease',
   };
 
   const selectStyle = {
-    padding: '6px 10px',
-    borderRadius: '6px',
-    border: '1px solid #E8DDD0',
-    backgroundColor: '#FFFFFF',
-    color: '#2C1A0E',
-    fontSize: '13px',
-    cursor: 'pointer',
-    outline: 'none',
+    padding: '6px 10px', borderRadius: '8px', border: '1px solid #E8DDD0',
+    backgroundColor: '#FFFFFF', color: '#2C1A0E', fontSize: '13px',
+    cursor: 'pointer', outline: 'none',
   };
 
   if (loading) {
     return (
       <Layout>
         <div className="animate-pulse space-y-4">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="h-32 bg-muted rounded"></div>
-          ))}
+          {[1, 2, 3].map((i) => <div key={i} className="h-28 bg-muted rounded"></div>)}
         </div>
       </Layout>
     );
@@ -136,7 +119,11 @@ export const MyEssays = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }} data-testid="my-essays-title">
+          <h1
+            className="font-heading font-bold"
+            style={{ fontSize: '28px', color: '#7C1805', letterSpacing: '-0.02em' }}
+            data-testid="my-essays-title"
+          >
             Minhas Redações
           </h1>
           <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
@@ -145,139 +132,205 @@ export const MyEssays = () => {
         </div>
 
         {essays.length > 0 && (
-          <Card className="p-4 bg-white border">
-            <div className="flex flex-wrap items-center gap-3">
-              <div className="flex items-center gap-2" style={{ color: '#7C1805' }}>
-                <Filter size={15} />
-                <span className="text-sm font-semibold">Filtrar por:</span>
-              </div>
-
-              <select
-                value={filterStatus}
-                onChange={e => setFilterStatus(e.target.value)}
-                style={selectStyle}
-                data-testid="filter-status"
-              >
-                                <option value="all">Todos os status</option>
-                <option value="pending">📤 Enviada</option>
-                <option value="in_progress">✏️ Em correção</option>
-                <option value="corrected">✅ Corrigida</option>
-                <option value="returned">↩️ Devolvida</option>
-                </select>
-
-              {monthOptions.length > 1 && (
-                <select
-                  value={filterMonth}
-                  onChange={e => setFilterMonth(e.target.value)}
-                  style={selectStyle}
-                  data-testid="filter-month"
-                >
-                  <option value="all">Todos os meses</option>
-                  {monthOptions.map(m => (
-                    <option key={m} value={m}>{formatMonth(m)}</option>
-                  ))}
-                </select>
-              )}
-
-              {promptOptions.length > 1 && (
-                <select
-                  value={filterPrompt}
-                  onChange={e => setFilterPrompt(e.target.value)}
-                  style={{ ...selectStyle, maxWidth: '220px' }}
-                  data-testid="filter-prompt"
-                >
-                  <option value="all">Todas as propostas</option>
-                  {promptOptions.map(p => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                </select>
-              )}
-
-              {hasActiveFilters && (
-                <button
-                  onClick={clearFilters}
-                  className="flex items-center gap-1 text-xs px-2 py-1 rounded"
-                  style={{ backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27' }}
-                >
-                  <X size={12} /> Limpar filtros
-                </button>
-              )}
-
-              {hasActiveFilters && (
-                <span className="text-xs ml-auto" style={{ color: '#6B5B4E' }}>
-                  {filteredEssays.length} resultado{filteredEssays.length !== 1 ? 's' : ''}
-                </span>
-              )}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {/* Filtro de status: pills */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '12px', color: '#6B5B4E', fontWeight: 600, marginRight: '4px' }}>Status:</span>
+              {FILTER_PILLS.map(p => {
+                const isActive = filterStatus === p.key;
+                const cfg = STATUS_MAP[p.key];
+                return (
+                  <button
+                    key={p.key}
+                    onClick={() => setFilterStatus(p.key)}
+                    data-testid={p.key !== 'all' ? `filter-status-${p.key}` : 'filter-status-all'}
+                    style={{
+                      ...pillBase,
+                      backgroundColor: isActive ? (cfg?.bg || '#7C1805') : '#FFFFFF',
+                      color: isActive
+                        ? (p.key === 'returned' ? '#2C1A0E' : '#FDF3E8')
+                        : '#6B5B4E',
+                      boxShadow: isActive ? 'none' : '0 1px 3px rgba(44,26,14,0.08)',
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                );
+              })}
             </div>
-          </Card>
+
+            {/* Filtros secundários: mês e proposta (selects, mas estilizados) */}
+            {(monthOptions.length > 1 || promptOptions.length > 1) && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '12px', color: '#6B5B4E', fontWeight: 600, marginRight: '4px' }}>Filtrar:</span>
+
+                {monthOptions.length > 1 && (
+                  <select
+                    value={filterMonth}
+                    onChange={e => setFilterMonth(e.target.value)}
+                    style={selectStyle}
+                    data-testid="filter-month"
+                  >
+                    <option value="all">Todos os meses</option>
+                    {monthOptions.map(m => (
+                      <option key={m} value={m}>{formatMonth(m)}</option>
+                    ))}
+                  </select>
+                )}
+
+                {promptOptions.length > 1 && (
+                  <select
+                    value={filterPrompt}
+                    onChange={e => setFilterPrompt(e.target.value)}
+                    style={{ ...selectStyle, maxWidth: '220px' }}
+                    data-testid="filter-prompt"
+                  >
+                    <option value="all">Todas as propostas</option>
+                    {promptOptions.map(p => (
+                      <option key={p} value={p}>{p}</option>
+                    ))}
+                  </select>
+                )}
+
+                {hasActiveFilters && (
+                  <button
+                    onClick={clearFilters}
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: '4px',
+                      fontSize: '12px', fontWeight: 600, padding: '5px 10px', borderRadius: '8px',
+                      backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27',
+                      cursor: 'pointer',
+                    }}
+                  >
+                    ✕ Limpar filtros
+                  </button>
+                )}
+
+                {hasActiveFilters && (
+                  <span style={{ fontSize: '12px', color: '#6B5B4E', marginLeft: 'auto' }}>
+                    {filteredEssays.length} resultado{filteredEssays.length !== 1 ? 's' : ''}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
+        {/* Lista vazia */}
         {essays.length === 0 ? (
-          <Card className="p-12 text-center bg-white">
+          <Card className="p-12 text-center bg-white" style={{ borderRadius: '14px' }}>
             <FileText size={48} className="mx-auto mb-4" style={{ color: '#D66B27' }} />
             <p className="text-lg mb-4" style={{ color: '#6B5B4E' }}>Você ainda não enviou nenhuma redação</p>
             <a
               href="/prompts"
-              className="inline-flex items-center justify-center px-6 py-3 rounded-md font-semibold text-white"
-              style={{ backgroundColor: '#7C1805' }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                padding: '11px 24px', borderRadius: '10px',
+                backgroundColor: '#7C1805', color: '#FDF3E8',
+                fontWeight: 700, fontSize: '14px', textDecoration: 'none',
+              }}
               data-testid="write-first-essay-button"
             >
               Escrever Primeira Redação
             </a>
           </Card>
         ) : filteredEssays.length === 0 ? (
-          <Card className="p-10 text-center bg-white">
+          <Card className="p-10 text-center bg-white" style={{ borderRadius: '14px' }}>
             <p className="text-lg mb-3" style={{ color: '#6B5B4E' }}>Nenhuma redação encontrada com esses filtros</p>
-            <button onClick={clearFilters} className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+            <button onClick={clearFilters} style={{ fontSize: '13px', fontWeight: 600, color: '#7C1805', background: 'none', border: 'none', cursor: 'pointer' }}>
               Limpar filtros
             </button>
           </Card>
         ) : (
-          <div className="space-y-4">
-            {filteredEssays.map((essay) => (
-              <Card
-                key={essay.id}
-                className="p-6 bg-white border shadow-sm hover:shadow-md transition-shadow"
-                data-testid={`essay-card-${essay.id}`}
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <div 
-                    className="flex-1 cursor-pointer"
+          <div className="space-y-3">
+            {filteredEssays.map((essay) => {
+              const sm = STATUS_MAP[essay.status] || STATUS_MAP.pending;
+              return (
+                <Card
+                  key={essay.id}
+                  className="bg-white border"
+                  style={{
+                    borderRadius: '14px',
+                    padding: '18px 20px',
+                    boxShadow: '0 1px 4px rgba(44,26,14,0.05)',
+                    borderColor: '#E8DDD0',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: '12px',
+                    transition: 'box-shadow 0.15s ease',
+                  }}
+                  data-testid={`essay-card-${essay.id}`}
+                >
+                  <div
+                    className="flex-1"
+                    style={{ minWidth: 0, cursor: essay.status === 'corrected' ? 'pointer' : 'default' }}
                     onClick={() => {
-                      if (essay.status === 'corrected') {
-                        navigate(`/essay/${essay.id}/correction`);
-                      }
+                      if (essay.status === 'corrected') navigate(`/essay/${essay.id}/correction`);
                     }}
                   >
-                    <div className="flex items-center gap-3 mb-2 flex-wrap">
-                      <h3 className="font-heading text-lg font-semibold" style={{ color: '#7C1805' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
+                      <h3
+                        className="font-heading font-semibold"
+                        style={{ fontSize: '14.5px', color: '#2C1A0E' }}
+                      >
                         {essay.prompt_title || 'Redação'}
                       </h3>
-                      {getStatusBadge(essay.status)}
+                      {/* Badge de status */}
+                      <span style={{
+                        fontSize: '11px', fontWeight: 600,
+                        padding: '2px 8px', borderRadius: '99px',
+                        backgroundColor: sm.bg, color: sm.col,
+                      }}>
+                        {sm.label}
+                      </span>
+                      {/* Score badge se corrigida */}
+                      {essay.score !== undefined && essay.score !== null && (
+                        <span style={{
+                          fontSize: '11.5px', fontWeight: 700,
+                          padding: '2px 9px', borderRadius: '99px',
+                          backgroundColor: '#EAF3DE', color: '#27500A',
+                        }}>
+                          {essay.score} pts
+                        </span>
+                      )}
                       {essay.is_rewrite && (
-                        <span className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{ backgroundColor: '#FFF0E0', color: '#D66B27', border: '1px solid #D66B27' }}>
+                        <span style={{
+                          fontSize: '11px', fontWeight: 600,
+                          padding: '2px 8px', borderRadius: '99px',
+                          backgroundColor: '#FFF0E0', color: '#D66B27',
+                          border: '1px solid #D66B27',
+                        }}>
                           ✏️ Reescrita
                         </span>
                       )}
                     </div>
-                    <p className="text-sm flex items-center gap-2" style={{ color: '#6B5B4E' }}>
-                      <Clock size={14} />
-                      Enviada em {new Date(essay.submitted_at).toLocaleDateString('pt-BR')} às{' '}
-                      {new Date(essay.submitted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                    </p>
-                    <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>
-                      Método: {essay.submission_method === 'editor' ? 'Editor' : essay.submission_method === 'paste' ? 'Texto colado' : 'Upload de arquivo'}
-                    </p>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    {essay.status === 'corrected' && (
-                      <span
-                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold cursor-pointer"
-                        style={{ backgroundColor: '#36555A', color: '#FDF3E8' }}
-                        onClick={() => navigate(`/essay/${essay.id}/correction`)}
-                      >
-                        Ver Correção →
+
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11.5px', color: '#6B5B4E', flexWrap: 'wrap' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <Clock size={12} />
+                        {new Date(essay.submitted_at).toLocaleDateString('pt-BR')} às{' '}
+                        {new Date(essay.submitted_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
                       </span>
+                      <span>
+                        via {essay.submission_method === 'editor' ? 'Editor' : essay.submission_method === 'paste' ? 'Texto colado' : 'Upload'}
+                      </span>
+                    </div>
+                  </div>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                    {essay.status === 'corrected' && (
+                      <button
+                        onClick={() => navigate(`/essay/${essay.id}/correction`)}
+                        style={{
+                          display: 'inline-flex', alignItems: 'center', gap: '5px',
+                          padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                          backgroundColor: '#36555A', color: '#FDF3E8',
+                          fontSize: '12px', fontWeight: 600,
+                        }}
+                      >
+                        <Eye size={13} /> Ver Correção
+                      </button>
                     )}
                     {user?.role === 'admin' && (
                       <Button
@@ -294,9 +347,9 @@ export const MyEssays = () => {
                       </Button>
                     )}
                   </div>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              );
+            })}
           </div>
         )}
       </div>
