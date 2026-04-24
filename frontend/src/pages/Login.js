@@ -5,25 +5,14 @@ import { useAuth } from '../contexts/AuthContext';
 import { Button } from '../components/ui/button';
 import { Input } from '../components/ui/input';
 import { Label } from '../components/ui/label';
-import { Card } from '../components/ui/card';
+import { toast } from 'sonner';
 
-const formatApiError = (detail) => {
-  if (detail == null) return null;
-  if (typeof detail === 'string') {
-    // U-06: mensagens específicas e amigáveis
-    const d = detail.toLowerCase();
-    if (d.includes('not found') || d.includes('não encontrado') || d.includes('user not found'))
-      return 'E-mail não encontrado. Verifique o endereço digitado.';
-    if (d.includes('incorrect') || d.includes('invalid') || d.includes('senha') || d.includes('wrong password') || d.includes('password'))
-      return 'Senha incorreta. Verifique e tente novamente.';
-    if (d.includes('inactive') || d.includes('inativo') || d.includes('not active'))
-      return 'Sua conta está inativa. Entre em contato com o administrador.';
-    if (d.includes('pending') || d.includes('aprovação') || d.includes('not approved'))
-      return 'Sua conta ainda está aguardando aprovação do administrador.';
-    return detail;
-  }
+const formatApiErrorDetail = (detail) => {
+  if (detail == null) return 'Algo deu errado. Tente novamente.';
+  if (typeof detail === 'string') return detail;
   if (Array.isArray(detail))
-    return detail.map(e => e?.msg || JSON.stringify(e)).filter(Boolean).join(' ');
+    return detail.map((e) => (e && typeof e.msg === 'string' ? e.msg : JSON.stringify(e))).filter(Boolean).join(' ');
+  if (detail && typeof detail.msg === 'string') return detail.msg;
   return String(detail);
 };
 
@@ -39,34 +28,19 @@ export const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');   // U-06: erro inline
-  const [successMsg, setSuccessMsg] = useState(''); // U-06: boas-vindas
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  // Limpar erro ao digitar
-  const handleEmailChange = (e) => { setEmail(e.target.value); setErrorMsg(''); };
-  const handlePasswordChange = (e) => { setPassword(e.target.value); setErrorMsg(''); };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email.trim() || !password) {
-      setErrorMsg('Preencha o e-mail e a senha para continuar.');
-      return;
-    }
     setLoading(true);
-    setErrorMsg('');
     try {
-      const user = await login(email, password);
-      // U-06: mensagem de boas-vindas personalizada antes do redirect
-      const name = user?.name?.split(' ')[0] || '';
-      setSuccessMsg(`Bem-vinda${name ? `, ${name}` : ''}! Redirecionando...`);
-      setTimeout(() => navigate('/dashboard'), 1200);
+      await login(email, password);
+      toast.success('Login realizado com sucesso!');
+      navigate('/dashboard');
     } catch (error) {
-      const msg = formatApiError(error.response?.data?.detail)
-        || error.message
-        || 'Não foi possível fazer login. Tente novamente.';
-      setErrorMsg(msg);
+      const errorMsg = formatApiErrorDetail(error.response?.data?.detail) || error.message;
+      toast.error(errorMsg);
     } finally {
       setLoading(false);
     }
@@ -74,77 +48,69 @@ export const Login = () => {
 
   return (
     <div className="min-h-screen flex" style={{ backgroundColor: '#FDF3E8' }}>
-      {/* Left panel */}
+
+      {/* Painel esquerdo */}
       <div
         className="hidden lg:flex lg:w-1/2 flex-col justify-between p-12"
-        style={{ backgroundColor: '#7C1805' }}
+        style={{ backgroundColor: '#7C1805', position: 'relative', overflow: 'hidden' }}
       >
-        <div>
-          {branding.logo_url ? (
-            <img src={branding.logo_url} alt="Logo" className="h-12 object-contain mb-2" />
-          ) : (
-            <>
-              <h1 className="font-script text-5xl leading-tight" style={{ color: '#FDF3E8' }}>redação</h1>
-              <h1 className="font-script text-5xl leading-tight" style={{ color: '#DAB257' }}>com nicolle</h1>
-            </>
-          )}
-          {branding.welcome_message && (
-            <p className="mt-4 text-sm leading-relaxed" style={{ color: 'rgba(253,243,232,0.8)' }}>
-              {branding.welcome_message}
-            </p>
-          )}
+        {/* Círculos decorativos sutis */}
+        <svg
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.07, pointerEvents: 'none' }}
+          viewBox="0 0 500 800"
+          preserveAspectRatio="xMidYMid slice"
+          aria-hidden="true"
+        >
+          <circle cx="420" cy="100" r="220" fill="#DAB257" />
+          <circle cx="-60" cy="480" r="260" fill="#DAB257" />
+          <circle cx="320" cy="760" r="160" fill="#FDF3E8" />
+        </svg>
+
+        {/* Logo */}
+        <div style={{ position: 'relative' }}>
+          <h1 className="font-script leading-tight" style={{ fontSize: '52px', color: '#FDF3E8' }}>
+            redação
+          </h1>
+          <h1 className="font-script leading-tight" style={{ fontSize: '52px', color: '#DAB257' }}>
+            com nicolle
+          </h1>
         </div>
-        <div>
-          <p className="text-xl font-heading font-medium leading-relaxed mb-4" style={{ color: 'rgba(253,243,232,0.85)' }}>
+
+        {/* Citação */}
+        <div style={{ position: 'relative' }}>
+          <div style={{ width: '32px', height: '2px', backgroundColor: '#DAB257', marginBottom: '16px', borderRadius: '1px' }} />
+          <p className="font-heading font-medium leading-relaxed mb-3" style={{ fontSize: '18px', color: 'rgba(253,243,232,0.85)' }}>
             "A escrita é a pintura da voz."
           </p>
-          <p className="text-sm font-script" style={{ color: '#DAB257' }}>— Voltaire</p>
+          <p className="font-script" style={{ fontSize: '16px', color: '#DAB257' }}>— Voltaire</p>
         </div>
-        <div>
-          <p className="text-xs" style={{ color: 'rgba(253,243,232,0.4)' }}>
+
+        <div style={{ position: 'relative' }}>
+          <p style={{ fontSize: '11px', color: 'rgba(253,243,232,0.35)', letterSpacing: '0.04em' }}>
             Plataforma de correção de redações
           </p>
         </div>
       </div>
 
-      {/* Right panel */}
+      {/* Painel direito */}
       <div className="flex-1 flex items-center justify-center p-8">
         <div className="w-full max-w-md">
-          {/* Mobile logo */}
+
+          {/* Logo mobile */}
           <div className="lg:hidden text-center mb-8">
             <h1 className="font-script text-4xl" style={{ color: '#7C1805' }}>redação</h1>
             <h1 className="font-script text-4xl" style={{ color: '#D66B27' }}>com nicolle</h1>
           </div>
 
-          <h2 className="font-heading font-bold text-2xl mb-1" style={{ color: '#7C1805' }}>
+          {/* Barra de acento acima do título */}
+          <div style={{ width: '40px', height: '3px', backgroundColor: '#D66B27', borderRadius: '2px', marginBottom: '20px' }} />
+
+          <h2 className="font-heading font-bold" style={{ fontSize: '26px', color: '#7C1805', marginBottom: '4px', letterSpacing: '-0.02em' }}>
             Bem-vinda de volta
           </h2>
           <p className="text-sm mb-8" style={{ color: '#6B5B4E' }}>
             Entre com sua conta para continuar
           </p>
-
-          {/* U-06: banner de sucesso */}
-          {successMsg && (
-            <div
-              className="flex items-center gap-2 px-4 py-3 rounded-lg text-sm font-semibold mb-4"
-              style={{ backgroundColor: '#F0FDF4', border: '1px solid #16A34A', color: '#16A34A' }}
-              role="status"
-            >
-              <span>✓</span> {successMsg}
-            </div>
-          )}
-
-          {/* U-06: banner de erro inline */}
-          {errorMsg && (
-            <div
-              className="flex items-start gap-2 px-4 py-3 rounded-lg text-sm mb-4"
-              style={{ backgroundColor: '#FEF2F2', border: '1px solid #DC2626', color: '#7C1805' }}
-              role="alert"
-            >
-              <span className="mt-0.5">⚠</span>
-              <span>{errorMsg}</span>
-            </div>
-          )}
 
           <form onSubmit={handleSubmit} className="space-y-5" data-testid="login-form">
             <div>
@@ -153,13 +119,18 @@ export const Login = () => {
                 id="email"
                 type="email"
                 value={email}
-                onChange={handleEmailChange}
+                onChange={(e) => setEmail(e.target.value)}
                 required
-                disabled={loading || !!successMsg}
                 data-testid="email-input"
-                className="mt-1 border-[#E8DDD0] focus:border-[#7C1805] focus:ring-[#7C1805]"
                 placeholder="seu@email.com"
-                aria-describedby={errorMsg ? 'login-error' : undefined}
+                style={{
+                  marginTop: '6px',
+                  borderRadius: '10px',
+                  border: '1.5px solid #E8DDD0',
+                  padding: '11px 14px',
+                  fontSize: '14px',
+                }}
+                className="focus:border-[#7C1805] focus:ring-[#7C1805]"
               />
             </div>
             <div>
@@ -168,47 +139,41 @@ export const Login = () => {
                 id="password"
                 type="password"
                 value={password}
-                onChange={handlePasswordChange}
+                onChange={(e) => setPassword(e.target.value)}
                 required
-                disabled={loading || !!successMsg}
                 data-testid="password-input"
-                className="mt-1 border-[#E8DDD0] focus:border-[#7C1805]"
                 placeholder="••••••••"
+                style={{
+                  marginTop: '6px',
+                  borderRadius: '10px',
+                  border: '1.5px solid #E8DDD0',
+                  padding: '11px 14px',
+                  fontSize: '14px',
+                }}
+                className="focus:border-[#7C1805]"
               />
             </div>
 
-            {/* U-06: botão com spinner */}
             <Button
               type="submit"
-              className="w-full h-11 text-base flex items-center justify-center gap-2"
-              disabled={loading || !!successMsg}
+              className="w-full h-11 text-base font-bold"
+              disabled={loading}
               data-testid="login-submit-button"
+              style={{ borderRadius: '10px', fontSize: '14px' }}
             >
-              {loading ? (
-                <>
-                  <svg className="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-                  </svg>
-                  Entrando...
-                </>
-              ) : successMsg ? (
-                '✓ Logado!'
-              ) : (
-                'Entrar'
-              )}
+              {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm" style={{ color: '#6B5B4E' }}>
-            Não tem uma conta?{' '}
-            <Link to="/register" className="font-semibold hover:underline" style={{ color: '#7C1805' }} data-testid="register-link">
-              Cadastre-se
+          <p className="mt-5 text-center text-sm" style={{ color: '#6B5B4E' }}>
+            <Link to="/forgot-password" className="hover:underline font-medium" style={{ color: '#7C1805' }}>
+              Esqueci minha senha
             </Link>
           </p>
           <p className="text-center text-sm mt-2" style={{ color: '#6B5B4E' }}>
-            <Link to="/forgot-password" className="hover:underline" style={{ color: '#7C1805' }}>
-              Esqueci minha senha
+            Não tem uma conta?{' '}
+            <Link to="/register" className="font-semibold hover:underline" style={{ color: '#7C1805' }} data-testid="register-link">
+              Cadastre-se
             </Link>
           </p>
         </div>
