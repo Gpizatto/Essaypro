@@ -1,10 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { useTheme } from '../contexts/ThemeContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { Button } from './ui/button';
-import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Moon, Sun, Palette, Calendar } from 'lucide-react';
+import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Palette, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 
@@ -26,7 +25,6 @@ const getInitials = (name = '') => {
 
 export const Layout = ({ children }) => {
   const { user, logout } = useAuth();
-  const { isDark, toggleTheme } = useTheme();
   const { branding, roleLabel: brandingRoleLabel } = useBranding();
   const navigate = useNavigate();
   const location = useLocation();
@@ -259,31 +257,6 @@ export const Layout = ({ children }) => {
 
           {/* Ações compactas em linha */}
           <div style={{ display: 'flex', gap: '6px' }} ref={notifRef}>
-            {/* Modo escuro */}
-            <button
-              onClick={toggleTheme}
-              title={isDark ? 'Modo claro' : 'Modo escuro'}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '5px',
-                padding: '8px 0',
-                borderRadius: '8px',
-                border: '1px solid rgba(253,243,232,0.12)',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                color: 'rgba(253,243,232,0.65)',
-                fontSize: '11.5px',
-                fontWeight: 500,
-                transition: 'background-color 0.15s',
-              }}
-            >
-              {isDark ? <Sun size={13} /> : <Moon size={13} />}
-              <span>{isDark ? 'Claro' : 'Escuro'}</span>
-            </button>
-
             {/* Notificações */}
             <button
               onClick={() => setShowNotifs(v => !v)}
