@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
@@ -11,22 +11,22 @@ import { exportToExcel, exportToPDF } from '../utils/exportUtils';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getScoreColor = (score) => {
-  if (!score) return '#6B5B4E';
-  if (score >= 800) return '#36555A';
-  if (score >= 600) return '#D66B27';
+  if (!score) return 'var(--text-secondary)';
+  if (score >= 800) return 'var(--accent-green)';
+  if (score >= 600) return 'var(--accent-orange)';
   if (score >= 400) return '#DAB257';
-  return '#7C1805';
+  return 'var(--accent-red)';
 };
 
 const StatusBadge = ({ status }) => {
   const map = {
-    pending:     { label: '📤 Enviada',      bg: '#6B5B4E' },
-    in_progress: { label: '✏️ Em correção',  bg: '#D66B27' },
-    corrected:   { label: '✅ Corrigida',    bg: '#36555A' },
+    pending:     { label: '📤 Enviada',      bg: 'var(--text-secondary)' },
+    in_progress: { label: '✏️ Em correção',  bg: 'var(--accent-orange)' },
+    corrected:   { label: '✅ Corrigida',    bg: 'var(--accent-green)' },
     returned:    { label: '↩️ Devolvida',    bg: '#DAB257' },
   };
   const c = map[status] || map.pending;
-  return <Badge style={{ backgroundColor: c.bg, color: '#FDF3E8', fontSize: '11px' }}>{c.label}</Badge>;
+  return <Badge style={{ backgroundColor: c.bg, color: 'var(--bg-primary)', fontSize: '11px' }}>{c.label}</Badge>;
 };
 
 export const StudentProgress = () => {
@@ -107,15 +107,22 @@ export const StudentProgress = () => {
   if (!data) return (
     <Layout>
       <Card className="p-10 text-center bg-white">
-        <p style={{ color: '#6B5B4E' }}>Aluno não encontrado</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Aluno não encontrado</p>
       </Card>
     </Layout>
   );
 
   const { student, essays, prompts_done, prompts_not_done, stats } = data;
-  const scores = essays.filter(e => e.score != null).map(e => e.score);
-  const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
-  const bestScore = scores.length ? Math.max(...scores) : 0;
+  // Q-06: memoizar derivações de scores
+  const scores = useMemo(
+    () => essays.filter(e => e.score != null).map(e => e.score),
+    [essays]
+  );
+  const avgScore = useMemo(
+    () => scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+    [scores]
+  );
+  const bestScore = useMemo(() => scores.length ? Math.max(...scores) : 0, [scores]);
 
   return (
     <Layout>
@@ -126,19 +133,19 @@ export const StudentProgress = () => {
             <ArrowLeft size={16} />
           </Button>
           <div>
-            <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }}>
+            <h1 className="font-heading font-bold text-3xl" style={{ color: 'var(--accent-red)' }}>
               {student.name}
             </h1>
-            <p className="text-sm" style={{ color: '#6B5B4E' }}>{student.email}</p>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>{student.email}</p>
           <div className="flex gap-2 mt-2">
             <button onClick={handleExportPDF}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
-              style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}>
+              style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)', backgroundColor: 'white' }}>
               <Download size={13} /> PDF
             </button>
             <button onClick={handleExportExcel}
               className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold border"
-              style={{ borderColor: '#36555A', color: '#36555A', backgroundColor: 'white' }}>
+              style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)', backgroundColor: 'white' }}>
               <Download size={13} /> Excel
             </button>
           </div>
@@ -148,15 +155,15 @@ export const StudentProgress = () => {
         {/* Cards de estatísticas */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           {[
-            { label: 'REDAÇÕES', value: stats.total, icon: FileText, color: '#7C1805' },
+            { label: 'REDAÇÕES', value: stats.total, icon: FileText, color: 'var(--accent-red)' },
             { label: 'PENDENTES', value: stats.pending, icon: Clock, color: '#D97706' },
-            { label: 'CORRIGIDAS', value: stats.corrected, icon: CheckCircle2, color: '#36555A' },
+            { label: 'CORRIGIDAS', value: stats.corrected, icon: CheckCircle2, color: 'var(--accent-green)' },
             { label: 'REESCRITAS', value: stats.rewrites, icon: RotateCcw, color: '#D9B2CF' },
           ].map(({ label, value, icon: Icon, color }) => (
             <Card key={label} className="p-4 bg-white border shadow-sm">
               <div className="flex items-start justify-between">
                 <div>
-                  <p className="text-xs font-semibold" style={{ color: '#6B5B4E' }}>{label}</p>
+                  <p className="text-xs font-semibold" style={{ color: 'var(--text-secondary)' }}>{label}</p>
                   <p className="text-2xl font-bold mt-1" style={{ color }}>{value}</p>
                 </div>
                 <div className="p-2 rounded-md" style={{ backgroundColor: color }}>
@@ -171,27 +178,27 @@ export const StudentProgress = () => {
         <div className="grid md:grid-cols-2 gap-4">
           <Card className="p-4 bg-white border shadow-sm">
             <div className="flex items-center gap-2 mb-3">
-              <TrendingUp size={16} style={{ color: '#7C1805' }} />
-              <p className="font-semibold text-sm" style={{ color: '#7C1805' }}>Evolução de Notas</p>
+              <TrendingUp size={16} style={{ color: 'var(--accent-red)' }} />
+              <p className="font-semibold text-sm" style={{ color: 'var(--accent-red)' }}>Evolução de Notas</p>
             </div>
             {scores.length === 0 ? (
-              <p className="text-sm" style={{ color: '#6B5B4E' }}>Sem notas ainda</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Sem notas ainda</p>
             ) : (
               <div className="space-y-2">
                 <div className="flex justify-between text-sm">
-                  <span style={{ color: '#6B5B4E' }}>Média</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Média</span>
                   <span className="font-bold" style={{ color: getScoreColor(avgScore) }}>{avgScore}</span>
                 </div>
                 <div className="flex justify-between text-sm">
-                  <span style={{ color: '#6B5B4E' }}>Melhor nota</span>
+                  <span style={{ color: 'var(--text-secondary)' }}>Melhor nota</span>
                   <span className="font-bold" style={{ color: getScoreColor(bestScore) }}>{bestScore}</span>
                 </div>
                 <div className="mt-3">
-                  <p className="text-xs font-semibold mb-2" style={{ color: '#6B5B4E' }}>Últimas notas:</p>
+                  <p className="text-xs font-semibold mb-2" style={{ color: 'var(--text-secondary)' }}>Últimas notas:</p>
                   <div className="flex gap-2 flex-wrap">
                     {essays.filter(e => e.score != null).slice(0, 5).map((e, i) => (
                       <span key={i} className="text-xs px-2 py-1 rounded-full font-bold"
-                        style={{ backgroundColor: '#FDF3E8', color: getScoreColor(e.score) }}>
+                        style={{ backgroundColor: 'var(--bg-primary)', color: getScoreColor(e.score) }}>
                         {e.score}
                       </span>
                     ))}
@@ -203,26 +210,26 @@ export const StudentProgress = () => {
 
           <Card className="p-4 bg-white border shadow-sm">
             <div className="flex items-center gap-2 mb-3">
-              <BookOpen size={16} style={{ color: '#7C1805' }} />
-              <p className="font-semibold text-sm" style={{ color: '#7C1805' }}>Propostas</p>
+              <BookOpen size={16} style={{ color: 'var(--accent-red)' }} />
+              <p className="font-semibold text-sm" style={{ color: 'var(--accent-red)' }}>Propostas</p>
             </div>
             <div className="space-y-1">
-              <p className="text-xs font-semibold" style={{ color: '#36555A' }}>
+              <p className="text-xs font-semibold" style={{ color: 'var(--accent-green)' }}>
                 ✓ Feitas ({prompts_done.length})
               </p>
               {prompts_done.slice(0, 3).map(p => (
-                <p key={p.id} className="text-xs pl-3 truncate" style={{ color: '#6B5B4E' }}>• {p.title}</p>
+                <p key={p.id} className="text-xs pl-3 truncate" style={{ color: 'var(--text-secondary)' }}>• {p.title}</p>
               ))}
               {prompts_done.length > 3 && (
-                <p className="text-xs pl-3" style={{ color: '#6B5B4E' }}>+{prompts_done.length - 3} mais</p>
+                <p className="text-xs pl-3" style={{ color: 'var(--text-secondary)' }}>+{prompts_done.length - 3} mais</p>
               )}
               {prompts_not_done.length > 0 && (
                 <>
-                  <p className="text-xs font-semibold mt-2" style={{ color: '#7C1805' }}>
+                  <p className="text-xs font-semibold mt-2" style={{ color: 'var(--accent-red)' }}>
                     ✗ Não feitas ({prompts_not_done.length})
                   </p>
                   {prompts_not_done.slice(0, 2).map(p => (
-                    <p key={p.id} className="text-xs pl-3 truncate" style={{ color: '#6B5B4E' }}>• {p.title}</p>
+                    <p key={p.id} className="text-xs pl-3 truncate" style={{ color: 'var(--text-secondary)' }}>• {p.title}</p>
                   ))}
                 </>
               )}
@@ -233,11 +240,11 @@ export const StudentProgress = () => {
         {/* Histórico de redações */}
         <Card className="bg-white border shadow-sm">
           <div className="p-4 border-b" style={{ borderColor: '#F0EBE3' }}>
-            <p className="font-semibold" style={{ color: '#7C1805' }}>Histórico de Redações</p>
+            <p className="font-semibold" style={{ color: 'var(--accent-red)' }}>Histórico de Redações</p>
           </div>
           {essays.length === 0 ? (
             <div className="p-8 text-center">
-              <p className="text-sm" style={{ color: '#6B5B4E' }}>Nenhuma redação enviada</p>
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Nenhuma redação enviada</p>
             </div>
           ) : (
             <div className="divide-y" style={{ borderColor: '#F0EBE3' }}>
@@ -245,24 +252,24 @@ export const StudentProgress = () => {
                 <div key={essay.id} className="px-4 py-3 flex items-center justify-between gap-3">
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-sm font-medium truncate" style={{ color: '#2C1A0E' }}>
+                      <p className="text-sm font-medium truncate" style={{ color: 'var(--text-primary)' }}>
                         {essay.prompt_title}
                       </p>
                       <StatusBadge status={essay.status} />
                       {essay.is_rewrite && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full"
-                          style={{ backgroundColor: '#FFF0E0', color: '#D66B27', border: '1px solid #D66B27' }}>
+                          style={{ backgroundColor: '#FFF0E0', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)' }}>
                           ✏️ Reescrita
                         </span>
                       )}
                       {essay.mark_important && (
                         <span className="text-xs px-1.5 py-0.5 rounded-full"
-                          style={{ backgroundColor: '#FDF3E8', color: '#D66B27', border: '1px solid #D66B27' }}>
+                          style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)' }}>
                           ★ Revisão em aula
                         </span>
                       )}
                     </div>
-                    <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                    <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                       Enviada em {new Date(essay.submitted_at).toLocaleDateString('pt-BR')}
                       {essay.corrected_at && ` · Corrigida em ${new Date(essay.corrected_at).toLocaleDateString('pt-BR')}`}
                     </p>
