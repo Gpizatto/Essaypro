@@ -11,10 +11,10 @@ import { FileText, Clock, Eye, Trash2 } from 'lucide-react';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const STATUS_MAP = {
-  pending:     { label: 'Enviada',      bg: '#6B5B4E', col: '#FDF3E8' },
-  in_progress: { label: 'Em correção',  bg: '#D66B27', col: '#FDF3E8' },
-  corrected:   { label: 'Corrigida',    bg: '#36555A', col: '#FDF3E8' },
-  returned:    { label: 'Devolvida',    bg: '#DAB257', col: '#2C1A0E' },
+  pending:     { label: 'Enviada',      bg: 'var(--text-secondary)', col: 'var(--bg-primary)' },
+  in_progress: { label: 'Em correção',  bg: 'var(--accent-orange)', col: 'var(--bg-primary)' },
+  corrected:   { label: 'Corrigida',    bg: 'var(--accent-green)', col: 'var(--bg-primary)' },
+  returned:    { label: 'Devolvida',    bg: '#DAB257', col: 'var(--text-primary)' },
 };
 
 const FILTER_PILLS = [
@@ -94,14 +94,14 @@ export const MyEssays = () => {
   const clearFilters = () => { setFilterStatus('all'); setFilterMonth('all'); setFilterPrompt('all'); };
 
   const pillBase = {
-    padding: '5px 13px', borderRadius: '99px', border: 'none',
+    padding: '8px 14px', borderRadius: '99px', border: 'none',
     cursor: 'pointer', fontSize: '12.5px', fontWeight: 600,
-    transition: 'all 0.15s ease',
+    transition: 'all 0.15s ease', minHeight: '40px', whiteSpace: 'nowrap',
   };
 
   const selectStyle = {
-    padding: '6px 10px', borderRadius: '8px', border: '1px solid #E8DDD0',
-    backgroundColor: '#FFFFFF', color: '#2C1A0E', fontSize: '13px',
+    padding: '6px 10px', borderRadius: '8px', border: '1px solid var(--border-color)',
+    backgroundColor: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: '13px',
     cursor: 'pointer', outline: 'none',
   };
 
@@ -121,12 +121,12 @@ export const MyEssays = () => {
         <div>
           <h1
             className="font-heading font-bold"
-            style={{ fontSize: '28px', color: '#7C1805', letterSpacing: '-0.02em' }}
+            style={{ fontSize: '28px', color: 'var(--accent-red)', letterSpacing: '-0.02em' }}
             data-testid="my-essays-title"
           >
             Minhas Redações
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             {essays.length} redaç{essays.length === 1 ? 'ão' : 'ões'} enviada{essays.length !== 1 ? 's' : ''}
           </p>
         </div>
@@ -134,8 +134,9 @@ export const MyEssays = () => {
         {essays.length > 0 && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
             {/* Filtro de status: pills */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
-              <span style={{ fontSize: '12px', color: '#6B5B4E', fontWeight: 600, marginRight: '4px' }}>Status:</span>
+            <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch', paddingBottom: '4px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'nowrap', minWidth: 'fit-content' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, marginRight: '4px', whiteSpace: 'nowrap' }}>Status:</span>
               {FILTER_PILLS.map(p => {
                 const isActive = filterStatus === p.key;
                 const cfg = STATUS_MAP[p.key];
@@ -146,10 +147,10 @@ export const MyEssays = () => {
                     data-testid={p.key !== 'all' ? `filter-status-${p.key}` : 'filter-status-all'}
                     style={{
                       ...pillBase,
-                      backgroundColor: isActive ? (cfg?.bg || '#7C1805') : '#FFFFFF',
+                      backgroundColor: isActive ? (cfg?.bg || 'var(--accent-red)') : 'var(--bg-card)',
                       color: isActive
-                        ? (p.key === 'returned' ? '#2C1A0E' : '#FDF3E8')
-                        : '#6B5B4E',
+                        ? (p.key === 'returned' ? 'var(--text-primary)' : 'var(--bg-primary)')
+                        : 'var(--text-secondary)',
                       boxShadow: isActive ? 'none' : '0 1px 3px rgba(44,26,14,0.08)',
                     }}
                   >
@@ -157,12 +158,12 @@ export const MyEssays = () => {
                   </button>
                 );
               })}
-            </div>
+            </div></div>
 
             {/* Filtros secundários: mês e proposta (selects, mas estilizados) */}
             {(monthOptions.length > 1 || promptOptions.length > 1) && (
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ fontSize: '12px', color: '#6B5B4E', fontWeight: 600, marginRight: '4px' }}>Filtrar:</span>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600, marginRight: '4px' }}>Filtrar:</span>
 
                 {monthOptions.length > 1 && (
                   <select
@@ -198,7 +199,7 @@ export const MyEssays = () => {
                     style={{
                       display: 'inline-flex', alignItems: 'center', gap: '4px',
                       fontSize: '12px', fontWeight: 600, padding: '5px 10px', borderRadius: '8px',
-                      backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27',
+                      backgroundColor: 'var(--bg-primary)', color: 'var(--accent-red)', border: '1px solid var(--accent-orange)',
                       cursor: 'pointer',
                     }}
                   >
@@ -207,7 +208,7 @@ export const MyEssays = () => {
                 )}
 
                 {hasActiveFilters && (
-                  <span style={{ fontSize: '12px', color: '#6B5B4E', marginLeft: 'auto' }}>
+                  <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
                     {filteredEssays.length} resultado{filteredEssays.length !== 1 ? 's' : ''}
                   </span>
                 )}
@@ -219,14 +220,14 @@ export const MyEssays = () => {
         {/* Lista vazia */}
         {essays.length === 0 ? (
           <Card className="p-12 text-center bg-white" style={{ borderRadius: '14px' }}>
-            <FileText size={48} className="mx-auto mb-4" style={{ color: '#D66B27' }} />
-            <p className="text-lg mb-4" style={{ color: '#6B5B4E' }}>Você ainda não enviou nenhuma redação</p>
+            <FileText size={48} className="mx-auto mb-4" style={{ color: 'var(--accent-orange)' }} />
+            <p className="text-lg mb-4" style={{ color: 'var(--text-secondary)' }}>Você ainda não enviou nenhuma redação</p>
             <a
               href="/prompts"
               style={{
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
                 padding: '11px 24px', borderRadius: '10px',
-                backgroundColor: '#7C1805', color: '#FDF3E8',
+                backgroundColor: 'var(--accent-red)', color: 'var(--bg-primary)',
                 fontWeight: 700, fontSize: '14px', textDecoration: 'none',
               }}
               data-testid="write-first-essay-button"
@@ -236,8 +237,8 @@ export const MyEssays = () => {
           </Card>
         ) : filteredEssays.length === 0 ? (
           <Card className="p-10 text-center bg-white" style={{ borderRadius: '14px' }}>
-            <p className="text-lg mb-3" style={{ color: '#6B5B4E' }}>Nenhuma redação encontrada com esses filtros</p>
-            <button onClick={clearFilters} style={{ fontSize: '13px', fontWeight: 600, color: '#7C1805', background: 'none', border: 'none', cursor: 'pointer' }}>
+            <p className="text-lg mb-3" style={{ color: 'var(--text-secondary)' }}>Nenhuma redação encontrada com esses filtros</p>
+            <button onClick={clearFilters} style={{ fontSize: '13px', fontWeight: 600, color: 'var(--accent-red)', background: 'none', border: 'none', cursor: 'pointer' }}>
               Limpar filtros
             </button>
           </Card>
@@ -251,20 +252,18 @@ export const MyEssays = () => {
                   className="bg-white border"
                   style={{
                     borderRadius: '14px',
-                    padding: '18px 20px',
+                    padding: '16px',
                     boxShadow: '0 1px 4px rgba(44,26,14,0.05)',
-                    borderColor: '#E8DDD0',
+                    borderColor: 'var(--border-color)',
                     display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    gap: '12px',
+                    flexDirection: 'column',
+                    gap: '10px',
                     transition: 'box-shadow 0.15s ease',
                   }}
                   data-testid={`essay-card-${essay.id}`}
                 >
                   <div
-                    className="flex-1"
-                    style={{ minWidth: 0, cursor: essay.status === 'corrected' ? 'pointer' : 'default' }}
+                    style={{ flex: 1, minWidth: 0, cursor: essay.status === 'corrected' ? 'pointer' : 'default' }}
                     onClick={() => {
                       if (essay.status === 'corrected') navigate(`/essay/${essay.id}/correction`);
                     }}
@@ -272,7 +271,7 @@ export const MyEssays = () => {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '5px', flexWrap: 'wrap' }}>
                       <h3
                         className="font-heading font-semibold"
-                        style={{ fontSize: '14.5px', color: '#2C1A0E' }}
+                        style={{ fontSize: '14.5px', color: 'var(--text-primary)' }}
                       >
                         {essay.prompt_title || 'Redação'}
                       </h3>
@@ -298,15 +297,15 @@ export const MyEssays = () => {
                         <span style={{
                           fontSize: '11px', fontWeight: 600,
                           padding: '2px 8px', borderRadius: '99px',
-                          backgroundColor: '#FFF0E0', color: '#D66B27',
-                          border: '1px solid #D66B27',
+                          backgroundColor: '#FFF0E0', color: 'var(--accent-orange)',
+                          border: '1px solid var(--accent-orange)',
                         }}>
                           ✏️ Reescrita
                         </span>
                       )}
                     </div>
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11.5px', color: '#6B5B4E', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '11.5px', color: 'var(--text-secondary)', flexWrap: 'wrap' }}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <Clock size={12} />
                         {new Date(essay.submitted_at).toLocaleDateString('pt-BR')} às{' '}
@@ -318,14 +317,14 @@ export const MyEssays = () => {
                     </div>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                     {essay.status === 'corrected' && (
                       <button
                         onClick={() => navigate(`/essay/${essay.id}/correction`)}
                         style={{
                           display: 'inline-flex', alignItems: 'center', gap: '5px',
                           padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                          backgroundColor: '#36555A', color: '#FDF3E8',
+                          backgroundColor: 'var(--accent-green)', color: 'var(--bg-primary)',
                           fontSize: '12px', fontWeight: 600,
                         }}
                       >
