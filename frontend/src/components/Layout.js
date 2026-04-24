@@ -10,12 +10,18 @@ import axios from 'axios';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
-// Cache de notificações — persiste entre trocas de rota sem re-fetch
 const notifCache = {
   data: [],
   unread: 0,
   lastFetch: 0,
-  TTL: 60000, // só busca novamente após 60s
+  TTL: 60000,
+};
+
+// Gera iniciais a partir do nome
+const getInitials = (name = '') => {
+  const parts = name.trim().split(' ');
+  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?';
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 };
 
 export const Layout = ({ children }) => {
@@ -28,28 +34,9 @@ export const Layout = ({ children }) => {
   const [unread, setUnread] = useState(0);
   const [showNotifs, setShowNotifs] = useState(false);
   const notifRef = useRef(null);
-  const [isOnline, setIsOnline] = useState(navigator.onLine); // U-12
-  const [showOnlineMsg, setShowOnlineMsg] = useState(false);  // U-12
-
-  // U-12: listeners de conexão
-  useEffect(() => {
-    const handleOffline = () => setIsOnline(false);
-    const handleOnline  = () => {
-      setIsOnline(true);
-      setShowOnlineMsg(true);
-      setTimeout(() => setShowOnlineMsg(false), 3000);
-    };
-    window.addEventListener('offline', handleOffline);
-    window.addEventListener('online',  handleOnline);
-    return () => {
-      window.removeEventListener('offline', handleOffline);
-      window.removeEventListener('online',  handleOnline);
-    };
-  }, []);
 
   const fetchNotifications = useCallback(async (force = false) => {
     const now = Date.now();
-    // Usar cache se dentro do TTL e não forçado
     if (!force && now - notifCache.lastFetch < notifCache.TTL) {
       setNotifications(notifCache.data);
       setUnread(notifCache.unread);
@@ -68,7 +55,6 @@ export const Layout = ({ children }) => {
   useEffect(() => {
     if (!user) return;
     fetchNotifications();
-    // Poll a cada 60s mas só quando a aba está visível
     const interval = setInterval(() => {
       if (!document.hidden) fetchNotifications(true);
     }, 60000);
@@ -84,8 +70,6 @@ export const Layout = ({ children }) => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, []);
-
-
 
   const markRead = async (id) => {
     try {
@@ -165,31 +149,33 @@ export const Layout = ({ children }) => {
   };
 
   const menuItems = getMenuItems();
-  const roleLabel = user.role === 'student' ? 'Aluno' : user.role === 'teacher' ? 'Professor' : 'Admin';
+  const roleLabel = user.role === 'student' ? 'ALUNA' : user.role === 'teacher' ? 'PROF.' : 'ADMIN';
   const roleColor = user.role === 'student' ? '#36555A' : user.role === 'teacher' ? '#D66B27' : '#7C1805';
+  const initials = getInitials(user.name);
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#FDF3E8' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--brand-bg, #FDF3E8)' }}>
       {/* Sidebar */}
-      <aside className="w-64 flex flex-col" style={{ backgroundColor: '#7C1805' }}>
+      <aside className="w-60 flex flex-col flex-shrink-0" style={{ backgroundColor: 'var(--bg-sidebar, #7C1805)' }}>
+
         {/* Logo */}
-        <div className="p-6 pb-4">
-          <h1 className="font-script text-3xl leading-tight" style={{ color: '#FDF3E8' }} data-testid="app-logo">
+        <div style={{ padding: '28px 24px 20px' }}>
+          <h1 className="font-script text-4xl leading-tight" style={{ color: '#FDF3E8' }} data-testid="app-logo">
             redação
           </h1>
-          <h1 className="font-script text-3xl leading-tight" style={{ color: '#DAB257' }}>
+          <h1 className="font-script text-4xl leading-tight" style={{ color: '#DAB257' }}>
             com nicolle
           </h1>
-          <p className="text-xs mt-2 font-body" style={{ color: 'rgba(253,243,232,0.6)' }}>
+          <p className="text-xs mt-2 font-body" style={{ color: 'rgba(253,243,232,0.5)', letterSpacing: '0.05em' }}>
             Plataforma de Correção
           </p>
         </div>
 
         {/* Divider */}
-        <div style={{ height: '1px', backgroundColor: 'rgba(253,243,232,0.15)', margin: '0 24px' }} />
+        <div style={{ height: '1px', backgroundColor: 'rgba(253,243,232,0.1)', margin: '0 20px' }} />
 
         {/* Nav */}
-        <nav className="flex-1 p-4 space-y-1 mt-2">
+        <nav className="flex-1 mt-2" style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
           {menuItems.map((item) => {
             const Icon = item.icon;
             const isActive = location.pathname === item.path;
@@ -198,77 +184,183 @@ export const Layout = ({ children }) => {
                 key={item.path}
                 to={item.path}
                 data-testid={`nav-${item.label.toLowerCase().replace(/\s+/g, '-')}`}
-                className="flex items-center gap-3 px-4 py-3 rounded-lg transition-all"
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '10px',
+                  padding: '10px 12px',
+                  borderRadius: '10px',
+                  textDecoration: 'none',
                   backgroundColor: isActive ? 'rgba(253,243,232,0.15)' : 'transparent',
-                  color: isActive ? '#FDF3E8' : 'rgba(253,243,232,0.7)',
-                  borderLeft: isActive ? '3px solid #DAB257' : '3px solid transparent',
+                  color: isActive ? '#FDF3E8' : 'rgba(253,243,232,0.6)',
+                  transition: 'all 0.15s ease',
                 }}
               >
-                <Icon size={18} />
-                <span className="font-medium text-sm">{item.label}</span>
+                {/* Indicador lateral integrado */}
+                <div style={{
+                  width: '3px',
+                  height: '18px',
+                  borderRadius: '2px',
+                  backgroundColor: isActive ? '#DAB257' : 'transparent',
+                  flexShrink: 0,
+                  transition: 'background-color 0.15s',
+                }} />
+                <Icon size={16} />
+                <span style={{ fontSize: '13.5px', fontWeight: isActive ? 600 : 400, letterSpacing: '0.01em' }}>
+                  {item.label}
+                </span>
               </Link>
             );
           })}
         </nav>
 
-        {/* User info */}
-        <div className="p-4" style={{ borderTop: '1px solid rgba(253,243,232,0.15)' }}>
-          <div className="mb-3">
-            <p className="text-sm font-semibold truncate" style={{ color: '#FDF3E8' }}>
-              {user.name}
-            </p>
-            <p className="text-xs truncate" style={{ color: 'rgba(253,243,232,0.6)' }}>
-              {user.email}
-            </p>
-            <span
-              className="inline-block mt-2 px-2 py-0.5 text-xs font-semibold rounded-full"
-              style={{ backgroundColor: roleColor, color: '#FDF3E8' }}
-            >
+        {/* User section */}
+        <div style={{ borderTop: '1px solid rgba(253,243,232,0.1)', padding: '16px 16px 20px' }}>
+
+          {/* Avatar + info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '14px' }}>
+            <div style={{
+              width: '36px',
+              height: '36px',
+              borderRadius: '50%',
+              backgroundColor: '#DAB257',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: '13px',
+              fontWeight: 700,
+              color: '#7C1805',
+              flexShrink: 0,
+              letterSpacing: '0.02em',
+            }}>
+              {initials}
+            </div>
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <p style={{ fontSize: '13px', fontWeight: 600, color: '#FDF3E8', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.name}
+              </p>
+              <p style={{ fontSize: '11px', color: 'rgba(253,243,232,0.5)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {user.email}
+              </p>
+            </div>
+            <span style={{
+              flexShrink: 0,
+              fontSize: '10px',
+              fontWeight: 700,
+              padding: '2px 7px',
+              borderRadius: '99px',
+              backgroundColor: roleColor,
+              color: '#FDF3E8',
+              letterSpacing: '0.03em',
+            }}>
               {roleLabel}
             </span>
           </div>
-          {/* Modo escuro */}
-          <button
-            onClick={toggleTheme}
-            className="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-md mb-1"
-            style={{ color: 'rgba(253,243,232,0.7)', backgroundColor: 'transparent' }}
-            title={isDark ? 'Modo claro' : 'Modo escuro'}
-          >
-            {isDark ? <Sun size={16} /> : <Moon size={16} />}
-            <span>{isDark ? 'Modo Claro' : 'Modo Escuro'}</span>
-          </button>
 
-          {/* Notificações */}
-          <div ref={notifRef} style={{ position: 'relative', marginBottom: '8px' }}>
+          {/* Ações compactas em linha */}
+          <div style={{ display: 'flex', gap: '6px' }} ref={notifRef}>
+            {/* Modo escuro */}
             <button
-              onClick={() => setShowNotifs(v => !v)}
-              className="w-full flex items-center gap-2 text-sm px-3 py-2 rounded-md"
-              style={{ color: 'rgba(253,243,232,0.7)', backgroundColor: showNotifs ? 'rgba(255,255,255,0.1)' : 'transparent' }}
+              onClick={toggleTheme}
+              title={isDark ? 'Modo claro' : 'Modo escuro'}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+                padding: '8px 0',
+                borderRadius: '8px',
+                border: '1px solid rgba(253,243,232,0.12)',
+                backgroundColor: 'transparent',
+                cursor: 'pointer',
+                color: 'rgba(253,243,232,0.65)',
+                fontSize: '11.5px',
+                fontWeight: 500,
+                transition: 'background-color 0.15s',
+              }}
             >
-              <div style={{ position: 'relative' }}>
-                <Bell size={16} />
-                {unread > 0 && (
-                  <span style={{
-                    position: 'absolute', top: '-6px', right: '-6px',
-                    backgroundColor: '#D66B27', color: '#FFF',
-                    borderRadius: '50%', width: '16px', height: '16px',
-                    fontSize: '10px', fontWeight: 700,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  }}>
-                    {unread > 9 ? '9+' : unread}
-                  </span>
-                )}
-              </div>
-              <span>Notificações</span>
+              {isDark ? <Sun size={13} /> : <Moon size={13} />}
+              <span>{isDark ? 'Claro' : 'Escuro'}</span>
             </button>
 
+            {/* Notificações */}
+            <button
+              onClick={() => setShowNotifs(v => !v)}
+              title="Notificações"
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+                padding: '8px 0',
+                borderRadius: '8px',
+                border: '1px solid rgba(253,243,232,0.12)',
+                backgroundColor: showNotifs ? 'rgba(255,255,255,0.1)' : 'transparent',
+                cursor: 'pointer',
+                color: 'rgba(253,243,232,0.65)',
+                fontSize: '11.5px',
+                fontWeight: 500,
+                position: 'relative',
+                transition: 'background-color 0.15s',
+              }}
+            >
+              <div style={{ position: 'relative' }}>
+                <Bell size={13} />
+                {unread > 0 && (
+                  <span style={{
+                    position: 'absolute',
+                    top: '-4px',
+                    right: '-4px',
+                    width: '7px',
+                    height: '7px',
+                    borderRadius: '50%',
+                    backgroundColor: '#D66B27',
+                    border: '1.5px solid var(--bg-sidebar, #7C1805)',
+                  }} />
+                )}
+              </div>
+              <span>Avisos</span>
+            </button>
+
+            {/* Sair */}
+            <button
+              onClick={handleLogout}
+              title="Sair"
+              data-testid="logout-button"
+              style={{
+                width: '38px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '8px 0',
+                borderRadius: '8px',
+                border: '1px solid rgba(253,243,232,0.12)',
+                backgroundColor: 'transparent',
+                cursor: 'pointer',
+                color: 'rgba(253,243,232,0.65)',
+                transition: 'background-color 0.15s',
+              }}
+            >
+              <LogOut size={13} />
+            </button>
+
+            {/* Dropdown de notificações */}
             {showNotifs && (
               <div style={{
-                position: 'absolute', bottom: '40px', left: 0, right: 0,
-                backgroundColor: '#FFF', borderRadius: '10px', zIndex: 100,
+                position: 'absolute',
+                bottom: '72px',
+                left: '12px',
+                right: '12px',
+                backgroundColor: '#FFF',
+                borderRadius: '12px',
+                zIndex: 100,
                 boxShadow: '0 8px 30px rgba(0,0,0,0.15)',
-                maxHeight: '320px', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+                maxHeight: '320px',
+                overflow: 'hidden',
+                display: 'flex',
+                flexDirection: 'column',
               }}>
                 <div style={{ padding: '10px 14px 8px', borderBottom: '1px solid #F0EBE3', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span style={{ fontSize: '13px', fontWeight: 700, color: '#7C1805' }}>Notificações</span>
@@ -306,38 +398,12 @@ export const Layout = ({ children }) => {
               </div>
             )}
           </div>
-
-          <Button
-            onClick={handleLogout}
-            variant="ghost"
-            className="w-full flex items-center gap-2 text-sm"
-            style={{ color: 'rgba(253,243,232,0.7)', hover: 'bg-white/10' }}
-            data-testid="logout-button"
-          >
-            <LogOut size={16} />
-            Sair
-          </Button>
         </div>
       </aside>
 
       {/* Main content */}
-      <main className="flex-1 overflow-auto" style={{ backgroundColor: '#FDF3E8' }}>
-        {/* U-12: banner de status de conexão */}
-        {!isOnline && (
-          <div className="flex items-center justify-center gap-2 py-2 text-sm font-semibold"
-            style={{ backgroundColor: '#7C1805', color: '#FDF3E8' }}
-            role="alert" aria-live="assertive">
-            ⚠️ Sem conexão — suas alterações não serão salvas até a conexão ser restaurada
-          </div>
-        )}
-        {showOnlineMsg && (
-          <div className="flex items-center justify-center gap-2 py-2 text-sm font-semibold"
-            style={{ backgroundColor: '#16A34A', color: '#fff' }}
-            role="status" aria-live="polite">
-            ✓ Conexão restaurada
-          </div>
-        )}
-        <div className="p-6 md:p-8 lg:p-10">{children}</div>
+      <main className="flex-1 overflow-auto" style={{ backgroundColor: 'var(--brand-bg, #FDF3E8)' }}>
+        <div style={{ padding: '32px 40px' }}>{children}</div>
       </main>
     </div>
   );
