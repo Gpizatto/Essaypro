@@ -44,18 +44,18 @@ export const Register = () => {
   const inputStyle = {
     marginTop: '6px',
     borderRadius: '10px',
-    border: '1.5px solid #E8DDD0',
+    border: '1.5px solid var(--border-color)',
     padding: '11px 14px',
     fontSize: '14px',
   };
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: '#FDF3E8' }}>
+    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
 
       {/* Painel esquerdo — idêntico ao Login */}
       <div
-        className="hidden lg:flex lg:w-2/5 flex-col justify-between p-12"
-        style={{ backgroundColor: '#7C1805', position: 'relative', overflow: 'hidden' }}
+        className="hidden md:flex md:w-2/5 flex-col justify-between p-10 lg:p-12"
+        style={{ backgroundColor: 'var(--accent-red)', position: 'relative', overflow: 'hidden' }}
       >
         {/* Círculos decorativos */}
         <svg
@@ -66,12 +66,12 @@ export const Register = () => {
         >
           <circle cx="340" cy="80" r="180" fill="#DAB257" />
           <circle cx="-40" cy="460" r="220" fill="#DAB257" />
-          <circle cx="260" cy="740" r="140" fill="#FDF3E8" />
+          <circle cx="260" cy="740" r="140" fill="var(--bg-primary)" />
         </svg>
 
         {/* Logo */}
         <div style={{ position: 'relative' }}>
-          <h1 className="font-script leading-tight" style={{ fontSize: '48px', color: '#FDF3E8' }}>
+          <h1 className="font-script leading-tight" style={{ fontSize: '48px', color: 'var(--bg-primary)' }}>
             redação
           </h1>
           <h1 className="font-script leading-tight" style={{ fontSize: '48px', color: '#DAB257' }}>
@@ -96,32 +96,32 @@ export const Register = () => {
       </div>
 
       {/* Painel direito */}
-      <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex-1 flex items-center justify-center px-5 py-8 sm:px-8">
         <div className="w-full max-w-md">
 
           {/* Logo mobile */}
-          <div className="lg:hidden text-center mb-8">
-            <h1 className="font-script text-4xl" style={{ color: '#7C1805' }}>redação</h1>
-            <h1 className="font-script text-4xl" style={{ color: '#D66B27' }}>com nicolle</h1>
+          <div className="md:hidden text-center mb-6">
+            <h1 className="font-script text-4xl" style={{ color: 'var(--accent-red)' }}>redação</h1>
+            <h1 className="font-script text-4xl" style={{ color: 'var(--accent-orange)' }}>com nicolle</h1>
           </div>
 
           {/* Barra de acento */}
-          <div style={{ width: '40px', height: '3px', backgroundColor: '#D66B27', borderRadius: '2px', marginBottom: '20px' }} />
+          <div style={{ width: '40px', height: '3px', backgroundColor: 'var(--accent-orange)', borderRadius: '2px', marginBottom: '20px' }} />
 
           <h2
             className="font-heading font-bold"
-            style={{ fontSize: '26px', color: '#7C1805', marginBottom: '4px', letterSpacing: '-0.02em' }}
+            style={{ fontSize: '26px', color: 'var(--accent-red)', marginBottom: '4px', letterSpacing: '-0.02em' }}
           >
             Criar conta
           </h2>
-          <p className="text-sm mb-8" style={{ color: '#6B5B4E' }}>
+          <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
             Preencha os dados abaixo para se cadastrar
           </p>
 
           <form onSubmit={handleSubmit} className="space-y-4" data-testid="register-form">
 
             <div>
-              <Label htmlFor="name" className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>
+              <Label htmlFor="name" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Nome Completo
               </Label>
               <Input
@@ -133,12 +133,12 @@ export const Register = () => {
                 data-testid="name-input"
                 placeholder="Seu nome completo"
                 style={inputStyle}
-                className="focus:border-[#7C1805] focus:ring-[#7C1805]"
+                className="focus:border-[var(--accent-red)] focus:ring-[var(--accent-red)]"
               />
             </div>
 
             <div>
-              <Label htmlFor="email" className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>
+              <Label htmlFor="email" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Email
               </Label>
               <Input
@@ -150,13 +150,13 @@ export const Register = () => {
                 data-testid="email-input"
                 placeholder="seu@email.com"
                 style={inputStyle}
-                className="focus:border-[#7C1805] focus:ring-[#7C1805]"
+                className="focus:border-[var(--accent-red)] focus:ring-[var(--accent-red)]"
               />
             </div>
 
             <div>
-              <Label htmlFor="phone" className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>
-                WhatsApp <span style={{ fontWeight: 400, color: '#6B5B4E' }}>(opcional)</span>
+              <Label htmlFor="phone" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
+                WhatsApp <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>(opcional)</span>
               </Label>
               <Input
                 id="phone"
@@ -166,13 +166,13 @@ export const Register = () => {
                 placeholder="(11) 99999-9999"
                 style={inputStyle}
               />
-              <p style={{ fontSize: '11.5px', color: '#6B5B4E', marginTop: '4px' }}>
+              <p style={{ fontSize: '11.5px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                 Para receber aviso quando sua correção ficar pronta
               </p>
             </div>
 
             <div>
-              <Label htmlFor="password" className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>
+              <Label htmlFor="password" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Senha
               </Label>
               <Input
@@ -184,19 +184,19 @@ export const Register = () => {
                 data-testid="password-input"
                 placeholder="Mínimo 8 caracteres"
                 style={inputStyle}
-                className="focus:border-[#7C1805]"
+                className="focus:border-[var(--accent-red)]"
               />
             </div>
 
             <div>
-              <Label htmlFor="role" className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>
+              <Label htmlFor="role" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>
                 Tipo de Conta
               </Label>
               <div style={{ marginTop: '6px' }}>
                 <Select value={role} onValueChange={setRole}>
                   <SelectTrigger
                     data-testid="role-select"
-                    style={{ borderRadius: '10px', border: '1.5px solid #E8DDD0', height: '44px', fontSize: '14px' }}
+                    style={{ borderRadius: '10px', border: '1.5px solid var(--border-color)', minHeight: '44px', fontSize: '14px' }}
                   >
                     <SelectValue />
                   </SelectTrigger>
@@ -213,18 +213,18 @@ export const Register = () => {
               className="w-full font-bold"
               disabled={loading}
               data-testid="register-submit-button"
-              style={{ borderRadius: '10px', height: '44px', fontSize: '14px', backgroundColor: '#7C1805', marginTop: '8px' }}
+              style={{ borderRadius: '10px', height: '44px', fontSize: '14px', backgroundColor: 'var(--accent-red)', marginTop: '8px' }}
             >
               {loading ? 'Cadastrando...' : 'Criar Conta'}
             </Button>
           </form>
 
-          <p className="mt-6 text-center text-sm" style={{ color: '#6B5B4E' }}>
+          <p className="mt-6 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
             Já tem uma conta?{' '}
             <Link
               to="/login"
               className="font-semibold hover:underline"
-              style={{ color: '#7C1805' }}
+              style={{ color: 'var(--accent-red)' }}
               data-testid="login-link"
             >
               Faça login
