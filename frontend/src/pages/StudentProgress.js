@@ -37,6 +37,18 @@ export const StudentProgress = () => {
 
   useEffect(() => { fetchData(); }, [studentId]);
 
+  // Q-06: hooks antes dos early returns (regra dos hooks do React)
+  const essays = data?.essays ?? [];
+  const scores = useMemo(
+    () => essays.filter(e => e.score != null).map(e => e.score),
+    [essays]
+  );
+  const avgScore = useMemo(
+    () => scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
+    [scores]
+  );
+  const bestScore = useMemo(() => scores.length ? Math.max(...scores) : 0, [scores]);
+
   const fetchData = async () => {
     try {
       const { data } = await axios.get(`${API_URL}/api/teacher/student/${studentId}`, { withCredentials: true });
@@ -112,17 +124,7 @@ export const StudentProgress = () => {
     </Layout>
   );
 
-  const { student, essays, prompts_done, prompts_not_done, stats } = data;
-  // Q-06: memoizar derivações de scores
-  const scores = useMemo(
-    () => essays.filter(e => e.score != null).map(e => e.score),
-    [essays]
-  );
-  const avgScore = useMemo(
-    () => scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0,
-    [scores]
-  );
-  const bestScore = useMemo(() => scores.length ? Math.max(...scores) : 0, [scores]);
+  const { student, prompts_done, prompts_not_done, stats } = data || {};  // essays já definido acima para useMemo
 
   return (
     <Layout>
