@@ -11,8 +11,8 @@ const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const ROLE_MAP = {
   student: { label: 'Aluno',     color: '#2563EB' },
-  teacher: { label: 'Professor', color: '#36555A' },
-  admin:   { label: 'Admin',     color: '#7C1805' },
+  teacher: { label: 'Professor', color: 'var(--accent-green)' },
+  admin:   { label: 'Admin',     color: 'var(--accent-red)' },
 };
 
 export const AdminUsers = () => {
@@ -110,8 +110,8 @@ export const AdminUsers = () => {
 
   const selectStyle = {
     padding: '7px 10px', borderRadius: '6px',
-    border: '1px solid #E8DDD0', fontSize: '13px',
-    color: '#2C1A0E', backgroundColor: '#FFF', cursor: 'pointer',
+    border: '1px solid var(--border-color)', fontSize: '13px',
+    color: 'var(--text-primary)', backgroundColor: '#FFF', cursor: 'pointer',
   };
 
   if (loading) return (
@@ -127,10 +127,10 @@ export const AdminUsers = () => {
     <Layout>
       <div className="space-y-5">
         <div>
-          <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }} data-testid="admin-users-title">
+          <h1 className="font-heading font-bold text-3xl" style={{ color: 'var(--accent-red)' }} data-testid="admin-users-title">
             Gerenciamento de Usuários
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             {counts.total} usuários · {counts.students} alunos · {counts.teachers} professores
             {counts.inactive > 0 && ` · ${counts.inactive} inativos`}
           </p>
@@ -140,15 +140,15 @@ export const AdminUsers = () => {
         <Card className="p-4 bg-white border">
           <div className="flex flex-wrap gap-3 items-center">
             <div className="relative flex-1 min-w-[200px]">
-              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B5B4E' }} />
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
               <input
                 value={search}
                 onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Buscar por nome ou email..."
                 style={{
-                  width: '100%', padding: '7px 10px 7px 32px',
-                  borderRadius: '6px', border: '1px solid #E8DDD0',
-                  fontSize: '13px', color: '#2C1A0E', outline: 'none',
+                  width: '100%', padding: '10px 10px 10px 32px', fontSize: '16px', minHeight: '44px',
+                  borderRadius: '6px', border: '1px solid var(--border-color)',
+                  fontSize: '13px', color: 'var(--text-primary)', outline: 'none',
                 }}
               />
             </div>
@@ -169,21 +169,21 @@ export const AdminUsers = () => {
         {/* Tabela */}
         {filtered.length === 0 ? (
           <Card className="p-10 text-center bg-white">
-            <Users size={40} className="mx-auto mb-3" style={{ color: '#D66B27' }} />
-            <p style={{ color: '#6B5B4E' }}>Nenhum usuário encontrado</p>
+            <Users size={40} className="mx-auto mb-3" style={{ color: 'var(--accent-orange)' }} />
+            <p style={{ color: 'var(--text-secondary)' }}>Nenhum usuário encontrado</p>
           </Card>
         ) : (
           <Card className="bg-white border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
-                  <tr style={{ backgroundColor: '#FDF3E8', borderBottom: '1px solid #E8DDD0' }}>
-                    <th className="text-left px-4 py-3 font-semibold" style={{ color: '#7C1805' }}>Nome</th>
-                    <th className="text-left px-4 py-3 font-semibold" style={{ color: '#7C1805' }}>Email</th>
-                    <th className="text-left px-4 py-3 font-semibold" style={{ color: '#7C1805' }}>Função</th>
-                    <th className="text-left px-4 py-3 font-semibold" style={{ color: '#7C1805' }}>Status</th>
-                    <th className="text-left px-4 py-3 font-semibold" style={{ color: '#7C1805' }}>Cadastro</th>
-                    <th className="text-left px-4 py-3 font-semibold" style={{ color: '#7C1805' }}>Ações</th>
+                  <tr style={{ backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)' }}>
+                    <th className="text-left px-4 py-3 font-semibold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '140px' }}>Nome</th>
+                    <th className="text-left px-4 py-3 font-semibold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '180px' }}>Email</th>
+                    <th className="text-left px-4 py-3 font-semibold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '110px' }}>Função</th>
+                    <th className="text-left px-4 py-3 font-semibold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '80px' }}>Status</th>
+                    <th className="text-left px-4 py-3 font-semibold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '100px' }}>Cadastro</th>
+                    <th className="text-left px-4 py-3 font-semibold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '90px' }}>Ações</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -199,10 +199,10 @@ export const AdminUsers = () => {
                           opacity: isInactive ? 0.7 : 1,
                         }}
                       >
-                        <td className="px-4 py-3 font-medium" style={{ color: '#2C1A0E' }}>
+                        <td className="px-4 py-3 font-medium" style={{ color: 'var(--text-primary)' }}>
                           {user.name}
                         </td>
-                        <td className="px-4 py-3" style={{ color: '#6B5B4E' }}>{user.email}</td>
+                        <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>{user.email}</td>
                         <td className="px-4 py-3">
                           {/* Dropdown de função */}
                           <select
@@ -226,13 +226,13 @@ export const AdminUsers = () => {
                         </td>
                         <td className="px-4 py-3">
                           <Badge style={{
-                            backgroundColor: isInactive ? '#6B5B4E' : '#36555A',
-                            color: '#FDF3E8', fontSize: '11px',
+                            backgroundColor: isInactive ? 'var(--text-secondary)' : 'var(--accent-green)',
+                            color: 'var(--bg-primary)', fontSize: '11px',
                           }}>
                             {isInactive ? 'Inativo' : 'Ativo'}
                           </Badge>
                         </td>
-                        <td className="px-4 py-3" style={{ color: '#6B5B4E' }}>
+                        <td className="px-4 py-3" style={{ color: 'var(--text-secondary)' }}>
                           {new Date(user.created_at).toLocaleDateString('pt-BR')}
                         </td>
                         <td className="px-4 py-3">
@@ -242,7 +242,7 @@ export const AdminUsers = () => {
                             disabled={togglingActive === user.id}
                             onClick={() => toggleActive(user.id, !isInactive)}
                             title={isInactive ? 'Reativar usuário' : 'Desativar usuário'}
-                            style={{ color: isInactive ? '#36555A' : '#7C1805' }}
+                            style={{ color: isInactive ? 'var(--accent-green)' : 'var(--accent-red)' }}
                           >
                             {isInactive ? <UserCheck size={16} /> : <UserX size={16} />}
                           </Button>
@@ -262,7 +262,7 @@ export const AdminUsers = () => {
                 </tbody>
               </table>
             </div>
-            <div className="px-4 py-2 text-xs" style={{ color: '#6B5B4E', borderTop: '1px solid #F0EBE3' }}>
+            <div className="px-4 py-2 text-xs" style={{ color: 'var(--text-secondary)', borderTop: '1px solid #F0EBE3' }}>
               Mostrando {filtered.length} de {users.length} usuários
             </div>
           </Card>
