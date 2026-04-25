@@ -140,6 +140,7 @@ export const CorrectEssay = () => {
   const [draftLoaded, setDraftLoaded] = useState(false);
   const [showConfirmPublish, setShowConfirmPublish] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false); // U-09
+  const [mobileTab, setMobileTab] = useState('canvas'); // 'canvas' | 'score' — abas em mobile
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
   const pendingDraftRef = useRef(null);
   const [requestingRewrite, setRequestingRewrite] = useState(false);
@@ -1412,22 +1413,22 @@ export const CorrectEssay = () => {
   return (
     <div style={{ backgroundColor: 'var(--bg-primary)', minHeight: '100vh' }}>
       {/* HEADER FIXO */}
-      <div className="bg-white border-b px-6 py-4 flex items-center justify-between">
-        <div>
+      <div className="bg-white border-b px-4 sm:px-6 py-3 sm:py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="min-w-0">
           <Button
             onClick={() => navigate('/correction-queue')}
             variant="ghost"
             size="sm"
-            className="mb-2"
+            className="mb-1"
           >
-            ← Voltar para fila
+            ← Voltar
           </Button>
-          <h1 className="font-heading text-xl font-bold" style={{ color: 'var(--accent-red)' }}>
+          <h1 className="font-heading font-bold truncate" style={{ color: 'var(--accent-red)', fontSize: 'clamp(15px, 3vw, 20px)' }}>
             {essay.prompt_title}
           </h1>
-          <p className="text-sm text-slate-500">Aluno: {essay.student_name}</p>
+          <p className="text-xs sm:text-sm text-slate-500 truncate">Aluno: {essay.student_name}</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
           <button
             onClick={saveDraft}
             disabled={savingDraft}
@@ -1460,34 +1461,53 @@ export const CorrectEssay = () => {
           <Button
             onClick={handleRequestRewrite}
             disabled={requestingRewrite || submitting || rewriteRequested}
-            size="lg"
+            size="sm"
             variant="outline"
             style={{
               borderColor: rewriteRequested ? 'var(--accent-green)' : 'var(--accent-orange)',
               color: rewriteRequested ? 'var(--accent-green)' : 'var(--accent-orange)',
+              minHeight: '36px', fontSize: '12px',
             }}
             title="Envia a correção e solicita que o aluno reescreva"
           >
-            {requestingRewrite ? 'Enviando...' : rewriteRequested ? '✓ Reescrita solicitada' : '✏️ Solicitar Reescrita'}
+            {requestingRewrite ? 'Enviando...' : rewriteRequested ? '✓ Reescrita' : '✏️ Reescrita'}
           </Button>
           <Button
             onClick={() => confirmBeforePublish ? setShowConfirmPublish(true) : handleSubmit()}
             disabled={submitting}
-            size="lg"
-            style={{ backgroundColor: 'var(--accent-green)' }}
+            size="sm"
+            style={{ backgroundColor: 'var(--accent-green)', minHeight: '36px', fontSize: '12px' }}
             data-testid="finalize-correction-button"
           >
-            {submitting ? 'Finalizando...' : '✓ Finalizar Correção'}
+            {submitting ? 'Finalizando...' : '✓ Finalizar'}
           </Button>
         </div>
       </div>
 
+      {/* ABAS MOBILE — só aparecem em telas pequenas */}
+      <div className="sm:hidden flex border-b bg-white sticky z-30" style={{ top: 0 }}>
+        {[
+          { key: 'canvas', label: '✏️ Canvas' },
+          { key: 'score',  label: '📊 Avaliação' },
+        ].map(tab => (
+          <button key={tab.key} onClick={() => setMobileTab(tab.key)}
+            style={{
+              flex: 1, padding: '12px 8px', fontSize: '13px', fontWeight: 600,
+              border: 'none', cursor: 'pointer', borderBottom: mobileTab === tab.key ? '3px solid var(--accent-red)' : '3px solid transparent',
+              backgroundColor: 'white', color: mobileTab === tab.key ? 'var(--accent-red)' : 'var(--text-secondary)',
+              transition: 'all 0.15s',
+            }}
+          >{tab.label}</button>
+        ))}
+      </div>
+
       <div className="flex" style={{ alignItems: 'flex-start' }}>
         {/* PAINEL ESQUERDO - Texto + Anotações */}
-        <div style={{ flex: 1, minWidth: 0 }}>
+        <div className={mobileTab === 'score' ? 'hidden sm:block' : ''} style={{ flex: 1, minWidth: 0 }}>
           {/* TOOLBAR */}
-          <div className="p-4 bg-white border-b flex items-center gap-2 flex-wrap"
-            style={{ position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
+          <div className="bg-white border-b"
+            style={{ position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+          <div className="p-3 sm:p-4 flex items-center gap-2" style={{ minWidth: 'max-content' }}>
             {/* Ferramentas de texto */}
             <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
               {TOOLS.filter(t => t.group === 'text').map(tool => {
@@ -1609,7 +1629,8 @@ export const CorrectEssay = () => {
               </>
             )}
 
-          </div>
+          </div>{/* fim toolbar inner */}
+          </div>{/* fim toolbar scroll wrapper */}
 
           {/* RECADO DO ALUNO */}
           {essay.student_note && (
@@ -1680,7 +1701,7 @@ export const CorrectEssay = () => {
           <div className="p-4">
             <div
               ref={canvasContainerRef}
-              style={{ position: 'relative', maxWidth: '1100px', margin: '0 auto' }}
+              style={{ position: 'relative', maxWidth: '100%', margin: '0 auto' }}
             >
               {/* PDF convertido em páginas de imagem (novo sistema) */}
               {pdfImagePages.length > 0 && (
@@ -2194,8 +2215,15 @@ export const CorrectEssay = () => {
       )}
 
       {/* PAINEL DIREITO - Avaliação */}
-        <div className="bg-white border-l" style={{ width: '38%', minWidth: '360px', maxWidth: '480px', position: 'sticky', top: '72px', height: 'calc(100vh - 72px)', overflowY: 'auto' }}>
-          <div className="p-6 space-y-6">
+        <div
+          className={`bg-white border-l ${mobileTab === 'canvas' ? 'hidden sm:block' : 'w-full sm:w-auto block'}`}
+          style={{
+            width: '38%', minWidth: '360px', maxWidth: '480px',
+            position: 'sticky', top: '72px',
+            height: 'calc(100vh - 72px)', overflowY: 'auto',
+          }}
+        >
+          <div className="p-4 sm:p-6 space-y-6">
             {/* PONTUAÇÃO */}
             <div>
               <h3 className="font-semibold mb-3" style={{ color: 'var(--accent-red)' }}>Pontuação por Critério</h3>
@@ -2317,7 +2345,7 @@ export const CorrectEssay = () => {
                 value={feedback.general_feedback}
                 onChange={(e) => setFeedback({ ...feedback, general_feedback: e.target.value })}
                 rows={6}
-                placeholder="Escreva aqui o feedback completo para o aluno..."
+                placeholder="Escreva aqui o feedback completo para o aluno..." style={{ fontSize: "16px" }}
                 data-testid="general-feedback-input"
               />
             </div>
