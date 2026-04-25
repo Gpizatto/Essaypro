@@ -690,23 +690,29 @@ async def get_all_teacher_essays(
     status: Optional[str] = Query(None, description="Filtrar por status: pending, in_progress, corrected"),
     page: int = Query(1, ge=1, description="Página (começa em 1)"),
     page_size: int = Query(100, ge=1, le=500, description="Itens por página (máx 500)"),
+    course_id: Optional[str] = Query(None, description="Filtrar por turma"),
 ):
-    """Retorna redações paginadas com filtro por status. P-01: evita carregar 5000 docs de uma vez."""
+    """Retorna redações paginadas com filtro por status e turma."""
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Filtro por turma para professores
     query: dict = {}
-    if current_user["role"] == "teacher":
-        teacher_courses = current_user.get("course_ids", [])
-        if teacher_courses:
-            # Buscar alunos das turmas do professor
-            students = await db.users.find(
-                {"role": "student", "course_ids": {"$in": teacher_courses}},
-                {"_id": 1}
-            ).to_list(10000)
-            student_ids = [str(s["_id"]) for s in students]
-            query["student_id"] = {"$in": student_ids}
+
+    # Determinar filtro de turma
+    if course_id and course_id != "all":
+        filter_courses = [course_id]
+    elif current_user["role"] == "teacher":
+        filter_courses = current_user.get("course_ids", [])
+    else:
+        filter_courses = []
+
+    if filter_courses:
+        students = await db.users.find(
+            {"role": "student", "course_ids": {"$in": filter_courses}},
+            {"_id": 1}
+        ).to_list(10000)
+        student_ids = [str(s["_id"]) for s in students]
+        query["student_id"] = {"$in": student_ids}
 
     if status:
         query["status"] = status
@@ -878,11 +884,13 @@ async def get_student_stats(current_user: dict = Depends(get_current_user)):
         ).to_list(len(essay_ids))
         scores = [c["total_score"] for c in corrections]
     
+    avg_score = round(sum(scores) / len(scores), 1) if scores else 0
+
     return {
         "total_essays": len(essays),
         "pending_corrections": len([e for e in essays if e["status"] == "pending"]),
-        "average_score": round(avg_score or 0, 1),
-        "best_score": max(scores) if scores else 0
+        "average_score": avg_score,
+        "best_score": max(scores) if scores else 0,
     }
 
 @api_router.get("/admin/pending-users")
@@ -1905,7 +1913,7 @@ async def send_email(to_email: str, subject: str, html: str) -> bool:
         return False
 
 async def send_reset_email(to_email: str, to_name: str, reset_token: str):
-    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro-frontend.onrender.com")
+    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro.onrender.com")
     reset_link = f"{frontend_url}/reset-password?token={reset_token}"
 
     body = f"""
@@ -1949,7 +1957,7 @@ async def send_welcome_email(to_email: str, to_name: str):
 
 async def send_correction_ready_email(to_email: str, to_name: str, prompt_title: str, essay_id: str):
     """Email notificando que a correção ficou pronta."""
-    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro-frontend.onrender.com")
+    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro.onrender.com")
     link = f"{frontend_url}/essay/{essay_id}/correction"
     body = f"""
         <p style="color: #6B5B4E; font-size: 15px; margin: 0 0 12px 0;">Olá, <strong>{to_name}</strong>!</p>
@@ -1971,7 +1979,7 @@ async def send_correction_ready_email(to_email: str, to_name: str, prompt_title:
 
 async def send_rewrite_requested_email(to_email: str, to_name: str, teacher_name: str, prompt_title: str, essay_id: str):
     """Email notificando que o professor solicitou reescrita."""
-    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro-frontend.onrender.com")
+    frontend_url = os.getenv("FRONTEND_URL", "https://essaypro.onrender.com")
     link = f"{frontend_url}/essay/{essay_id}/correction"
     body = f"""
         <p style="color: #6B5B4E; font-size: 15px; margin: 0 0 12px 0;">Olá, <strong>{to_name}</strong>!</p>
@@ -2102,7 +2110,12 @@ async def get_activity_logs(
 
 @api_router.get("/corrections/{essay_id}/history")
 async def get_correction_history(essay_id: str, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    # Alunos podem ver o histórico da própria redação
+    if current_user["role"] == "student":
+        essay = await db.essays.find_one({"id": essay_id}, {"_id": 0, "student_id": 1})
+        if not essay or str(essay.get("student_id", "")) != str(current_user["_id"]):
+            raise HTTPException(status_code=403, detail="Access denied")
+    elif current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     history = await db.correction_history.find(
         {"essay_id": essay_id}, {"_id": 0}
@@ -2732,7 +2745,7 @@ async def get_my_credits(current_user: dict = Depends(get_current_user)):
     }
 
 ALLOWED_ORIGINS = [
-    os.environ.get("FRONTEND_URL", "http://localhost:3000"),
+    os.environ.get("FRONTEND_URL", "https://essaypro.onrender.com"),
     "https://essaypro-frontend.onrender.com",
     "https://essaypro.onrender.com",        # URL alternativa do frontend
     "http://localhost:3000",
