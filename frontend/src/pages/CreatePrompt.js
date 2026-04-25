@@ -261,28 +261,28 @@ export const CreatePrompt = () => {
 
   return (
     <Layout>
-      <div className="space-y-6 max-w-4xl">
+      <div className="space-y-6 w-full max-w-4xl">
         {/* HEADER */}
         <div className="flex items-start justify-between flex-wrap gap-3">
           <div>
-            <h1 className="font-heading font-black text-4xl" style={{ color: '#7C1805' }} data-testid="create-prompt-title">
+            <h1 className="font-heading font-black" style={{ color: 'var(--accent-red)', fontSize: 'clamp(24px, 6vw, 36px)' }} data-testid="create-prompt-title">
               Criar Nova Proposta
             </h1>
             <p className="text-lg mt-2 text-slate-600">Adicione uma nova proposta de redação para os alunos</p>
           </div>
           {/* #3 — Botão Salvar Rascunho no topo */}
           <div className="flex items-center gap-2 pt-1 flex-wrap">
-            {autoSaveStatus === 'saving' && <span className="text-xs" style={{ color: '#6B5B4E' }}>auto-salvando...</span>}
-            {autoSaveStatus === 'saved' && <span className="text-xs" style={{ color: '#36555A' }}>✓ auto-salvo</span>}
+            {autoSaveStatus === 'saving' && <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>auto-salvando...</span>}
+            {autoSaveStatus === 'saved' && <span className="text-xs" style={{ color: 'var(--accent-green)' }}>✓ auto-salvo</span>}
             {draftLoaded && (
               <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
-                style={{ backgroundColor: '#FDF3E8', color: '#D66B27', border: '1px solid #DAB257' }}>
+                style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-orange)', border: '1px solid #DAB257' }}>
                 📄 Rascunho carregado
               </span>
             )}
             <button type="button" onClick={saveDraft} disabled={savingDraft}
-              className="flex items-center gap-1 px-4 py-2 rounded-md text-sm font-medium border transition-colors"
-              style={{ borderColor: draftSaved ? '#36555A' : '#E8DDD0', color: draftSaved ? '#36555A' : '#6B5B4E', backgroundColor: 'white' }}
+              className="flex items-center gap-1 px-4 rounded-md text-sm font-medium border transition-colors"
+              style={{ borderColor: draftSaved ? 'var(--accent-green)' : 'var(--border-color)', color: draftSaved ? 'var(--accent-green)' : 'var(--text-secondary)', backgroundColor: 'white' }}
               title="Salvar rascunho (Ctrl+S)">
               <Save size={14} />
               {savingDraft ? 'Salvando...' : draftSaved ? 'Salvo ✓' : 'Salvar rascunho (Ctrl+S)'}
@@ -293,13 +293,13 @@ export const CreatePrompt = () => {
         <form onSubmit={handleSubmit} className="space-y-6" data-testid="create-prompt-form">
 
           {/* INFORMAÇÕES DA PROPOSTA */}
-          <Card className="p-8 bg-white border">
-            <h3 className="font-semibold text-lg mb-4" style={{ color: '#7C1805' }}>Informações da Proposta</h3>
+          <Card className="p-5 sm:p-8 bg-white border">
+            <h3 className="font-semibold text-lg mb-4" style={{ color: 'var(--accent-red)' }}>Informações da Proposta</h3>
             <div className="space-y-4">
 
               {/* #6 — Título sem required */}
               <div>
-                <Label htmlFor="title">Proposta <span className="text-xs font-normal" style={{ color: '#6B5B4E' }}>(opcional)</span></Label>
+                <Label htmlFor="title">Proposta <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>(opcional)</span></Label>
                 <Input id="title" value={formData.title}
                   onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   placeholder="Ex: Desafios da educação digital no Brasil"
@@ -310,14 +310,14 @@ export const CreatePrompt = () => {
               {availableCourses.length > 0 && (
                 <div>
                   <Label className="text-sm font-semibold">Restringir a turmas <span className="font-normal">(opcional)</span></Label>
-                  <p className="text-xs mt-0.5 mb-2" style={{ color: '#6B5B4E' }}>Deixe em branco para todos os alunos verem.</p>
+                  <p className="text-xs mt-0.5 mb-2" style={{ color: 'var(--text-secondary)' }}>Deixe em branco para todos os alunos verem.</p>
                   <div className="flex flex-wrap gap-2">
                     {availableCourses.filter(c => c.is_active).map(c => (
                       <label key={c.id} className="flex items-center gap-1.5 cursor-pointer text-xs px-3 py-1.5 rounded-full border transition-all"
                         style={{
-                          backgroundColor: (formData.course_ids || []).includes(c.id) ? '#7C1805' : 'transparent',
-                          color: (formData.course_ids || []).includes(c.id) ? '#FDF3E8' : '#6B5B4E',
-                          borderColor: (formData.course_ids || []).includes(c.id) ? '#7C1805' : '#E8DDD0',
+                          backgroundColor: (formData.course_ids || []).includes(c.id) ? 'var(--accent-red)' : 'transparent',
+                          color: (formData.course_ids || []).includes(c.id) ? 'var(--bg-primary)' : 'var(--text-secondary)',
+                          borderColor: (formData.course_ids || []).includes(c.id) ? 'var(--accent-red)' : 'var(--border-color)',
                         }}>
                         <input type="checkbox" style={{ display: 'none' }}
                           checked={(formData.course_ids || []).includes(c.id)}
@@ -335,7 +335,7 @@ export const CreatePrompt = () => {
               {/* Período */}
               <div>
                 <Label className="text-sm font-semibold">Período de disponibilidade <span className="font-normal">(opcional)</span></Label>
-                <div className="flex gap-3 mt-2">
+                <div className="flex flex-col sm:flex-row gap-3 mt-2">
                   <div className="flex-1">
                     <Label htmlFor="start_date" className="text-xs">Data de início</Label>
                     <Input id="start_date" type="date" value={formData.start_date}
@@ -353,11 +353,11 @@ export const CreatePrompt = () => {
               <div>
                 <div className="flex items-center justify-between mb-1">
                   <Label htmlFor="supporting-texts">
-                    Textos de Apoio <span className="text-xs font-normal" style={{ color: '#6B5B4E' }}>(opcional)</span>
+                    Textos de Apoio <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>(opcional)</span>
                   </Label>
                   <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingFile}
                     className="flex items-center gap-1 text-xs px-2 py-1 rounded border"
-                    style={{ color: '#7C1805', borderColor: '#D66B27', backgroundColor: 'transparent', opacity: uploadingFile ? 0.6 : 1 }}>
+                    style={{ color: 'var(--accent-red)', borderColor: 'var(--accent-orange)', backgroundColor: 'transparent', opacity: uploadingFile ? 0.6 : 1 }}>
                     <Upload size={12} /> {uploadingFile ? 'Enviando...' : 'Importar arquivo'}
                   </button>
                   <input ref={fileInputRef} type="file" accept=".txt,.pdf,.jpg,.jpeg,.png" style={{ display: 'none' }} onChange={handleImportFile} />
@@ -374,16 +374,16 @@ export const CreatePrompt = () => {
                   <div className="mt-2 space-y-2">
                     {formData.supporting_files.map((f, i) => (
                       <div key={i} className="flex items-center justify-between p-2 rounded-lg"
-                        style={{ backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}>
+                        style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}>
                         <div className="flex items-center gap-2">
-                          <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: '#7C1805', color: 'white' }}>
+                          <span className="text-xs font-bold px-1.5 py-0.5 rounded" style={{ backgroundColor: 'var(--accent-red)', color: 'white' }}>
                             {f.type === 'pdf' ? 'PDF' : 'IMG'}
                           </span>
-                          <span className="text-xs" style={{ color: '#2C1A0E' }}>{f.name}</span>
+                          <span className="text-xs" style={{ color: 'var(--text-primary)' }}>{f.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <a href={f.url} target="_blank" rel="noreferrer" className="text-xs" style={{ color: '#36555A' }}>Visualizar</a>
-                          <button type="button" onClick={() => removeFile(i)} className="text-xs" style={{ color: '#7C1805' }}>✕</button>
+                          <a href={f.url} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--accent-green)' }}>Visualizar</a>
+                          <button type="button" onClick={() => removeFile(i)} className="text-xs" style={{ color: 'var(--accent-red)' }}>✕</button>
                         </div>
                       </div>
                     ))}
@@ -393,7 +393,7 @@ export const CreatePrompt = () => {
 
               {/* #6 — Instruções sem required */}
               <div>
-                <Label htmlFor="instructions">Instruções <span className="text-xs font-normal" style={{ color: '#6B5B4E' }}>(opcional)</span></Label>
+                <Label htmlFor="instructions">Instruções <span className="text-xs font-normal" style={{ color: 'var(--text-secondary)' }}>(opcional)</span></Label>
                 <Textarea id="instructions" value={formData.instructions}
                   onChange={(e) => setFormData({ ...formData, instructions: e.target.value })}
                   rows={4} placeholder="Com base nos textos motivadores..." className="mt-1" data-testid="instructions-input" />
@@ -402,31 +402,31 @@ export const CreatePrompt = () => {
           </Card>
 
           {/* CRITÉRIOS */}
-          <Card className="p-8 bg-white border">
+          <Card className="p-5 sm:p-8 bg-white border">
             <div className="mb-6">
               <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
                 <Label className="text-base font-semibold">Selecione um Modelo de Critérios</Label>
                 {/* #2 — Copiar grade */}
                 <button type="button" onClick={() => { setShowCopyGrade(v => !v); setCopyGradeSource(''); }}
                   className="flex items-center gap-1 text-xs px-3 py-1.5 rounded border font-semibold transition-all"
-                  style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: showCopyGrade ? '#FDF3E8' : 'white' }}>
+                  style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)', backgroundColor: showCopyGrade ? 'var(--bg-primary)' : 'white' }}>
                   <Copy size={12} /> Copiar grade de outra proposta
                 </button>
               </div>
 
               {/* #2 — Painel copiar grade */}
               {showCopyGrade && (
-                <div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: '#FDF3E8', border: '1px solid #DAB257' }}>
-                  <p className="text-xs font-semibold mb-2" style={{ color: '#7C1805' }}>Copiar critérios de qual proposta?</p>
+                <div className="mb-4 p-4 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid #DAB257' }}>
+                  <p className="text-xs font-semibold mb-2" style={{ color: 'var(--accent-red)' }}>Copiar critérios de qual proposta?</p>
                   <select value={copyGradeSource} onChange={e => setCopyGradeSource(e.target.value)}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E', marginBottom: '10px' }}>
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-primary)', marginBottom: '10px' }}>
                     <option value="">Selecione a proposta de origem...</option>
                     {existingPrompts.filter(p => p.criteria?.length).map(p => (
                       <option key={p.id} value={p.id}>{p.title} ({p.criteria.length} critério{p.criteria.length !== 1 ? 's' : ''})</option>
                     ))}
                   </select>
                   <div className="flex gap-2">
-                    <Button type="button" size="sm" disabled={!copyGradeSource} onClick={handleCopyGrade} style={{ backgroundColor: '#7C1805' }}>
+                    <Button type="button" size="sm" disabled={!copyGradeSource} onClick={handleCopyGrade} style={{ backgroundColor: 'var(--accent-red)' }}>
                       <Copy size={14} className="mr-1" /> Copiar grade
                     </Button>
                     <Button type="button" size="sm" variant="outline" onClick={() => setShowCopyGrade(false)}>Cancelar</Button>
@@ -440,13 +440,13 @@ export const CreatePrompt = () => {
                   <button key={key} type="button" onClick={() => handleModelChange(key)}
                     style={{
                       padding: '12px', borderRadius: '8px',
-                      border: selectedModel === key ? '2px solid #7C1805' : '1px solid #E8DDD0',
-                      backgroundColor: selectedModel === key ? '#7C1805' : '#FFF',
-                      color: selectedModel === key ? '#FDF3E8' : '#2C1A0E',
+                      border: selectedModel === key ? '2px solid var(--accent-red)' : '1px solid var(--border-color)',
+                      backgroundColor: selectedModel === key ? 'var(--accent-red)' : '#FFF',
+                      color: selectedModel === key ? 'var(--bg-primary)' : 'var(--text-primary)',
                       textAlign: 'left', cursor: 'pointer', transition: 'all 0.15s',
                     }}>
                     <p className="text-sm font-semibold">{model.name}</p>
-                    <p className="text-xs mt-0.5" style={{ color: selectedModel === key ? 'rgba(253,243,232,0.75)' : '#6B5B4E' }}>{model.description}</p>
+                    <p className="text-xs mt-0.5" style={{ color: selectedModel === key ? 'rgba(253,243,232,0.75)' : 'var(--text-secondary)' }}>{model.description}</p>
                   </button>
                 ))}
               </div>
@@ -454,7 +454,7 @@ export const CreatePrompt = () => {
               {/* Modelos salvos (#1) */}
               {savedModels.length > 0 && (
                 <div className="mt-4">
-                  <p className="text-xs font-semibold mb-2 flex items-center gap-1" style={{ color: '#6B5B4E' }}>
+                  <p className="text-xs font-semibold mb-2 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
                     <BookMarked size={12} /> Meus Modelos Salvos
                   </p>
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -463,19 +463,19 @@ export const CreatePrompt = () => {
                         <button type="button" onClick={() => handleLoadSavedModel(model)}
                           style={{
                             width: '100%', padding: '10px 12px', borderRadius: '8px',
-                            border: selectedModel === `saved_${model.id}` ? '2px solid #36555A' : '1px solid #D0E8E4',
-                            backgroundColor: selectedModel === `saved_${model.id}` ? '#36555A' : '#F0F7F6',
-                            color: selectedModel === `saved_${model.id}` ? '#FDF3E8' : '#2C1A0E',
+                            border: selectedModel === `saved_${model.id}` ? '2px solid var(--accent-green)' : '1px solid #D0E8E4',
+                            backgroundColor: selectedModel === `saved_${model.id}` ? 'var(--accent-green)' : '#F0F7F6',
+                            color: selectedModel === `saved_${model.id}` ? 'var(--bg-primary)' : 'var(--text-primary)',
                             textAlign: 'left', cursor: 'pointer', transition: 'all 0.15s',
                           }}>
                           <p className="text-sm font-semibold">{model.name}</p>
-                          <p className="text-xs mt-0.5" style={{ color: selectedModel === `saved_${model.id}` ? 'rgba(253,243,232,0.7)' : '#6B5B4E' }}>
+                          <p className="text-xs mt-0.5" style={{ color: selectedModel === `saved_${model.id}` ? 'rgba(253,243,232,0.7)' : 'var(--text-secondary)' }}>
                             {model.criteria?.length || 0} critério(s)
                           </p>
                         </button>
                         <button type="button" onClick={() => handleDeleteSavedModel(model.id, model.name)}
                           className="opacity-0 group-hover:opacity-100 transition-opacity absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-white text-xs"
-                          style={{ backgroundColor: '#7C1805' }} title="Remover modelo">×</button>
+                          style={{ backgroundColor: 'var(--accent-red)' }} title="Remover modelo">×</button>
                       </div>
                     ))}
                   </div>
@@ -485,10 +485,10 @@ export const CreatePrompt = () => {
 
             {/* Cabeçalho critérios */}
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-              <h3 className="font-semibold text-lg" style={{ color: '#7C1805' }}>Critérios de Avaliação</h3>
+              <h3 className="font-semibold text-lg" style={{ color: 'var(--accent-red)' }}>Critérios de Avaliação</h3>
               <div className="flex gap-2">
                 <Button type="button" onClick={() => { setNewModelName(''); setShowSaveModelModal(true); }}
-                  variant="outline" size="sm" style={{ borderColor: '#36555A', color: '#36555A' }}>
+                  variant="outline" size="sm" style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }}>
                   <Save size={14} className="mr-1" /> Salvar como modelo
                 </Button>
                 <Button type="button" onClick={handleAddCriterion} variant="outline" size="sm" data-testid="add-criterion-button">
@@ -499,7 +499,7 @@ export const CreatePrompt = () => {
 
             <div className="space-y-6">
               {criteria.map((criterion, index) => (
-                <Card key={criterion.id || index} className="p-4 border" style={{ backgroundColor: '#FDF3E8' }} data-testid={`criterion-${index}`}>
+                <Card key={criterion.id || index} className="p-4 border" style={{ backgroundColor: 'var(--bg-primary)' }} data-testid={`criterion-${index}`}>
                   <div className="space-y-3">
                     <div className="flex items-start justify-between">
                       <Label className="text-sm font-semibold">Critério {index + 1}</Label>
@@ -539,24 +539,24 @@ export const CreatePrompt = () => {
                       <button type="button"
                         onClick={() => setShowLevels(prev => ({ ...prev, [index]: !prev[index] }))}
                         className="text-xs font-semibold flex items-center gap-1 mt-1"
-                        style={{ color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+                        style={{ color: 'var(--accent-orange)', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
                         {showLevels[index] ? '▲' : '▼'} Descrições por nível ({criterion.level_descriptions?.length || 0} níveis)
                       </button>
                       {showLevels[index] && (
                         <div className="mt-2 space-y-3">
                           <div className="flex items-center justify-between mb-1">
-                            <p className="text-xs" style={{ color: '#6B5B4E' }}>Defina os níveis de pontuação e suas descrições.</p>
+                            <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>Defina os níveis de pontuação e suas descrições.</p>
                             <button type="button" onClick={() => handleAddLevel(index)}
                               className="text-xs px-2 py-1 rounded border font-semibold"
-                              style={{ borderColor: '#36555A', color: '#36555A', background: 'none', cursor: 'pointer' }}>+ Nível</button>
+                              style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)', background: 'none', cursor: 'pointer' }}>+ Nível</button>
                           </div>
                           {(criterion.level_descriptions || []).map((level, li) => (
-                            <div key={li} className="p-3 rounded-lg border" style={{ backgroundColor: '#FFF', borderColor: '#E8DDD0' }}>
+                            <div key={li} className="p-3 rounded-lg border" style={{ backgroundColor: '#FFF', borderColor: 'var(--border-color)' }}>
                               <div className="flex items-center gap-2 mb-2">
                                 <input type="number" min="0" value={level.pontuacao}
                                   onChange={(e) => handleLevelChange(index, li, 'pontuacao', Number(e.target.value))}
-                                  style={{ width: '64px', padding: '2px 6px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '12px' }} />
-                                <span className="text-xs" style={{ color: '#6B5B4E' }}>pts</span>
+                                  style={{ width: '64px', padding: '2px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }} />
+                                <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>pts</span>
                                 <Input value={level.proficiencia}
                                   onChange={(e) => handleLevelChange(index, li, 'proficiencia', e.target.value)}
                                   placeholder={`Ex: Nível ${li} — Bom domínio`} className="flex-1 h-7 text-xs" />
@@ -579,7 +579,7 @@ export const CreatePrompt = () => {
             </div>
 
             <div className="mt-4 p-4 rounded-md" style={{ backgroundColor: '#E0E7FF' }}>
-              <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>
                 Pontuação Total: {criteria.reduce((sum, c) => sum + (c.peso_maximo || 0), 0)} pontos
               </p>
             </div>
@@ -587,12 +587,12 @@ export const CreatePrompt = () => {
 
           {/* BOTÕES FINAIS */}
           <div className="flex gap-4 flex-wrap">
-            <Button type="submit" disabled={loading} style={{ backgroundColor: '#7C1805' }} data-testid="submit-prompt-button">
+            <Button type="submit" disabled={loading} style={{ backgroundColor: 'var(--accent-red)' }} data-testid="submit-prompt-button">
               {loading ? 'Criando...' : 'Criar Proposta'}
             </Button>
             <button type="button" onClick={saveDraft} disabled={savingDraft}
               className="flex items-center gap-1 px-4 py-2 rounded-md text-sm font-medium border"
-              style={{ borderColor: draftSaved ? '#36555A' : '#E8DDD0', color: draftSaved ? '#36555A' : '#6B5B4E', backgroundColor: 'white' }}>
+              style={{ borderColor: draftSaved ? 'var(--accent-green)' : 'var(--border-color)', color: draftSaved ? 'var(--accent-green)' : 'var(--text-secondary)', backgroundColor: 'white' }}>
               <Save size={14} /> {savingDraft ? 'Salvando...' : draftSaved ? 'Salvo ✓' : 'Salvar rascunho'}
             </button>
             <Button type="button" variant="outline" onClick={() => navigate('/dashboard')} data-testid="cancel-button">
@@ -607,27 +607,27 @@ export const CreatePrompt = () => {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl shadow-2xl p-6 w-[400px]">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-semibold text-lg" style={{ color: '#7C1805' }}>
+              <h3 className="font-semibold text-lg" style={{ color: 'var(--accent-red)' }}>
                 <BookMarked size={18} className="inline mr-2" />Salvar como Modelo
               </h3>
               <button onClick={() => setShowSaveModelModal(false)}
-                style={{ color: '#6B5B4E', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>×</button>
+                style={{ color: 'var(--text-secondary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '20px' }}>×</button>
             </div>
-            <p className="text-sm mb-4" style={{ color: '#6B5B4E' }}>
+            <p className="text-sm mb-4" style={{ color: 'var(--text-secondary)' }}>
               Os {criteria.length} critério(s) configurados serão salvos como modelo reutilizável.
             </p>
-            <label className="text-xs font-semibold block mb-1" style={{ color: '#2C1A0E' }}>Nome do modelo</label>
+            <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-primary)' }}>Nome do modelo</label>
             <input autoFocus value={newModelName} onChange={e => setNewModelName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && handleSaveCustomModel()}
               placeholder="Ex: Grade Redação Vestibular 2025"
-              style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid #E8DDD0', fontSize: '14px', marginBottom: '16px', boxSizing: 'border-box' }} />
+              style={{ width: '100%', padding: '8px 12px', borderRadius: '8px', border: '1px solid var(--border-color)', fontSize: '14px', marginBottom: '16px', boxSizing: 'border-box' }} />
             <div className="flex gap-3">
               <button onClick={() => setShowSaveModelModal(false)}
                 className="flex-1 py-2 rounded-lg border text-sm font-medium"
-                style={{ borderColor: '#E8DDD0', color: '#6B5B4E' }}>Cancelar</button>
+                style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>Cancelar</button>
               <button onClick={handleSaveCustomModel} disabled={savingModel || !newModelName.trim()}
                 className="flex-1 py-2 rounded-lg text-sm font-semibold text-white"
-                style={{ backgroundColor: '#36555A', opacity: (!newModelName.trim() || savingModel) ? 0.5 : 1 }}>
+                style={{ backgroundColor: 'var(--accent-green)', opacity: (!newModelName.trim() || savingModel) ? 0.5 : 1 }}>
                 {savingModel ? 'Salvando...' : '✓ Salvar modelo'}
               </button>
             </div>
