@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 import { toast } from 'sonner';
 import { Layout } from '../components/Layout';
@@ -30,10 +30,10 @@ const StatCard = ({ label, value, Icon, color, sub }) => (
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
       <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
-      <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</p>
+      <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</p>
     </div>
     <p style={{ fontSize: '34px', fontWeight: 800, color, lineHeight: 1, letterSpacing: '-0.02em' }}>{value}</p>
-    {sub && <p style={{ fontSize: '11px', color: '#6B5B4E', marginTop: '2px' }}>{sub}</p>}
+    {sub && <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{sub}</p>}
   </Card>
 );
 
@@ -88,8 +88,8 @@ export const AdminDashboard = () => {
 
   const selectStyle = {
     padding: '8px 12px', borderRadius: '8px',
-    border: '1px solid #E8DDD0', fontSize: '13px',
-    color: '#2C1A0E', backgroundColor: '#FFF', outline: 'none',
+    border: '1px solid var(--border-color)', fontSize: '13px',
+    color: 'var(--text-primary)', backgroundColor: '#FFF', outline: 'none',
   };
 
   const approveUser = async (userId) => {
@@ -197,7 +197,7 @@ export const AdminDashboard = () => {
       <Layout>
         <div className="animate-pulse space-y-4">
           <div className="h-8 bg-muted rounded w-1/3"></div>
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             {[1,2,3,4,5,6].map(i => <div key={i} className="h-28 bg-muted rounded" />)}
           </div>
         </div>
@@ -213,19 +213,19 @@ export const AdminDashboard = () => {
         <div>
           <h1
             className="font-heading font-bold"
-            style={{ fontSize: '28px', color: '#7C1805', letterSpacing: '-0.02em' }}
+            style={{ fontSize: 'clamp(22px, 5vw, 28px)', color: 'var(--accent-red)', letterSpacing: '-0.02em' }}
             data-testid="admin-dashboard-title"
           >
             Painel Administrativo
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>Visão geral da plataforma</p>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>Visão geral da plataforma</p>
 
           {/* Filtro de turma + ferramentas */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '12px', flexWrap: 'wrap' }}>
             {courses.length > 0 && (
               <>
-                <span style={{ fontSize: '12px', color: '#6B5B4E', fontWeight: 600 }}>Turma:</span>
-                <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} style={{ ...selectStyle, fontSize: '12px', padding: '4px 8px' }}>
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: 600 }}>Turma:</span>
+                <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} style={{ ...selectStyle, fontSize: '14px', padding: '8px 10px', minHeight: '40px' }}>
                   <option value="all">Todas</option>
                   {courses.filter(c => c.is_active).map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -238,15 +238,15 @@ export const AdminDashboard = () => {
               disabled={runningBackup}
               style={{
                 display: 'flex', alignItems: 'center', gap: '5px',
-                padding: '6px 12px', borderRadius: '8px',
-                border: '1px solid #E8DDD0', backgroundColor: '#fff',
-                fontSize: '12px', fontWeight: 600, color: '#6B5B4E', cursor: 'pointer',
+                padding: '10px 12px', borderRadius: '8px', minHeight: '40px',
+                border: '1px solid var(--border-color)', backgroundColor: '#fff',
+                fontSize: '12px', fontWeight: 600, color: 'var(--text-secondary)', cursor: 'pointer',
               }}
             >
               {runningBackup ? '⏳ Salvando...' : '💾 Backup'}
             </button>
             {backups.length > 0 && (
-              <span style={{ fontSize: '11px', color: '#6B5B4E' }}>
+              <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
                 Último: {new Date(backups[0].created_at).toLocaleDateString('pt-BR')}
               </span>
             )}
@@ -254,9 +254,9 @@ export const AdminDashboard = () => {
               onClick={handleExportPDF}
               style={{
                 display: 'flex', alignItems: 'center', gap: '5px',
-                padding: '6px 12px', borderRadius: '8px',
-                border: '1px solid #7C1805', backgroundColor: '#fff',
-                fontSize: '12px', fontWeight: 600, color: '#7C1805', cursor: 'pointer',
+                padding: '10px 12px', borderRadius: '8px', minHeight: '40px',
+                border: '1px solid var(--accent-red)', backgroundColor: '#fff',
+                fontSize: '12px', fontWeight: 600, color: 'var(--accent-red)', cursor: 'pointer',
               }}
             >
               <Download size={12} /> PDF
@@ -265,9 +265,9 @@ export const AdminDashboard = () => {
               onClick={handleExportExcel}
               style={{
                 display: 'flex', alignItems: 'center', gap: '5px',
-                padding: '6px 12px', borderRadius: '8px',
-                border: '1px solid #36555A', backgroundColor: '#fff',
-                fontSize: '12px', fontWeight: 600, color: '#36555A', cursor: 'pointer',
+                padding: '10px 12px', borderRadius: '8px', minHeight: '40px',
+                border: '1px solid var(--accent-green)', backgroundColor: '#fff',
+                fontSize: '12px', fontWeight: 600, color: 'var(--accent-green)', cursor: 'pointer',
               }}
             >
               <Download size={12} /> Excel
@@ -276,19 +276,19 @@ export const AdminDashboard = () => {
         </div>
 
         {/* Métricas principais */}
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-          <StatCard label="Usuários" value={stats?.total_users || 0} Icon={Users} color="#7C1805"
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
+          <StatCard label="Usuários" value={stats?.total_users || 0} Icon={Users} color="var(--accent-red)"
             sub={`${stats?.total_students || 0} alunos · ${stats?.total_teachers || 0} prof.`} />
-          <StatCard label="Redações" value={stats?.total_essays || 0} Icon={FileText} color="#D66B27" />
+          <StatCard label="Redações" value={stats?.total_essays || 0} Icon={FileText} color="var(--accent-orange)" />
           <StatCard label="Pendentes" value={stats?.total_pending || 0} Icon={Clock} color="#DAB257"
             sub={`${pendingRate}% do total`} />
-          <StatCard label="Corrigidas" value={stats?.total_corrections || 0} Icon={CheckCircle} color="#36555A" />
-          <StatCard label="Reescritas" value={stats?.total_rewrites || 0} Icon={RotateCcw} color="#6B5B4E" />
+          <StatCard label="Corrigidas" value={stats?.total_corrections || 0} Icon={CheckCircle} color="var(--accent-green)" />
+          <StatCard label="Reescritas" value={stats?.total_rewrites || 0} Icon={RotateCcw} color="var(--text-secondary)" />
           <StatCard label="Média Geral" value={Math.round(stats?.average_score || 0)} Icon={Award} color="#A03217" />
         </div>
 
         {/* Frequência de envio */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Card
             className="bg-white border"
             style={{ padding: '18px', borderRadius: '14px', borderColor: '#D9B2CF44', position: 'relative', overflow: 'hidden' }}
@@ -298,10 +298,10 @@ export const AdminDashboard = () => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#A0509A' }} />
-              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Envios (7 dias)</p>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Envios (7 dias)</p>
             </div>
-            <p style={{ fontSize: '34px', fontWeight: 800, color: '#7C1805', lineHeight: 1, letterSpacing: '-0.02em' }}>{stats?.essays_last_7_days ?? 0}</p>
-            <p style={{ fontSize: '11px', color: '#6B5B4E', marginTop: '2px' }}>redações enviadas</p>
+            <p style={{ fontSize: '34px', fontWeight: 800, color: 'var(--accent-red)', lineHeight: 1, letterSpacing: '-0.02em' }}>{stats?.essays_last_7_days ?? 0}</p>
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>redações enviadas</p>
           </Card>
           <Card
             className="bg-white border"
@@ -312,10 +312,10 @@ export const AdminDashboard = () => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#DAB257' }} />
-              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Envios (30 dias)</p>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Envios (30 dias)</p>
             </div>
-            <p style={{ fontSize: '34px', fontWeight: 800, color: '#7C1805', lineHeight: 1, letterSpacing: '-0.02em' }}>{stats?.essays_last_30_days ?? 0}</p>
-            <p style={{ fontSize: '11px', color: '#6B5B4E', marginTop: '2px' }}>
+            <p style={{ fontSize: '34px', fontWeight: 800, color: 'var(--accent-red)', lineHeight: 1, letterSpacing: '-0.02em' }}>{stats?.essays_last_30_days ?? 0}</p>
+            <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
               ~{stats?.essays_last_30_days ? Math.round(stats.essays_last_30_days / 4) : 0}/semana
             </p>
           </Card>
@@ -328,8 +328,8 @@ export const AdminDashboard = () => {
             style={{ padding: '20px', borderRadius: '14px', borderColor: '#DAB257' }}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
-              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#D66B27', animation: 'pulse 1.5s ease-in-out infinite' }} />
-              <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805' }}>
+              <div style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: 'var(--accent-orange)', animation: 'pulse 1.5s ease-in-out infinite' }} />
+              <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-red)' }}>
                 Aguardando aprovação ({pendingUsers.length})
               </h2>
             </div>
@@ -337,16 +337,16 @@ export const AdminDashboard = () => {
               {pendingUsers.map(u => (
                 <div
                   key={u.id}
-                  style={{ padding: '12px', borderRadius: '10px', backgroundColor: '#FDF3E8', border: '1px solid #E8DDD0' }}
+                  style={{ padding: '12px', borderRadius: '10px', backgroundColor: 'var(--bg-primary)', border: '1px solid var(--border-color)' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '8px' }}>
                     <div style={{ flex: 1 }}>
-                      <p style={{ fontSize: '13px', fontWeight: 600, color: '#2C1A0E' }}>{u.name}</p>
-                      <p style={{ fontSize: '11px', color: '#6B5B4E', marginBottom: '8px' }}>
+                      <p style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-primary)' }}>{u.name}</p>
+                      <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginBottom: '8px' }}>
                         {u.email}
                         <button
                           onClick={() => editUserEmail(u.id, u.email)}
-                          style={{ marginLeft: '8px', color: '#D66B27', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px' }}
+                          style={{ marginLeft: '8px', color: 'var(--accent-orange)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '11px' }}
                         >
                           ✏️ corrigir
                         </button>
@@ -355,7 +355,7 @@ export const AdminDashboard = () => {
                         <select
                           value={pendingSelections[u.id]?.role || 'student'}
                           onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], role: e.target.value }}))}
-                          style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}
+                          style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', color: 'var(--text-primary)', backgroundColor: 'white' }}
                         >
                           <option value="student">Aluno</option>
                           <option value="teacher">Professor</option>
@@ -365,7 +365,7 @@ export const AdminDashboard = () => {
                           <select
                             value={pendingSelections[u.id]?.course_id || ''}
                             onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], course_id: e.target.value }}))}
-                            style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', color: '#2C1A0E', backgroundColor: 'white' }}
+                            style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', color: 'var(--text-primary)', backgroundColor: 'white' }}
                           >
                             <option value="">Sem turma</option>
                             {courses.filter(c => c.is_active).map(c => (
@@ -378,13 +378,13 @@ export const AdminDashboard = () => {
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                       <button
                         onClick={() => approveUser(u.id)}
-                        style={{ padding: '6px 12px', borderRadius: '8px', border: 'none', cursor: 'pointer', backgroundColor: '#36555A', color: '#fff', fontSize: '12px', fontWeight: 600 }}
+                        style={{ padding: '10px 12px', borderRadius: '8px', minHeight: '40px', border: 'none', cursor: 'pointer', backgroundColor: 'var(--accent-green)', color: '#fff', fontSize: '12px', fontWeight: 600 }}
                       >
                         ✓ Aprovar
                       </button>
                       <button
                         onClick={() => rejectUser(u.id)}
-                        style={{ padding: '6px 12px', borderRadius: '8px', cursor: 'pointer', backgroundColor: '#FEF2F2', color: '#7C1805', border: '1px solid #FCA5A5', fontSize: '12px', fontWeight: 600 }}
+                        style={{ padding: '10px 12px', borderRadius: '8px', minHeight: '40px', cursor: 'pointer', backgroundColor: '#FEF2F2', color: 'var(--accent-red)', border: '1px solid #FCA5A5', fontSize: '12px', fontWeight: 600 }}
                       >
                         ✕ Rejeitar
                       </button>
@@ -398,63 +398,63 @@ export const AdminDashboard = () => {
 
         {/* Top propostas + Top alunos */}
         <div className="grid md:grid-cols-2 gap-4">
-          <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: '#E8DDD0' }}>
+          <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: 'var(--border-color)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <BookOpen size={16} style={{ color: '#7C1805' }} />
-              <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805' }}>Propostas mais enviadas</h2>
+              <BookOpen size={16} style={{ color: 'var(--accent-red)' }} />
+              <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-red)' }}>Propostas mais enviadas</h2>
             </div>
             {stats?.top_prompts?.length > 0 ? (
               <div className="space-y-3">
                 {stats.top_prompts.map((p, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, width: '20px', textAlign: 'center', color: '#D66B27' }}>{i + 1}</span>
-                      <span style={{ fontSize: '13px', color: '#2C1A0E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, width: '20px', textAlign: 'center', color: 'var(--accent-orange)' }}>{i + 1}</span>
+                      <span style={{ fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title}</span>
                     </div>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#7C1805', marginLeft: '8px', flexShrink: 0 }}>{p.count}</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-red)', marginLeft: '8px', flexShrink: 0 }}>{p.count}</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ fontSize: '13px', color: '#6B5B4E' }}>Nenhum dado ainda</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Nenhum dado ainda</p>
             )}
           </Card>
 
-          <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: '#E8DDD0' }}>
+          <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: 'var(--border-color)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-              <TrendingUp size={16} style={{ color: '#7C1805' }} />
-              <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805' }}>Alunos mais ativos</h2>
+              <TrendingUp size={16} style={{ color: 'var(--accent-red)' }} />
+              <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-red)' }}>Alunos mais ativos</h2>
             </div>
             {stats?.top_students?.length > 0 ? (
               <div className="space-y-3">
                 {stats.top_students.map((s, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flex: 1, minWidth: 0 }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, width: '20px', textAlign: 'center', color: '#D66B27' }}>{i + 1}</span>
-                      <span style={{ fontSize: '13px', color: '#2C1A0E', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
+                      <span style={{ fontSize: '11px', fontWeight: 700, width: '20px', textAlign: 'center', color: 'var(--accent-orange)' }}>{i + 1}</span>
+                      <span style={{ fontSize: '13px', color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.name}</span>
                     </div>
-                    <span style={{ fontSize: '13px', fontWeight: 700, color: '#7C1805', marginLeft: '8px', flexShrink: 0 }}>{s.count} red.</span>
+                    <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--accent-red)', marginLeft: '8px', flexShrink: 0 }}>{s.count} red.</span>
                   </div>
                 ))}
               </div>
             ) : (
-              <p style={{ fontSize: '13px', color: '#6B5B4E' }}>Nenhum dado ainda</p>
+              <p style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>Nenhum dado ainda</p>
             )}
           </Card>
         </div>
 
         {/* Configuração de créditos */}
-        <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: '#E8DDD0' }}>
+        <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: 'var(--border-color)' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
-            <Zap size={16} style={{ color: '#7C1805' }} />
-            <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805' }}>Créditos de Envio</h2>
+            <Zap size={16} style={{ color: 'var(--accent-red)' }} />
+            <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-red)' }}>Créditos de Envio</h2>
           </div>
-          <p style={{ fontSize: '12px', color: '#6B5B4E', marginBottom: '16px' }}>
+          <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
             Configure quantas redações cada aluno pode enviar por período.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '12px' }}>
             <div>
-              <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px', color: '#2C1A0E' }}>Modo</label>
+              <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px', color: 'var(--text-primary)' }}>Modo</label>
               <select value={creditConfig.mode} onChange={e => setCreditConfig({ ...creditConfig, mode: e.target.value })} style={selectStyle}>
                 <option value="unlimited">Ilimitado</option>
                 <option value="monthly">Limite por mês</option>
@@ -463,7 +463,7 @@ export const AdminDashboard = () => {
             </div>
             {creditConfig.mode !== 'unlimited' && (
               <div>
-                <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px', color: '#2C1A0E' }}>
+                <label style={{ fontSize: '11px', fontWeight: 600, display: 'block', marginBottom: '4px', color: 'var(--text-primary)' }}>
                   Qtd. {creditConfig.mode === 'monthly' ? 'por mês' : 'por semana'}
                 </label>
                 <input
@@ -482,20 +482,20 @@ export const AdminDashboard = () => {
         </Card>
 
         {/* Ações rápidas */}
-        <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: '#E8DDD0' }}>
-          <h2 style={{ fontSize: '14px', fontWeight: 700, color: '#7C1805', marginBottom: '14px' }}>Ações rápidas</h2>
+        <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: 'var(--border-color)' }}>
+          <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-red)', marginBottom: '14px' }}>Ações rápidas</h2>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px' }}>
             <a href="/admin/users"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', backgroundColor: '#7C1805', color: '#FDF3E8', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', backgroundColor: 'var(--accent-red)', color: 'var(--bg-primary)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}
               data-testid="manage-users-button">
               <Users size={14} /> Gerenciar Usuários
             </a>
             <a href="/create-prompt"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', border: '1px solid #7C1805', color: '#7C1805', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', border: '1px solid var(--accent-red)', color: 'var(--accent-red)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
               <BookOpen size={14} /> Criar Proposta
             </a>
             <a href="/correction-queue"
-              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', border: '1px solid #36555A', color: '#36555A', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
+              style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', padding: '9px 18px', borderRadius: '8px', border: '1px solid var(--accent-green)', color: 'var(--accent-green)', fontSize: '13px', fontWeight: 600, textDecoration: 'none' }}>
               <FileText size={14} /> Fila de Correções
             </a>
           </div>
