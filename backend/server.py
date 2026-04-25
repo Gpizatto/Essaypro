@@ -288,7 +288,7 @@ async def register(user_data: UserRegister, request: Request):
     # Enviar email de boas-vindas (não bloqueia o cadastro se falhar)
     try:
         await send_welcome_email(email, user_data.name)
-    except Exception as e:
+    except (Exception,) as e:  # httpx.RequestError, ValueError
         logger.warning(f"Welcome email failed: {str(e)}")
     return {"message": "Cadastro realizado! Aguarde a aprovação do administrador para acessar a plataforma."}
 
@@ -600,7 +600,8 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
                 type="essay",
                 link="/correction-queue"
             )
-    except Exception: pass
+    except (Exception,) as e:  # KeyError, TypeError, ValueError
+        logger.warning(f"Essay enrich error: {e}")
 
     return EssayResponse(**essay_doc)
 
@@ -816,7 +817,7 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
                     prompt_title=essay_data.get("prompt_title", "sua redação"),
                     essay_id=correction_data.essay_id,
                 )
-        except Exception as e:
+        except (Exception,) as e:  # httpx.RequestError, ValueError
             logger.warning(f"Correction email failed: {str(e)}")
 
 
@@ -1153,7 +1154,7 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
     # Filtro compatível com teacher_id como string ou ObjectId
     try:
         tid_filter = {"$or": [{"teacher_id": tid}, {"teacher_id": ObjectId(tid)}]}
-    except Exception:
+    except (ValueError, TypeError):  # ObjectId inválido
         tid_filter = {"teacher_id": tid}
 
     # ── Contagens periódicas via aggregation — 1 query ──────────────────────
@@ -1285,7 +1286,7 @@ async def save_teacher_intervention(essay_id: str, body: dict, current_user: dic
                         prompt_title=prompt_title,
                         essay_id=essay_id,
                     )
-            except Exception as e:
+            except (Exception,) as e:  # httpx.RequestError, ValueError
                 logger.warning(f"Rewrite email failed: {str(e)}")
 
     return {"message": "Intervenção salva", **update}
@@ -1522,7 +1523,7 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
             ).to_list(5)
             umap = {str(u["_id"]): u["name"] for u in ulist}
             top_students = [{"name": umap[r["_id"]], "count": r["count"]} for r in student_agg if r.get("_id") in umap]
-        except Exception:
+        except (KeyError, TypeError, ValueError):
             pass
 
     # Frequência de envio — essays nos últimos 7 e 30 dias
@@ -1646,7 +1647,7 @@ async def serve_file(file_id: str, request: Request):
         )
     except HTTPException:
         raise
-    except Exception as e:
+    except (OSError, IOError, Exception) as e:
         logger.error(f"serve_file {file_id}: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=str(e))
 
@@ -1908,7 +1909,7 @@ async def send_email(to_email: str, subject: str, html: str) -> bool:
                 logger.error(f"Resend error {resp.status_code}: {resp.text}")
                 return False
             return True
-    except Exception as e:
+    except (Exception,) as e:  # httpx.RequestError, httpx.TimeoutException, OSError
         logger.error(f"Email send exception: {str(e)}")
         return False
 
@@ -2187,7 +2188,7 @@ async def get_ranking(current_user: dict = Depends(get_current_user)):
                 if isinstance(created, str):
                     created = datetime.fromisoformat(created.replace('Z', '+00:00'))
                 weeks_active = max(1, (datetime.now(timezone.utc) - created).days / 7)
-            except Exception:
+            except (ValueError, TypeError, ZeroDivisionError):
                 weeks_active = 1
             frequency = round(len(essays) / weeks_active, 2)
 
@@ -2398,7 +2399,7 @@ async def run_backup():
             old_ids = [b["_id"] for b in all_backups[7:]]
             await db.backups.delete_many({"_id": {"$in": old_ids}})
         logger.info("Backup automático concluído")
-    except Exception as e:
+    except (OSError, IOError, Exception) as e:
         logger.error(f"Backup error: {str(e)}")
 
 async def backup_scheduler():
@@ -2418,8 +2419,8 @@ async def keep_alive_scheduler():
         try:
             async with httpx.AsyncClient(timeout=10) as client:
                 await client.get(f"{backend_url}/api/health")
-        except Exception:
-            pass
+        except (Exception,) as e:  # OSError, RuntimeError — manter loop rodando
+            logger.warning(f"Backup loop error: {e}")
         await asyncio.sleep(600)  # 10 minutos
 
 @api_router.get("/health")
@@ -2486,51 +2487,64 @@ async def get_student_evolution(current_user: dict = Depends(get_current_user)):
 async def get_course_engagement(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
+
+    def _parse_dt(v):
+        """Converte string ISO ou datetime para datetime aware."""
+        if not v:
+            return None
+        if isinstance(v, str):
+            try:
+                return datetime.fromisoformat(v.replace("Z", "+00:00"))
+            except (ValueError, AttributeError):
+                return None
+        if hasattr(v, "tzinfo"):
+            return v if v.tzinfo else v.replace(tzinfo=timezone.utc)
+        return None
+
     try:
         courses = await db.courses.find({"is_active": True}, {"_id": 0}).to_list(100)
+        four_weeks_ago = datetime.now(timezone.utc) - timedelta(weeks=4)
         result = []
 
         for course in courses:
-            cid = course["id"]
+            cid = course.get("id", "")
+            if not cid:
+                continue
+
+            # Alunos da turma
             students = await db.users.find(
-                {"role": "student", "course_ids": cid},
-                {"_id": 1}
+                {"role": "student", "course_ids": cid}, {"_id": 1}
             ).to_list(1000)
             student_ids = [str(s["_id"]) for s in students]
 
             if not student_ids:
                 result.append({
-                    "course_id": cid,
-                    "course_name": course["name"],
-                    "total_students": 0,
-                    "active_students": 0,
-                    "total_essays": 0,
-                    "total_corrected": 0,
-                    "avg_score": 0,
-                    "engagement_rate": 0,
+                    "course_id": cid, "course_name": course.get("name", ""),
+                    "modality": course.get("modality", ""),
+                    "total_students": 0, "active_students": 0,
+                    "total_essays": 0, "total_corrected": 0,
+                    "avg_score": 0, "engagement_rate": 0,
                 })
                 continue
 
-            # Essays nas últimas 4 semanas
-            four_weeks_ago = datetime.now(timezone.utc) - timedelta(weeks=4)
+            # Essays da turma
             essays = await db.essays.find(
                 {"student_id": {"$in": student_ids}},
-                {"_id": 0, "student_id": 1, "status": 1, "submitted_at": 1}
-            ).to_list(10000)
+                {"_id": 0, "id": 1, "student_id": 1, "status": 1, "submitted_at": 1}
+            ).to_list(5000)
 
-            def parse_dt_safe(v):
-                if not v: return None
-                if isinstance(v, str):
-                    try: return datetime.fromisoformat(v.replace('Z','+00:00'))
-                    except: return None
-                return v
-            recent = [e for e in essays if parse_dt_safe(e.get("submitted_at")) and parse_dt_safe(e.get("submitted_at")) >= four_weeks_ago]
-            active_students = len(set(e["student_id"] for e in recent))
+            # Alunos ativos nas últimas 4 semanas
+            active_sids = set()
+            for e in essays:
+                dt = _parse_dt(e.get("submitted_at"))
+                if dt and dt >= four_weeks_ago:
+                    active_sids.add(e.get("student_id", ""))
+
             corrected = [e for e in essays if e.get("status") == "corrected"]
 
-            # Buscar scores em batch — 1 query em vez de N
-            corrected_ids = [e.get("id", "") for e in corrected[:50] if e.get("id")]
+            # Scores em batch
             scores = []
+            corrected_ids = [e["id"] for e in corrected[:50] if e.get("id")]
             if corrected_ids:
                 corrs = await db.corrections.find(
                     {"essay_id": {"$in": corrected_ids}},
@@ -2540,33 +2554,25 @@ async def get_course_engagement(current_user: dict = Depends(get_current_user)):
 
             result.append({
                 "course_id": cid,
-                "course_name": course["name"],
+                "course_name": course.get("name", ""),
                 "modality": course.get("modality", ""),
                 "total_students": len(student_ids),
-                "active_students": active_students,
+                "active_students": len(active_sids),
                 "total_essays": len(essays),
                 "total_corrected": len(corrected),
                 "avg_score": round(sum(scores) / len(scores), 1) if scores else 0,
-                "engagement_rate": round(active_students / len(student_ids) * 100, 1) if student_ids else 0,
+                "engagement_rate": round(len(active_sids) / len(student_ids) * 100, 1) if student_ids else 0,
             })
 
-        try:
-            return sorted(result, key=lambda x: -x["engagement_rate"])
-        except Exception as e:
-            logger.error(f"Engagement sort error: {e}")
-            return result
+        return sorted(result, key=lambda x: -x["engagement_rate"])
 
     except Exception as e:
-        logger.error(f"course-engagement error: {e}")
+        logger.error(f"course-engagement error: {e}", exc_info=True)
         raise HTTPException(status_code=500, detail=f"Erro ao calcular engajamento: {str(e)}")
 
 # ============================================================
 # CORREÇÃO EM LOTE (Batch Comments)
 # ============================================================
-
-    except Exception as e:
-        logger.error(f"Report error: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail=f"Erro interno: {str(e)}")
 
 @api_router.post("/corrections/batch-comment")
 async def batch_comment(body: dict, current_user: dict = Depends(get_current_user)):
@@ -2750,13 +2756,20 @@ async def get_my_credits(current_user: dict = Depends(get_current_user)):
         "renews_at": renews_at
     }
 
-ALLOWED_ORIGINS = [
+# S-05: origens permitidas via variável de ambiente
+# ALLOWED_ORIGINS no Render: URLs separadas por vírgula
+# Ex: ALLOWED_ORIGINS=https://essaypro.onrender.com,https://essaypro-frontend.onrender.com
+_raw_origins = os.environ.get("ALLOWED_ORIGINS", "")
+_extra_origins = [o.strip() for o in _raw_origins.split(",") if o.strip()]
+
+ALLOWED_ORIGINS = list(set([
     os.environ.get("FRONTEND_URL", "https://essaypro.onrender.com"),
     "https://essaypro-frontend.onrender.com",
-    "https://essaypro.onrender.com",        # URL alternativa do frontend
+    "https://essaypro.onrender.com",
     "http://localhost:3000",
     "http://localhost:3001",
-]
+    *_extra_origins,   # origens extras vindas da env var
+]))
 
 # S-02: Rate limiting geral — 300 requests por minuto por IP
 @app.middleware("http")
