@@ -288,7 +288,7 @@ export const CorrectionView = () => {
     return (
       <Layout>
         <div className="flex flex-col items-center justify-center py-16 text-center max-w-md mx-auto">
-          <div className="text-5xl mb-4">
+          <div className="text-3xl sm:text-5xl mb-4">
             {isForbidden ? '🔒' : isPending ? '⏳' : isInProgress ? '✏️' : '📭'}
           </div>
           <h2 className="font-heading font-bold text-xl mb-2" style={{ color: 'var(--accent-red)' }}>
@@ -368,7 +368,7 @@ export const CorrectionView = () => {
       <div className="space-y-8">
         <div className="space-y-3">
           <div className="flex flex-wrap items-center gap-3">
-            <h1 className="font-heading font-bold text-3xl" style={{ color: 'var(--accent-red)' }} data-testid="correction-title">
+            <h1 className="font-heading font-bold" style={{ color: 'var(--accent-red)', fontSize: 'clamp(22px, 5vw, 30px)' }} data-testid="correction-title">
               Correção da Redação
             </h1>
             {essay?.is_rewrite && (
@@ -405,7 +405,7 @@ export const CorrectionView = () => {
 
         {/* BOTÕES DE AÇÃO */}
         <div className="flex flex-wrap gap-3">
-          <Button variant="outline" size="sm" onClick={() => setShowPromptModal(true)}>
+          <Button variant="outline" size="sm" onClick={() => setShowPromptModal(true)} style={{ minHeight: "40px" }}>
             <BookOpen size={15} className="mr-2" />
             Ver Proposta
           </Button>
@@ -427,13 +427,13 @@ export const CorrectionView = () => {
           )}
         </div>
 
-        <Card className="p-8 bg-white border shadow-sm" data-testid="total-score-card">
+        <Card className="p-5 sm:p-8 bg-white border shadow-sm" data-testid="total-score-card">
           <div className="text-center">
             <p className="text-sm font-semibold mb-2" style={{ color: '#525252' }}>
               NOTA TOTAL
             </p>
             <div
-              className="text-7xl font-black mb-2"
+              className="font-black mb-2" style={{ fontSize: 'clamp(48px, 12vw, 72px)' }}
               style={{ color: getScoreColor(totalScore, maxScore) }}
               data-testid="total-score-value"
             >
@@ -445,9 +445,9 @@ export const CorrectionView = () => {
         </Card>
 
         {/* TEXTO DA REDAÇÃO COM CANVAS */}
-        <Card className="p-8 bg-white border shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-heading text-2xl font-bold" style={{ color: 'var(--accent-red)' }}>
+        <Card className="p-5 sm:p-8 bg-white border shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+            <h2 className="font-heading font-bold" style={{ color: 'var(--accent-red)', fontSize: 'clamp(18px, 4vw, 24px)' }}>
               Sua Redação com Anotações
             </h2>
             {essay?.is_rewrite && essay?.parent_essay_id && (
@@ -460,7 +460,7 @@ export const CorrectionView = () => {
           </div>
           {/* PDF convertido em imagens */}
           {pdfPages.length > 0 ? (
-            <div style={{ maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ maxWidth: '800px', width: '100%', margin: '0 auto' }}>
               {pdfPages.map((src, i) => (
                 <div key={i} style={{ position: 'relative', marginBottom: '24px' }}>
                   {pdfPages.length > 1 && (
@@ -542,7 +542,7 @@ export const CorrectionView = () => {
             </div>
           ) : essay?.file_url && (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) ? (
             // file_url é imagem (PDF convertido numa página) — mostrar com canvas por cima
-            <div style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}>
+            <div style={{ position: 'relative', maxWidth: '800px', width: '100%', margin: '0 auto' }}>
               <img
                 src={imageBlobUrl || essay.file_url}
                 alt="Redação do aluno"
@@ -569,7 +569,7 @@ export const CorrectionView = () => {
               ))}
             </div>
           ) : (
-          <div ref={canvasContainerRef} style={{ position: 'relative', maxWidth: '800px', margin: '0 auto' }}>
+          <div ref={canvasContainerRef} style={{ position: 'relative', maxWidth: '800px', width: '100%', margin: '0 auto' }}>
             <div
               ref={textRef}
               onMouseMove={(e) => {
@@ -582,7 +582,7 @@ export const CorrectionView = () => {
                   setHoveredCommentId(null);
                 }
               }}
-              className="relative z-10 bg-white p-8"
+              className="relative z-10 bg-white p-4 sm:p-8"
               style={{ fontSize: '18px', fontFamily: 'Lora, serif', lineHeight: '1.8', minHeight: '400px' }}
               ref={textRef}
               dangerouslySetInnerHTML={{ __html: essay?.content && !essay.content.startsWith('{') ? essay.content.replace(/\n/g, '<br/>') : 'Conteúdo não disponível' }}
@@ -601,19 +601,19 @@ export const CorrectionView = () => {
         </Card>
 
         <div>
-          <h2 className="font-heading text-2xl font-bold mb-4" style={{ color: 'var(--accent-red)' }}>
+          <h2 className="font-heading font-bold mb-4" style={{ color: 'var(--accent-red)', fontSize: 'clamp(18px, 4vw, 24px)' }}>
             Avaliação por Critérios
           </h2>
           <div className="space-y-4">
             {correction.criteria_scores && correction.criteria_scores.map((cs) => (
-              <Card key={cs.criteria_id} className="p-6 bg-white border" data-testid={`competency-${cs.criteria_id}`}>
+              <Card key={cs.criteria_id} className="p-4 sm:p-6 bg-white border" data-testid={`competency-${cs.criteria_id}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex-1">
                     <p className="font-semibold" style={{ color: 'var(--accent-red)' }}>
                       {cs.nome}
                     </p>
                   </div>
-                  <span className="text-2xl font-bold ml-4" style={{ color: 'var(--accent-green)' }}>
+                  <span className="text-xl sm:text-2xl font-bold ml-2 sm:ml-4 whitespace-nowrap" style={{ color: 'var(--accent-green)' }}>
                     {cs.score}/{cs.max}
                   </span>
                 </div>
@@ -625,7 +625,7 @@ export const CorrectionView = () => {
 
         
 
-        <Card className="p-6 bg-white border" data-testid="general-feedback-card">
+        <Card className="p-4 sm:p-6 bg-white border" data-testid="general-feedback-card">
           <div className="flex items-center gap-2 mb-3">
             <Award size={20} style={{ color: 'var(--accent-green)' }} />
             <h3 className="font-semibold" style={{ color: 'var(--accent-red)' }}>
@@ -637,11 +637,11 @@ export const CorrectionView = () => {
 
         {/* COMPARAÇÃO DE NOTAS — aluno vê nota original vs reescrita */}
         {user?.role === 'student' && parentCorrectionData && (
-          <Card className="p-6 bg-white border" style={{ borderLeft: '4px solid var(--accent-green)' }}>
+          <Card className="p-4 sm:p-6 bg-white border" style={{ borderLeft: '4px solid var(--accent-green)' }}>
             <h3 className="font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--accent-red)' }}>
               <RotateCcw size={18} /> Comparação: Original × Reescrita
             </h3>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="p-4 rounded-lg text-center" style={{ backgroundColor: '#F0F7F6', border: '1px solid #D0E8E4' }}>
                 <p className="text-xs font-semibold mb-1" style={{ color: 'var(--text-secondary)' }}>NOTA ORIGINAL</p>
                 <p className="text-4xl font-black" style={{ color: getScoreColor(parentCorrectionData.parent_correction.total_score, correction.criteria_scores?.reduce((s, c) => s + c.max, 0) || 1000) }}>
@@ -675,7 +675,7 @@ export const CorrectionView = () => {
 
         {/* REESCRITA ENVIADA — professor vê que existe uma reescrita desta redação */}
         {user?.role !== 'student' && rewriteData && (
-          <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
+          <Card className="p-4 sm:p-5 bg-white border" style={{ borderLeft: '4px solid var(--accent-orange)' }}>
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <p className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--accent-orange)' }}>
@@ -700,7 +700,7 @@ export const CorrectionView = () => {
 
         {/* COMENTÁRIO COMPLEMENTAR DO PROFESSOR — visível ao aluno */}
         {correction.teacher_comment && user?.role === 'student' && (
-          <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid #D9B2CF' }}>
+          <Card className="p-4 sm:p-5 bg-white border" style={{ borderLeft: '4px solid #D9B2CF' }}>
             <div className="flex items-center gap-2 mb-2">
               <MessageSquarePlus size={16} style={{ color: '#D9B2CF' }} />
               <p className="font-semibold text-sm" style={{ color: 'var(--accent-red)' }}>Observação da Professora</p>
@@ -711,7 +711,7 @@ export const CorrectionView = () => {
 
         {/* MATERIAL EXTRA — visível ao aluno */}
         {correction.extra_material && user?.role === 'student' && (
-          <Card className="p-5 bg-white border" style={{ borderLeft: '4px solid #DAB257' }}>
+          <Card className="p-4 sm:p-5 bg-white border" style={{ borderLeft: '4px solid #DAB257' }}>
             <div className="flex items-center gap-2 mb-2">
               <ExternalLink size={16} style={{ color: '#DAB257' }} />
               <p className="font-semibold text-sm" style={{ color: 'var(--accent-red)' }}>Material Complementar</p>
@@ -722,8 +722,8 @@ export const CorrectionView = () => {
 
         {/* PAINEL DE INTERVENÇÃO — visível apenas ao professor/admin */}
         {user?.role !== 'student' && (
-          <Card className="p-5 bg-white border shadow-sm">
-            <div className="flex items-center justify-between mb-4">
+          <Card className="p-4 sm:p-5 bg-white border shadow-sm">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <div className="flex items-center gap-2">
                 <MessageSquarePlus size={18} style={{ color: 'var(--accent-red)' }} />
                 <h3 className="font-semibold" style={{ color: 'var(--accent-red)' }}>Intervenção Pedagógica</h3>
@@ -800,7 +800,7 @@ export const CorrectionView = () => {
         )}
 
         {correction.inline_comments && correction.inline_comments.length > 0 && (
-          <Card className="p-6 bg-white border">
+          <Card className="p-4 sm:p-6 bg-white border">
             <h3 className="font-semibold mb-4" style={{ color: 'var(--accent-red)' }}>
               Legenda de Comentários ({correction.inline_comments.length})
             </h3>
@@ -826,11 +826,11 @@ export const CorrectionView = () => {
 
         {/* BOTÃO REESCRITA — aluno vê quando permitido ou quando professor solicitou */}
         {user?.role === 'student' && courseSettings?.allow_rewrite !== false && !rewriteData && (
-        <Card className="p-6 bg-white border" style={{
+        <Card className="p-4 sm:p-6 bg-white border" style={{
           borderColor: intervention.suggest_rewrite ? 'var(--accent-orange)' : '#DAB257',
           backgroundColor: intervention.suggest_rewrite ? '#FFF7ED' : '#FFFBF0',
         }}>
-          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <div>
               {intervention.suggest_rewrite ? (
                 <>
@@ -870,7 +870,7 @@ export const CorrectionView = () => {
 
       {/* U-10: HISTÓRICO DE VERSÕES */}
       {correctionHistory.length > 1 && (
-        <Card className="p-5 bg-white border shadow-sm">
+        <Card className="p-4 sm:p-5 bg-white border shadow-sm">
           <button
             onClick={() => setShowHistory(h => !h)}
             className="w-full flex items-center justify-between"
@@ -965,7 +965,7 @@ export const CorrectionView = () => {
             className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] overflow-y-auto"
             onClick={e => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between p-6 border-b" style={{ borderColor: 'var(--border-color)' }}>
+            <div className="flex items-center justify-between p-4 sm:p-6 border-b" style={{ borderColor: 'var(--border-color)' }}>
               <h2 className="font-heading font-bold text-xl" style={{ color: 'var(--accent-red)' }}>
                 {prompt.title}
               </h2>
@@ -973,7 +973,7 @@ export const CorrectionView = () => {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-6 space-y-4">
+            <div className="p-4 sm:p-6 space-y-4">
               <div>
                 <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>TEMA</p>
                 <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{prompt.theme}</p>
@@ -1000,9 +1000,9 @@ export const CorrectionView = () => {
         <div
           className="fixed bg-white border shadow-lg rounded-lg p-3 z-50"
           style={{
-            left: `${tooltipPosition.x + 10}px`,
+            left: `min(${tooltipPosition.x + 10}px, calc(100vw - 320px))`,
             top: `${tooltipPosition.y - 60}px`,
-            maxWidth: '300px'
+            maxWidth: 'min(300px, calc(100vw - 32px))'
           }}
         >
           <p className="text-xs font-semibold mb-1" style={{ color: '#92400E' }}>#{hoveredCommentId}</p>
