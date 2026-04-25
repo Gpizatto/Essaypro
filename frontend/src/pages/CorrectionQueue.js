@@ -6,9 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
 import { Button } from '../components/ui/button';
-import { FileText, Clock, User, Search, AlertCircle, CheckCircle2, Edit3, History, Trash2 } from 'lucide-react';
+import { FileText, Clock, User, Search, AlertCircle, CheckCircle2, Edit3, History, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
+const PAGE_SIZE = 10;
 
 const getWaitTime = (submitted_at, deadlineDays = 3) => {
   const diff = Date.now() - new Date(submitted_at).getTime();
@@ -28,6 +29,89 @@ const STATUS_TABS = [
 
 const METHOD_LABEL = { editor: 'Editor', paste: 'Colado', upload: 'Upload' };
 
+// Componente de paginação com números
+const Pagination = ({ currentPage, totalPages, onPageChange }) => {
+  if (totalPages <= 1) return null;
+
+  // Gerar array de páginas visíveis — máx 7 botões
+  const getPages = () => {
+    if (totalPages <= 7) return Array.from({ length: totalPages }, (_, i) => i + 1);
+    const pages = [];
+    pages.push(1);
+    if (currentPage > 3) pages.push('...');
+    for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+      pages.push(i);
+    }
+    if (currentPage < totalPages - 2) pages.push('...');
+    pages.push(totalPages);
+    return pages;
+  };
+
+  const btnBase = {
+    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+    minWidth: '36px', height: '36px', borderRadius: '8px',
+    fontSize: '13px', fontWeight: 600, cursor: 'pointer', border: 'none',
+    transition: 'all 0.15s',
+  };
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginTop: '8px' }}>
+      {/* Anterior */}
+      <button
+        onClick={() => onPageChange(currentPage - 1)}
+        disabled={currentPage === 1}
+        style={{
+          ...btnBase,
+          backgroundColor: currentPage === 1 ? 'transparent' : 'var(--bg-primary)',
+          color: currentPage === 1 ? 'var(--border-color)' : 'var(--text-secondary)',
+          cursor: currentPage === 1 ? 'not-allowed' : 'pointer',
+        }}
+        aria-label="Página anterior"
+      >
+        <ChevronLeft size={16} />
+      </button>
+
+      {/* Números */}
+      {getPages().map((page, idx) =>
+        page === '...' ? (
+          <span key={`ellipsis-${idx}`} style={{ ...btnBase, cursor: 'default', color: 'var(--text-secondary)' }}>
+            ···
+          </span>
+        ) : (
+          <button
+            key={page}
+            onClick={() => onPageChange(page)}
+            style={{
+              ...btnBase,
+              backgroundColor: page === currentPage ? 'var(--accent-red)' : 'var(--bg-primary)',
+              color: page === currentPage ? 'var(--bg-primary)' : 'var(--text-secondary)',
+            }}
+            aria-label={`Página ${page}`}
+            aria-current={page === currentPage ? 'page' : undefined}
+          >
+            {page}
+          </button>
+        )
+      )}
+
+      {/* Próximo */}
+      <button
+        onClick={() => onPageChange(currentPage + 1)}
+        disabled={currentPage === totalPages}
+        style={{
+          ...btnBase,
+          backgroundColor: currentPage === totalPages ? 'transparent' : 'var(--bg-primary)',
+          color: currentPage === totalPages ? 'var(--border-color)' : 'var(--text-secondary)',
+          cursor: currentPage === totalPages ? 'not-allowed' : 'pointer',
+        }}
+        aria-label="Próxima página"
+      >
+        <ChevronRight size={16} />
+      </button>
+    </div>
+  );
+};
+
 export const CorrectionQueue = () => {
   const { user } = useAuth();
   const [allEssays, setAllEssays] = useState([]);
@@ -39,6 +123,7 @@ export const CorrectionQueue = () => {
   const [sortBy, setSortBy] = useState('oldest');
   const [search, setSearch] = useState('');
   const [filterPrompt, setFilterPrompt] = useState('all');
+  const [currentPage, setCurrentPage] = useState(1);
   const navigate = useNavigate();
 
   const deleteEssay = async (essayId, studentName) => {
@@ -65,26 +150,22 @@ export const CorrectionQueue = () => {
   const fetchAll = async (statusFilter = null, courseId = 'all') => {
     setLoading(true);
     try {
-      const params = new URLSearchParams({ page_size: 200 });
+      const params = new URLSearchParams({ page_size: 500 });
       if (statusFilter) params.set('status', statusFilter);
       if (courseId && courseId !== 'all') params.set('course_id', courseId);
 
       const res = await axios.get(`${API_URL}/api/essays/all-teacher?${params}`, { withCredentials: true });
       const payload = res.data;
 
-      // Normalizar resposta — pode ser array direto ou { essays: [...], total }
       let essays = [];
       if (Array.isArray(payload)) {
         essays = payload;
       } else if (payload && Array.isArray(payload.essays)) {
         essays = payload.essays;
-      } else {
-        essays = [];
       }
       setAllEssays([...essays].sort((a, b) => new Date(a.submitted_at) - new Date(b.submitted_at)));
     } catch (err) {
       console.error('Error loading queue:', err);
-      // Fallback para endpoint antigo
       try {
         const res = await axios.get(`${API_URL}/api/essays/queue`, { withCredentials: true });
         setAllEssays(Array.isArray(res.data) ? res.data : []);
@@ -106,19 +187,40 @@ export const CorrectionQueue = () => {
 
   const currentList = byStatus[activeTab] || [];
 
-  const filtered = useMemo(() => currentList.filter(e => {
-    const matchSearch = (e.student_name || '').toLowerCase().includes(search.toLowerCase()) ||
-      (e.prompt_title || '').toLowerCase().includes(search.toLowerCase());
-    const matchPrompt = filterPrompt === 'all' || e.prompt_title === filterPrompt;
-    return matchSearch && matchPrompt;
-  }), [currentList, search, filterPrompt]);
+  const filtered = useMemo(() => {
+    let list = currentList.filter(e => {
+      const matchSearch = (e.student_name || '').toLowerCase().includes(search.toLowerCase()) ||
+        (e.prompt_title || '').toLowerCase().includes(search.toLowerCase());
+      const matchPrompt = filterPrompt === 'all' || e.prompt_title === filterPrompt;
+      return matchSearch && matchPrompt;
+    });
+
+    // Ordenação
+    if (sortBy === 'newest') list = [...list].reverse();
+    else if (sortBy === 'name') list = [...list].sort((a, b) => (a.student_name || '').localeCompare(b.student_name || ''));
+
+    return list;
+  }, [currentList, search, filterPrompt, sortBy]);
+
+  // Resetar para página 1 quando filtros mudam
+  const totalPages = Math.ceil(filtered.length / PAGE_SIZE);
+  const safePage = Math.min(currentPage, Math.max(1, totalPages));
+  const paginated = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+
+  const handleTabChange = (tab) => { setActiveTab(tab); setCurrentPage(1); };
+  const handleSearch = (v) => { setSearch(v); setCurrentPage(1); };
+  const handlePrompt = (v) => { setFilterPrompt(v); setCurrentPage(1); };
+  const handleCourse = (v) => { setFilterCourse(v); setCurrentPage(1); };
+  const handleSort = (v) => { setSortBy(v); setCurrentPage(1); };
+  const handleClear = () => { setSearch(''); setFilterPrompt('all'); setFilterCourse('all'); setCurrentPage(1); };
 
   const urgentCount = byStatus.pending.filter(e => getWaitTime(e.submitted_at, deadlineDays).urgent).length;
 
   const selectStyle = {
-    padding: '6px 10px', borderRadius: '8px',
-    border: '1px solid var(--border-color)', fontSize: '13px',
+    padding: '10px 10px', borderRadius: '8px',
+    border: '1px solid var(--border-color)', fontSize: '14px',
     color: 'var(--text-primary)', backgroundColor: '#FFF', outline: 'none',
+    minHeight: '44px',
   };
 
   if (loading) return (
@@ -166,7 +268,7 @@ export const CorrectionQueue = () => {
             {STATUS_TABS.map(tab => (
               <button
                 key={tab.key}
-                onClick={() => setActiveTab(tab.key)}
+                onClick={() => handleTabChange(tab.key)}
                 style={{
                   display: 'flex', alignItems: 'center', gap: '6px',
                   padding: '8px 14px', borderRadius: '7px',
@@ -196,12 +298,11 @@ export const CorrectionQueue = () => {
           style={{ padding: '12px 14px', borderRadius: '12px', borderColor: 'var(--border-color)' }}
         >
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', alignItems: 'center' }}>
-            {/* Busca */}
             <div style={{ position: 'relative', flex: 1, minWidth: '180px' }}>
               <Search size={13} style={{ position: 'absolute', left: '10px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
               <input
                 value={search}
-                onChange={e => setSearch(e.target.value)}
+                onChange={e => handleSearch(e.target.value)}
                 placeholder="Buscar aluno ou proposta..."
                 style={{
                   width: '100%', padding: '10px 10px 10px 30px',
@@ -213,14 +314,14 @@ export const CorrectionQueue = () => {
             </div>
 
             {promptOptions.length > 1 && (
-              <select value={filterPrompt} onChange={e => setFilterPrompt(e.target.value)} style={{ ...selectStyle, maxWidth: '200px' }}>
+              <select value={filterPrompt} onChange={e => handlePrompt(e.target.value)} style={{ ...selectStyle, maxWidth: '200px' }}>
                 <option value="all">Todas as propostas</option>
                 {promptOptions.map(p => <option key={p} value={p}>{p}</option>)}
               </select>
             )}
 
             {courses.length > 0 && (
-              <select value={filterCourse} onChange={e => setFilterCourse(e.target.value)} style={{ ...selectStyle, maxWidth: '180px' }}>
+              <select value={filterCourse} onChange={e => handleCourse(e.target.value)} style={{ ...selectStyle, maxWidth: '180px' }}>
                 <option value="all">Todas as turmas</option>
                 {courses.filter(c => c.is_active).map(c => (
                   <option key={c.id} value={c.id}>{c.name}</option>
@@ -228,7 +329,7 @@ export const CorrectionQueue = () => {
               </select>
             )}
 
-            <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={{ ...selectStyle, maxWidth: '180px' }}>
+            <select value={sortBy} onChange={e => handleSort(e.target.value)} style={{ ...selectStyle, maxWidth: '180px' }}>
               <option value="oldest">Mais antigas primeiro</option>
               <option value="newest">Mais recentes primeiro</option>
               <option value="name">Por nome do aluno</option>
@@ -236,23 +337,35 @@ export const CorrectionQueue = () => {
 
             {(search || filterPrompt !== 'all' || filterCourse !== 'all') && (
               <button
-                onClick={() => { setSearch(''); setFilterPrompt('all'); setFilterCourse('all'); }}
+                onClick={handleClear}
                 style={{
                   display: 'inline-flex', alignItems: 'center', gap: '4px',
-                  fontSize: '12px', fontWeight: 600, padding: '6px 10px', borderRadius: '8px',
+                  fontSize: '12px', fontWeight: 600, padding: '10px 12px', borderRadius: '8px',
                   backgroundColor: 'var(--bg-primary)', color: 'var(--accent-red)', border: '1px solid var(--accent-orange)', cursor: 'pointer',
+                  minHeight: '44px',
                 }}
               >
                 ✕ Limpar
               </button>
             )}
-
-            {filtered.length !== currentList.length && (
-              <span style={{ fontSize: '12px', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
-                {filtered.length} resultado{filtered.length !== 1 ? 's' : ''}
-              </span>
-            )}
           </div>
+
+          {/* Contador e info de paginação */}
+          {filtered.length > 0 && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: '10px', flexWrap: 'wrap', gap: '6px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                {filtered.length !== currentList.length
+                  ? `${filtered.length} resultado${filtered.length !== 1 ? 's' : ''}`
+                  : `${filtered.length} redaç${filtered.length !== 1 ? 'ões' : 'ão'}`
+                }
+              </span>
+              {totalPages > 1 && (
+                <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                  Página {safePage} de {totalPages}
+                </span>
+              )}
+            </div>
+          )}
         </Card>
 
         {/* Lista */}
@@ -266,107 +379,116 @@ export const CorrectionQueue = () => {
             </p>
           </Card>
         ) : (
-          <div className="space-y-3">
-            {filtered.map(essay => {
-              const wait = getWaitTime(essay.submitted_at, deadlineDays);
-              return (
-                <Card
-                  key={essay.id}
-                  className="bg-white border"
-                  style={{
-                    padding: '18px 20px',
-                    borderRadius: '14px',
-                    borderColor: wait.urgent ? 'var(--accent-red)33' : 'var(--border-color)',
-                    boxShadow: '0 1px 4px rgba(44,26,14,0.05)',
-                    borderLeft: wait.urgent ? '3px solid var(--accent-red)' : undefined,
-                    transition: 'box-shadow 0.15s',
-                  }}
-                  data-testid={`queue-essay-${essay.id}`}
-                >
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
-                        <h3 className="font-heading font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
-                          {essay.prompt_title || 'Redação'}
-                        </h3>
-                        {essay.is_rewrite && (
-                          <span style={{
-                            fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px',
-                            backgroundColor: '#FFF0E0', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)',
-                          }}>
-                            ✏️ Reescrita
-                          </span>
-                        )}
-                      </div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <User size={13} /> {essay.student_name || 'Aluno'}
-                        </span>
-                        <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                          <Clock size={13} />
-                          {essay.submitted_at ? new Date(essay.submitted_at).toLocaleDateString('pt-BR') : ''}
-                        </span>
-                        <span>{METHOD_LABEL[essay.submission_method] || essay.submission_method || ''}</span>
-                        {activeTab === 'pending' && (
-                          <span style={{
-                            display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600,
-                            color: wait.urgent ? 'var(--accent-red)' : 'var(--text-secondary)',
-                          }}>
-                            <AlertCircle size={13} />
-                            Esperando {wait.label || ''}
-                            {wait.urgent && ' ⚠️'}
-                          </span>
-                        )}
-                      </div>
-                    </div>
+          <>
+            <div className="space-y-3">
+              {paginated.map(essay => {
+                const wait = getWaitTime(essay.submitted_at, deadlineDays);
+                return (
+                  <Card
+                    key={essay.id}
+                    className="bg-white border"
+                    style={{
+                      padding: '18px 20px',
+                      borderRadius: '14px',
+                      borderColor: wait.urgent ? 'var(--accent-red)33' : 'var(--border-color)',
+                      boxShadow: '0 1px 4px rgba(44,26,14,0.05)',
+                      borderLeft: wait.urgent ? '3px solid var(--accent-red)' : undefined,
+                      transition: 'box-shadow 0.15s',
+                    }}
+                    data-testid={`queue-essay-${essay.id}`}
+                  >
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: '12px' }}>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap', marginBottom: '6px' }}>
+                            <h3 className="font-heading font-semibold" style={{ fontSize: '15px', color: 'var(--text-primary)' }}>
+                              {essay.prompt_title || 'Redação'}
+                            </h3>
+                            {essay.is_rewrite && (
+                              <span style={{
+                                fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '99px',
+                                backgroundColor: '#FFF0E0', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)',
+                              }}>
+                                ✏️ Reescrita
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <User size={13} /> {essay.student_name || 'Aluno'}
+                            </span>
+                            <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                              <Clock size={13} />
+                              {essay.submitted_at ? new Date(essay.submitted_at).toLocaleDateString('pt-BR') : ''}
+                            </span>
+                            <span>{METHOD_LABEL[essay.submission_method] || essay.submission_method || ''}</span>
+                            {activeTab === 'pending' && (
+                              <span style={{
+                                display: 'flex', alignItems: 'center', gap: '4px', fontWeight: 600,
+                                color: wait.urgent ? 'var(--accent-red)' : 'var(--text-secondary)',
+                              }}>
+                                <AlertCircle size={13} />
+                                Esperando {wait.label || ''}
+                                {wait.urgent && ' ⚠️'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
 
-                    </div>{/* info */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
-                      {essay.status === 'corrected' ? (
-                        <button
-                          onClick={() => navigate(`/essay/${essay.id}/correction`)}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '5px',
-                            padding: '8px 14px', borderRadius: '8px', cursor: 'pointer',
-                            backgroundColor: 'transparent', color: 'var(--text-secondary)',
-                            border: '1px solid var(--border-color)', fontSize: '12.5px', fontWeight: 600,
-                          }}
-                        >
-                          <History size={14} /> Ver correção
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => navigate(`/correct-essay/${essay.id}`)}
-                          style={{
-                            display: 'inline-flex', alignItems: 'center', gap: '5px',
-                            padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
-                            backgroundColor: essay.status === 'in_progress' ? 'var(--accent-orange)' : 'var(--accent-green)',
-                            color: 'var(--bg-primary)', fontSize: '12.5px', fontWeight: 600,
-                          }}
-                          data-testid={`correct-button-${essay.id}`}
-                        >
-                          <Edit3 size={14} />
-                          {essay.status === 'in_progress' ? 'Continuar' : 'Corrigir'}
-                        </button>
-                      )}
-                      {user?.role === 'admin' && (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => deleteEssay(essay.id, essay.student_name || 'aluno')}
-                          title="Deletar redação"
-                          style={{ color: '#DC2626', padding: '6px 8px' }}
-                        >
-                          <Trash2 size={15} />
-                        </Button>
-                      )}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexShrink: 0 }}>
+                          {essay.status === 'corrected' ? (
+                            <button
+                              onClick={() => navigate(`/essay/${essay.id}/correction`)}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                padding: '8px 14px', borderRadius: '8px', cursor: 'pointer',
+                                backgroundColor: 'transparent', color: 'var(--text-secondary)',
+                                border: '1px solid var(--border-color)', fontSize: '12.5px', fontWeight: 600,
+                              }}
+                            >
+                              <History size={14} /> Ver correção
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => navigate(`/correct-essay/${essay.id}`)}
+                              style={{
+                                display: 'inline-flex', alignItems: 'center', gap: '5px',
+                                padding: '8px 16px', borderRadius: '8px', border: 'none', cursor: 'pointer',
+                                backgroundColor: essay.status === 'in_progress' ? 'var(--accent-orange)' : 'var(--accent-green)',
+                                color: 'var(--bg-primary)', fontSize: '12.5px', fontWeight: 600,
+                              }}
+                              data-testid={`correct-button-${essay.id}`}
+                            >
+                              <Edit3 size={14} />
+                              {essay.status === 'in_progress' ? 'Continuar' : 'Corrigir'}
+                            </button>
+                          )}
+                          {user?.role === 'admin' && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => deleteEssay(essay.id, essay.student_name || 'aluno')}
+                              title="Deletar redação"
+                              style={{ color: '#DC2626', padding: '6px 8px' }}
+                            >
+                              <Trash2 size={15} />
+                            </Button>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </Card>
-              );
-            })}
-          </div>
+                  </Card>
+                );
+              })}
+            </div>
+
+            {/* Paginação */}
+            <Pagination
+              currentPage={safePage}
+              totalPages={totalPages}
+              onPageChange={setCurrentPage}
+            />
+          </>
         )}
       </div>
     </Layout>
