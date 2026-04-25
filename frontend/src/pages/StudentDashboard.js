@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import axios from 'axios';
 import { Layout } from '../components/Layout';
 import { Card } from '../components/ui/card';
@@ -7,7 +7,7 @@ import { FileText, Clock, CheckCircle, Award, Zap, RefreshCw, AlertCircle } from
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const getScoreColor = (score) => {
-  if (score >= 800) return '#36555A';
+  if (score >= 800) return 'var(--accent-green)';
   if (score >= 600) return '#3B82F6';
   if (score >= 400) return '#F59E0B';
   return '#EF4444';
@@ -64,10 +64,10 @@ export const StudentDashboard = () => {
   };
 
   const getCreditColor = () => {
-    if (!credits || credits.mode === 'unlimited') return '#36555A';
-    if (credits.remaining === 0) return '#7C1805';
+    if (!credits || credits.mode === 'unlimited') return 'var(--accent-green)';
+    if (credits.remaining === 0) return 'var(--accent-red)';
     if (credits.remaining <= 1) return '#D97706';
-    return '#36555A';
+    return 'var(--accent-green)';
   };
 
   // Componente de card de estatística com ghost icon e progress bar
@@ -93,14 +93,14 @@ export const StudentDashboard = () => {
       {/* Label com dot colorido */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
         <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: color, flexShrink: 0 }} />
-        <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</p>
+        <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>{label}</p>
       </div>
 
       <p style={{ fontSize: '38px', fontWeight: 800, color, lineHeight: 1, letterSpacing: '-0.02em', position: 'relative' }}>
         {value}
       </p>
 
-      {sub && <p style={{ fontSize: '11px', color: '#6B5B4E', marginTop: '2px' }}>{sub}</p>}
+      {sub && <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>{sub}</p>}
 
       {/* Progress bar */}
       {progress !== undefined && (
@@ -142,20 +142,20 @@ export const StudentDashboard = () => {
         {/* Header com saudação personalizada */}
         <div>
           {firstName && (
-            <p style={{ fontSize: '13px', color: '#6B5B4E', marginBottom: '4px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px' }}>
               {greeting},{' '}
-              <span style={{ fontWeight: 600, color: '#7C1805' }}>{firstName}</span>{' '}
+              <span style={{ fontWeight: 600, color: 'var(--accent-red)' }}>{firstName}</span>{' '}
               👋
             </p>
           )}
           <h1
             className="font-heading font-bold"
-            style={{ fontSize: '30px', color: '#7C1805', letterSpacing: '-0.02em', lineHeight: 1.1 }}
+            style={{ fontSize: 'clamp(22px, 5vw, 30px)', color: 'var(--accent-red)', letterSpacing: '-0.02em', lineHeight: 1.1 }}
             data-testid="dashboard-title"
           >
             Bem-vinda de volta
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             Acompanhe seu progresso e continue praticando
           </p>
         </div>
@@ -166,14 +166,14 @@ export const StudentDashboard = () => {
             className="flex items-start gap-3 p-4 rounded-xl"
             style={{ backgroundColor: '#FEF2F2', border: '1px solid #FCA5A5' }}
           >
-            <AlertCircle size={18} style={{ color: '#7C1805', flexShrink: 0, marginTop: '1px' }} />
+            <AlertCircle size={18} style={{ color: 'var(--accent-red)', flexShrink: 0, marginTop: '1px' }} />
             <div>
-              <p className="text-sm font-semibold" style={{ color: '#7C1805' }}>
+              <p className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>
                 {pendingEssays.length === 1
                   ? 'Você tem 1 redação aguardando correção há mais de 5 dias'
                   : `Você tem ${pendingEssays.length} redações aguardando correção há mais de 5 dias`}
               </p>
-              <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+              <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                 {pendingEssays.map(e => e.prompt_title || 'Redação').join(' · ')}
               </p>
             </div>
@@ -187,7 +187,7 @@ export const StudentDashboard = () => {
               <span
                 key={c.id}
                 className="flex items-center gap-1 text-xs px-3 py-1.5 rounded-full font-semibold"
-                style={{ backgroundColor: '#FDF3E8', color: '#7C1805', border: '1px solid #D66B27' }}
+                style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-red)', border: '1px solid var(--accent-orange)' }}
               >
                 🎓 {c.name}
               </span>
@@ -201,7 +201,7 @@ export const StudentDashboard = () => {
             label="Redações Enviadas"
             value={stats?.total_essays || 0}
             Icon={FileText}
-            color="#7C1805"
+            color="var(--accent-red)"
             data-testid="stat-total-essays"
           />
           <StatCard
@@ -225,7 +225,7 @@ export const StudentDashboard = () => {
             value={bestScore}
             sub="de 1000 pts"
             Icon={Award}
-            color="#36555A"
+            color="var(--accent-green)"
             progress={(bestScore / 1000) * 100}
             data-testid="stat-best-score"
           />
@@ -233,7 +233,7 @@ export const StudentDashboard = () => {
             className="bg-white border shadow-sm"
             style={{
               padding: '18px 18px 14px',
-              borderColor: credits?.remaining === 0 ? '#7C180522' : `${getCreditColor()}22`,
+              borderColor: credits?.remaining === 0 ? 'var(--accent-red)22' : `${getCreditColor()}22`,
               borderRadius: '14px',
               position: 'relative',
               overflow: 'hidden',
@@ -245,20 +245,20 @@ export const StudentDashboard = () => {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '2px' }}>
               <div style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: getCreditColor(), flexShrink: 0 }} />
-              <p style={{ fontSize: '10px', fontWeight: 700, color: '#6B5B4E', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Créditos</p>
+              <p style={{ fontSize: '10px', fontWeight: 700, color: 'var(--text-secondary)', letterSpacing: '0.07em', textTransform: 'uppercase' }}>Créditos</p>
             </div>
             {credits?.mode === 'unlimited' ? (
-              <p style={{ fontSize: '38px', fontWeight: 800, color: '#36555A', lineHeight: 1, letterSpacing: '-0.02em' }}>∞</p>
+              <p style={{ fontSize: '38px', fontWeight: 800, color: 'var(--accent-green)', lineHeight: 1, letterSpacing: '-0.02em' }}>∞</p>
             ) : (
               <>
                 <p style={{ fontSize: '38px', fontWeight: 800, color: getCreditColor(), lineHeight: 1, letterSpacing: '-0.02em' }}>
                   {credits?.remaining ?? '—'}
                 </p>
-                <p style={{ fontSize: '11px', color: '#6B5B4E', marginTop: '2px' }}>
+                <p style={{ fontSize: '11px', color: 'var(--text-secondary)', marginTop: '2px' }}>
                   de {creditLimit} {credits?.mode === 'monthly' ? 'por mês' : 'por semana'}
                 </p>
                 {credits?.renews_at && (
-                  <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: '#6B5B4E' }}>
+                  <p className="text-xs mt-0.5 flex items-center gap-1" style={{ color: 'var(--text-secondary)' }}>
                     <RefreshCw size={10} />
                     Renova em {credits.renews_at}
                   </p>
@@ -277,7 +277,7 @@ export const StudentDashboard = () => {
               </>
             )}
             {credits?.remaining === 0 && (
-              <p className="text-xs mt-2 font-semibold" style={{ color: '#7C1805' }}>
+              <p className="text-xs mt-2 font-semibold" style={{ color: 'var(--accent-red)' }}>
                 Limite atingido. Aguarde a renovação.
               </p>
             )}
@@ -286,13 +286,13 @@ export const StudentDashboard = () => {
 
         {/* CTA Banner */}
         <div style={{
-          background: 'linear-gradient(135deg, #7C1805 0%, #9E2010 100%)',
+          background: 'linear-gradient(135deg, var(--accent-red) 0%, #9E2010 100%)',
           borderRadius: '16px',
-          padding: '28px 32px',
+          padding: 'clamp(20px, 5vw, 28px) clamp(16px, 5vw, 32px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          gap: '24px',
+          gap: '20px',
           position: 'relative',
           overflow: 'hidden',
           flexWrap: 'wrap',
@@ -305,7 +305,7 @@ export const StudentDashboard = () => {
             <p className="font-script" style={{ fontSize: '14px', color: '#DAB257', marginBottom: '4px' }}>
               continue praticando
             </p>
-            <h2 className="font-heading font-bold" style={{ fontSize: '20px', color: '#FDF3E8', marginBottom: '6px' }}>
+            <h2 className="font-heading font-bold" style={{ fontSize: '20px', color: 'var(--bg-primary)', marginBottom: '6px' }}>
               Escreva sua próxima redação
             </h2>
             <p style={{ fontSize: '13px', color: 'rgba(253,243,232,0.7)', lineHeight: 1.6, maxWidth: '420px' }}>
@@ -320,13 +320,13 @@ export const StudentDashboard = () => {
                 padding: '11px 22px',
                 borderRadius: '10px',
                 backgroundColor: '#DAB257',
-                color: '#2C1A0E',
+                color: 'var(--text-primary)',
                 fontSize: '13px',
                 fontWeight: 700,
                 textDecoration: 'none',
-                whiteSpace: 'nowrap',
                 display: 'inline-flex',
                 alignItems: 'center',
+                minHeight: '44px',
               }}
               data-testid="view-themes-button"
             >
@@ -338,14 +338,14 @@ export const StudentDashboard = () => {
                 padding: '11px 22px',
                 borderRadius: '10px',
                 backgroundColor: 'transparent',
-                color: '#FDF3E8',
+                color: 'var(--bg-primary)',
                 fontSize: '13px',
                 fontWeight: 600,
                 border: '1px solid rgba(253,243,232,0.3)',
                 textDecoration: 'none',
-                whiteSpace: 'nowrap',
                 display: 'inline-flex',
                 alignItems: 'center',
+                minHeight: '44px',
               }}
               data-testid="my-essays-button"
             >
