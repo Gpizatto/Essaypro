@@ -2528,13 +2528,15 @@ async def get_course_engagement(current_user: dict = Depends(get_current_user)):
             active_students = len(set(e["student_id"] for e in recent))
             corrected = [e for e in essays if e.get("status") == "corrected"]
 
+            # Buscar scores em batch — 1 query em vez de N
+            corrected_ids = [e.get("id", "") for e in corrected[:50] if e.get("id")]
             scores = []
-            for essay in corrected[:50]:  # limitar para performance
-                corr = await db.corrections.find_one(
-                    {"essay_id": essay.get("id", "")}, {"_id": 0, "total_score": 1}
-                )
-                if corr:
-                    scores.append(corr["total_score"])
+            if corrected_ids:
+                corrs = await db.corrections.find(
+                    {"essay_id": {"$in": corrected_ids}},
+                    {"_id": 0, "total_score": 1}
+                ).to_list(len(corrected_ids))
+                scores = [c["total_score"] for c in corrs if c.get("total_score") is not None]
 
             result.append({
                 "course_id": cid,
@@ -2554,9 +2556,13 @@ async def get_course_engagement(current_user: dict = Depends(get_current_user)):
             logger.error(f"Engagement sort error: {e}")
             return result
 
-    # ============================================================
-    # CORREÇÃO EM LOTE (Batch Comments)
-    # ============================================================
+    except Exception as e:
+        logger.error(f"course-engagement error: {e}")
+        raise HTTPException(status_code=500, detail=f"Erro ao calcular engajamento: {str(e)}")
+
+# ============================================================
+# CORREÇÃO EM LOTE (Batch Comments)
+# ============================================================
 
     except Exception as e:
         logger.error(f"Report error: {e}", exc_info=True)
