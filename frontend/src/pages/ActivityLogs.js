@@ -8,17 +8,17 @@ import { Activity, Search, Download, Filter } from 'lucide-react';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const ACTION_CONFIG = {
-  published_correction:  { label: 'Publicou correção',     color: '#36555A', icon: '✅' },
-  changed_user_role:     { label: 'Alterou função',         color: '#D66B27', icon: '👤' },
-  changed_score:         { label: 'Alterou nota',           color: '#7C1805', icon: '📝' },
-  deleted_essay:         { label: 'Removeu redação',        color: '#7C1805', icon: '🗑️' },
+  published_correction:  { label: 'Publicou correção',     color: 'var(--accent-green)', icon: '✅' },
+  changed_user_role:     { label: 'Alterou função',         color: 'var(--accent-orange)', icon: '👤' },
+  changed_score:         { label: 'Alterou nota',           color: 'var(--accent-red)', icon: '📝' },
+  deleted_essay:         { label: 'Removeu redação',        color: 'var(--accent-red)', icon: '🗑️' },
   saved_draft:           { label: 'Salvou rascunho',        color: '#DAB257', icon: '💾' },
-  archived_prompt:       { label: 'Arquivou proposta',      color: '#6B5B4E', icon: '📦' },
-  downloaded_file:       { label: 'Baixou arquivo',         color: '#6B5B4E', icon: '⬇️' },
+  archived_prompt:       { label: 'Arquivou proposta',      color: 'var(--text-secondary)', icon: '📦' },
+  downloaded_file:       { label: 'Baixou arquivo',         color: 'var(--text-secondary)', icon: '⬇️' },
 };
 
 const getActionConfig = (action) =>
-  ACTION_CONFIG[action] || { label: action, color: '#6B5B4E', icon: '•' };
+  ACTION_CONFIG[action] || { label: action, color: 'var(--text-secondary)', icon: '•' };
 
 export const ActivityLogs = () => {
   const [logs, setLogs] = useState([]);
@@ -75,9 +75,9 @@ export const ActivityLogs = () => {
   };
 
   const selectStyle = {
-    padding: '6px 10px', borderRadius: '6px',
-    border: '1px solid #E8DDD0', fontSize: '13px',
-    color: '#2C1A0E', backgroundColor: '#FFF',
+    padding: '10px 10px', borderRadius: '6px', minHeight: '44px',
+    border: '1px solid var(--border-color)', fontSize: '13px',
+    color: 'var(--text-primary)', backgroundColor: '#FFF',
   };
 
   if (loading) return (
@@ -93,10 +93,10 @@ export const ActivityLogs = () => {
     <Layout>
       <div className="space-y-5">
         <div>
-          <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }}>
+          <h1 className="font-heading font-bold text-3xl" style={{ color: 'var(--accent-red)' }}>
             Logs de Atividade
           </h1>
-          <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
+          <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
             Histórico de ações realizadas na plataforma
           </p>
         </div>
@@ -105,10 +105,10 @@ export const ActivityLogs = () => {
         <Card className="p-3 bg-white border">
           <div className="flex flex-wrap gap-2 items-center">
             <div className="relative flex-1 min-w-[180px]">
-              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B5B4E' }} />
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--text-secondary)' }} />
               <input value={search} onChange={e => handleSearchChange(e.target.value)}
                 placeholder="Buscar por usuário ou detalhe..."
-                style={{ width: '100%', padding: '6px 10px 6px 28px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E', outline: 'none' }} />
+                style={{ width: '100%', padding: '10px 10px 10px 32px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '16px', color: 'var(--text-primary)', outline: 'none', minHeight: '44px', boxSizing: 'border-box' }} />
             </div>
             <select value={filterAction} onChange={e => handleActionFilterChange(e.target.value)} style={selectStyle}>
               <option value="all">Todas as ações</option>
@@ -117,8 +117,8 @@ export const ActivityLogs = () => {
               ))}
             </select>
             <button onClick={handleExportExcel}
-              className="flex items-center gap-1 px-3 py-1.5 rounded text-xs font-semibold border"
-              style={{ borderColor: '#36555A', color: '#36555A' }}>
+              className="flex items-center gap-1 px-3 rounded text-xs font-semibold border" style={{ minHeight: "40px" }}
+              style={{ borderColor: 'var(--accent-green)', color: 'var(--accent-green)' }}>
               <Download size={12} /> Excel
             </button>
           </div>
@@ -128,8 +128,8 @@ export const ActivityLogs = () => {
         <Card className="bg-white border shadow-sm overflow-hidden">
           {filtered.length === 0 ? (
             <div className="p-10 text-center">
-              <Activity size={36} className="mx-auto mb-2" style={{ color: '#D66B27' }} />
-              <p className="text-sm" style={{ color: '#6B5B4E' }}>
+              <Activity size={36} className="mx-auto mb-2" style={{ color: 'var(--accent-orange)' }} />
+              <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>
                 {logs.length === 0 ? 'Nenhuma atividade registrada ainda' : 'Nenhum resultado encontrado'}
               </p>
             </div>
@@ -138,11 +138,11 @@ export const ActivityLogs = () => {
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr style={{ backgroundColor: '#FDF3E8', borderBottom: '1px solid #E8DDD0' }}>
-                      <th className="text-left px-4 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>DATA/HORA</th>
-                      <th className="text-left px-4 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>USUÁRIO</th>
-                      <th className="text-left px-4 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>AÇÃO</th>
-                      <th className="text-left px-4 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>DETALHE</th>
+                    <tr style={{ backgroundColor: 'var(--bg-primary)', borderBottom: '1px solid var(--border-color)' }}>
+                      <th className="text-left px-4 py-3 text-xs font-bold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '120px' }}>DATA/HORA</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '130px' }}>USUÁRIO</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '150px' }}>AÇÃO</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold whitespace-nowrap" style={{ color: 'var(--accent-red)', minWidth: '200px' }}>DETALHE</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -150,10 +150,10 @@ export const ActivityLogs = () => {
                       const cfg = getActionConfig(log.action);
                       return (
                         <tr key={i} style={{ borderBottom: '1px solid #F0EBE3' }}>
-                          <td className="px-4 py-3 text-xs" style={{ color: '#6B5B4E', whiteSpace: 'nowrap' }}>
+                          <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
                             {new Date(log.created_at).toLocaleString('pt-BR')}
                           </td>
-                          <td className="px-4 py-3 text-sm font-medium" style={{ color: '#2C1A0E' }}>
+                          <td className="px-4 py-3 text-sm font-medium" style={{ color: 'var(--text-primary)' }}>
                             {log.user_name}
                           </td>
                           <td className="px-4 py-3">
@@ -162,7 +162,7 @@ export const ActivityLogs = () => {
                               {cfg.icon} {cfg.label}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-xs" style={{ color: '#6B5B4E' }}>
+                          <td className="px-4 py-3 text-xs" style={{ color: 'var(--text-secondary)' }}>
                             {log.detail || '—'}
                           </td>
                         </tr>
@@ -171,7 +171,7 @@ export const ActivityLogs = () => {
                   </tbody>
                 </table>
               </div>
-              <div className="px-4 py-2 text-xs" style={{ color: '#6B5B4E', borderTop: '1px solid #F0EBE3' }}>
+              <div className="px-4 py-2 text-xs" style={{ color: 'var(--text-secondary)', borderTop: '1px solid #F0EBE3' }}>
                 {filtered.length} registro{filtered.length !== 1 ? 's' : ''}
                 {filtered.length !== logs.length && ` (de ${logs.length} total)`}
               </div>
