@@ -14,7 +14,7 @@ const Toggle = ({ checked, onChange, disabled }) => (
     onClick={() => !disabled && onChange(!checked)}
     style={{
       width: '44px', height: '24px', borderRadius: '12px', position: 'relative',
-      backgroundColor: checked ? '#36555A' : '#D1C5BC',
+      backgroundColor: checked ? 'var(--accent-green)' : '#D1C5BC',
       border: 'none', cursor: disabled ? 'not-allowed' : 'pointer',
       transition: 'background-color 0.2s', flexShrink: 0,
     }}
@@ -30,14 +30,14 @@ const Toggle = ({ checked, onChange, disabled }) => (
 );
 
 const SettingRow = ({ icon: Icon, title, description, checked, onChange, disabled }) => (
-  <div className="flex items-center justify-between gap-4 py-4" style={{ borderBottom: '1px solid #F0EBE3' }}>
+  <div className="flex items-center justify-between gap-4 py-4 min-h-[56px]" style={{ borderBottom: '1px solid #F0EBE3' }}>
     <div className="flex items-start gap-3 flex-1">
-      <div className="p-2 rounded-lg mt-0.5" style={{ backgroundColor: '#FDF3E8' }}>
-        <Icon size={16} style={{ color: '#D66B27' }} />
+      <div className="p-2 rounded-lg mt-0.5" style={{ backgroundColor: 'var(--bg-primary)' }}>
+        <Icon size={16} style={{ color: 'var(--accent-orange)' }} />
       </div>
       <div>
-        <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>{title}</p>
-        <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>{description}</p>
+        <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>{title}</p>
+        <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>{description}</p>
       </div>
     </div>
     <Toggle checked={checked} onChange={onChange} disabled={disabled} />
@@ -114,16 +114,16 @@ export const CourseSettings = () => {
     <Layout>
       <div className="flex flex-col items-center justify-center py-16 text-center max-w-md mx-auto">
         <div className="text-5xl mb-4">⚙️</div>
-        <h2 className="font-heading font-bold text-xl mb-2" style={{ color: '#7C1805' }}>
+        <h2 className="font-heading font-bold text-xl mb-2" style={{ color: 'var(--accent-red)' }}>
           Erro ao carregar configurações
         </h2>
-        <p className="text-sm mb-6" style={{ color: '#6B5B4E' }}>
+        <p className="text-sm mb-6" style={{ color: 'var(--text-secondary)' }}>
           Não foi possível carregar as configurações do curso. Verifique sua conexão e tente novamente.
         </p>
         <button
           onClick={() => window.location.reload()}
           className="px-4 py-2 rounded-lg text-sm font-semibold text-white"
-          style={{ backgroundColor: '#7C1805' }}>
+          style={{ backgroundColor: 'var(--accent-red)' }}>
           Tentar novamente
         </button>
       </div>
@@ -132,17 +132,17 @@ export const CourseSettings = () => {
 
   return (
     <Layout>
-      <div className="space-y-5 max-w-2xl">
-        <div className="flex items-start justify-between gap-3">
+      <div className="space-y-5 w-full max-w-2xl">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
           <div>
-            <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }}>
+            <h1 className="font-heading font-bold text-3xl" style={{ color: 'var(--accent-red)' }}>
               Configurações Pedagógicas
             </h1>
-            <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
+            <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
               Controle o que alunos e corretores podem fazer na plataforma
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="ghost" size="sm" onClick={reset} title="Restaurar padrões">
               <RotateCcw size={14} className="mr-1" /> Padrão
             </Button>
@@ -155,7 +155,7 @@ export const CourseSettings = () => {
 
         {dirty && (
           <div className="px-4 py-2 rounded-lg text-sm font-medium flex items-center gap-2"
-            style={{ backgroundColor: '#FFF8F0', border: '1px solid #D66B27', color: '#D66B27' }}>
+            style={{ backgroundColor: '#FFF8F0', border: '1px solid var(--accent-orange)', color: 'var(--accent-orange)' }}>
             <Settings size={14} />
             Há alterações não salvas
           </div>
@@ -163,7 +163,7 @@ export const CourseSettings = () => {
 
         {/* SEÇÃO ALUNO */}
         <Card className="p-5 bg-white border shadow-sm">
-          <p className="text-xs font-bold mb-1" style={{ color: '#D66B27' }}>ÁREA DO ALUNO</p>
+          <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent-orange)' }}>ÁREA DO ALUNO</p>
 
           <SettingRow
             icon={User}
@@ -207,7 +207,7 @@ export const CourseSettings = () => {
 
         {/* SEÇÃO CORRETOR */}
         <Card className="p-5 bg-white border shadow-sm">
-          <p className="text-xs font-bold mb-1" style={{ color: '#D66B27' }}>FERRAMENTAS DE CORREÇÃO</p>
+          <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent-orange)' }}>FERRAMENTAS DE CORREÇÃO</p>
 
           <div style={{ borderBottom: 'none' }}>
             <SettingRow
@@ -222,16 +222,16 @@ export const CourseSettings = () => {
 
         {/* PRAZOS E CONFIRMAÇÕES */}
         <Card className="p-5 bg-white border shadow-sm">
-          <p className="text-xs font-bold mb-1" style={{ color: '#D66B27' }}>PRAZOS E SEGURANÇA</p>
+          <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent-orange)' }}>PRAZOS E SEGURANÇA</p>
 
           <div className="py-4" style={{ borderBottom: '1px solid #F0EBE3' }}>
             <div className="flex items-start gap-3">
-              <div className="p-2 rounded-lg mt-0.5" style={{ backgroundColor: '#FDF3E8' }}>
-                <Clock size={16} style={{ color: '#D66B27' }} />
+              <div className="p-2 rounded-lg mt-0.5" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                <Clock size={16} style={{ color: 'var(--accent-orange)' }} />
               </div>
               <div className="flex-1">
-                <p className="text-sm font-semibold" style={{ color: '#2C1A0E' }}>Prazo máximo de correção</p>
-                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                <p className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Prazo máximo de correção</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                   Redações ficam com alerta de atraso após esse número de dias. 0 = sem prazo.
                 </p>
                 <div className="flex items-center gap-2 mt-2">
@@ -239,9 +239,9 @@ export const CourseSettings = () => {
                     type="number" min="0" max="30"
                     value={settings.correction_deadline_days || 0}
                     onChange={e => update('correction_deadline_days', parseInt(e.target.value) || 0)}
-                    style={{ width: '70px', padding: '5px 8px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E' }}
+                    style={{ width: '80px', padding: '10px 8px', borderRadius: '6px', minHeight: '44px', border: '1px solid var(--border-color)', fontSize: '13px', color: 'var(--text-primary)' }}
                   />
-                  <span className="text-xs" style={{ color: '#6B5B4E' }}>dias</span>
+                  <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>dias</span>
                 </div>
               </div>
             </div>
@@ -266,7 +266,7 @@ export const CourseSettings = () => {
         </Card>
 
         {/* Legenda */}
-        <p className="text-xs" style={{ color: '#6B5B4E' }}>
+        <p className="text-xs" style={{ color: 'var(--text-secondary)' }}>
           As configurações são aplicadas globalmente para todos os usuários da plataforma.
           Alterações entram em vigor imediatamente após salvar.
         </p>
