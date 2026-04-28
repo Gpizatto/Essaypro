@@ -168,7 +168,7 @@ class EssaySubmit(BaseModel):
     prompt_id: str = Field(..., max_length=100)
     content: Optional[str] = Field("", max_length=500000)  # PDF multi-página pode gerar JSON grande
     submission_method: str = Field(..., max_length=20)
-    file_url: Optional[str] = Field(None, max_length=5000)
+    file_url: Optional[str] = Field(None, max_length=2000000)  # data URL base64 pode ser grande
     student_note: Optional[str] = Field(None, max_length=1000)
     parent_essay_id: Optional[str] = Field(None, max_length=100)
     is_rewrite: bool = False
