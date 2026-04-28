@@ -94,7 +94,6 @@ export const SubmitEssay = () => {
   const [prompt, setPrompt] = useState(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
-  const [pasteContent, setPasteContent] = useState('');
   const [uploadFile, setUploadFile] = useState(null);
   const [uploadUrl, setUploadUrl] = useState('');
   const [activeTab, setActiveTab] = useState('editor');
@@ -238,13 +237,7 @@ export const SubmitEssay = () => {
           return;
         }
         content = editor.getHTML(); // HTML preserva formatação para exibição
-      } else if (method === 'paste') {
-        if (!pasteContent.trim()) {
-          toast.error('Cole o texto da sua redação antes de enviar.');
-          setSubmitting(false);
-          return;
-        }
-        content = pasteContent;
+
       } else if (method === 'upload') {
         if (!uploadFile && !uploadUrl) {
           toast.error('Selecione um arquivo para enviar');
@@ -486,14 +479,10 @@ export const SubmitEssay = () => {
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid w-full grid-cols-3" data-testid="submission-tabs">
+          <TabsList className="grid w-full grid-cols-2" data-testid="submission-tabs">
             <TabsTrigger value="editor" data-testid="tab-editor">
               <Edit3 size={16} className="mr-2" />
               Editor
-            </TabsTrigger>
-            <TabsTrigger value="paste" data-testid="tab-paste">
-              <FileText size={16} className="mr-2" />
-              Colar Texto
             </TabsTrigger>
             <TabsTrigger value="upload" data-testid="tab-upload">
               <Upload size={16} className="mr-2" />
@@ -518,31 +507,6 @@ export const SubmitEssay = () => {
             </div>
           </TabsContent>
 
-          <TabsContent value="paste" className="mt-6">
-            <Card className="p-6 border bg-white" style={{ maxWidth: '900px', margin: '0 auto' }}>
-              <Label htmlFor="paste-content">Cole o texto da sua redação</Label>
-              <Textarea
-                id="paste-content"
-                value={pasteContent}
-                onChange={(e) => setPasteContent(e.target.value)}
-                rows={15}
-                className="mt-2 font-essay text-lg"
-                placeholder="Cole o texto da sua redação aqui..."
-                data-testid="paste-textarea"
-              />
-            </Card>
-            <div className="mt-6 flex justify-center">
-              <Button
-                onClick={() => handleSubmit('paste')}
-                disabled={submitting || !pasteContent.trim() || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
-                size="lg"
-                style={{ backgroundColor: 'var(--accent-red)' }}
-                data-testid="submit-paste-button"
-              >
-                {submitting ? 'Enviando...' : credits?.remaining === 0 ? 'Sem créditos' : 'Enviar Redação'}
-              </Button>
-            </div>
-          </TabsContent>
 
           <TabsContent value="upload" className="mt-6">
             <Card className="p-8 border bg-white text-center" style={{ maxWidth: '600px', margin: '0 auto' }}>
