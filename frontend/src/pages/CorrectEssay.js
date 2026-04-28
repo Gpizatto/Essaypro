@@ -2231,12 +2231,12 @@ export const CorrectEssay = () => {
 
       {/* PAINEL DIREITO - Avaliação */}
         <div
-          className={`bg-white border-l ${mobileTab === 'canvas' ? 'hidden sm:block' : 'w-full sm:w-auto block'} ${!showScorePanel ? 'hidden' : ''}`}
+          className={`bg-white border-l ${mobileTab === 'canvas' ? 'hidden sm:block' : 'w-full sm:w-auto block'}`}
           style={{
             width: '38%', minWidth: '360px', maxWidth: '480px',
             position: 'sticky', top: '72px',
             height: 'calc(100vh - 72px)', overflowY: 'auto',
-            transition: 'width 0.2s ease',
+            display: !showScorePanel ? 'none' : undefined,
           }}
         >
           <div className="p-4 sm:p-6 space-y-6">
