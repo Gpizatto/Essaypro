@@ -141,6 +141,7 @@ export const CorrectEssay = () => {
   const [showConfirmPublish, setShowConfirmPublish] = useState(false);
   const [showShortcuts, setShowShortcuts] = useState(false); // U-09
   const [mobileTab, setMobileTab] = useState('canvas'); // 'canvas' | 'score' — abas em mobile
+  const [showScorePanel, setShowScorePanel] = useState(true); // ocultar/mostrar painel de notas
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
   const pendingDraftRef = useRef(null);
   const [requestingRewrite, setRequestingRewrite] = useState(false);
@@ -1448,6 +1449,20 @@ export const CorrectEssay = () => {
           {autoSaveStatus === 'saved' && (
             <span className="text-xs" style={{ color: 'var(--accent-green)' }}>✓ auto-salvo</span>
           )}
+          {/* Botão tela cheia — oculta/mostra painel de notas */}
+          <Button
+            onClick={() => setShowScorePanel(v => !v)}
+            variant="ghost" size="sm"
+            title={showScorePanel ? 'Ocultar painel de notas' : 'Mostrar painel de notas'}
+            aria-label={showScorePanel ? 'Ocultar painel de notas' : 'Mostrar painel de notas'}
+            style={{
+              color: showScorePanel ? 'var(--text-secondary)' : 'var(--accent-red)',
+              fontSize: '14px', padding: '6px 10px', gap: '4px',
+              fontWeight: showScorePanel ? 400 : 600,
+            }}
+          >
+            {showScorePanel ? '⬜ Tela cheia' : '⬛ Ver notas'}
+          </Button>
           {/* U-09: botão de atalhos de teclado */}
           <Button
             onClick={() => setShowShortcuts(true)}
@@ -1503,7 +1518,7 @@ export const CorrectEssay = () => {
 
       <div className="flex" style={{ alignItems: 'flex-start' }}>
         {/* PAINEL ESQUERDO - Texto + Anotações */}
-        <div className={mobileTab === 'score' ? 'hidden sm:block' : ''} style={{ flex: 1, minWidth: 0 }}>
+        <div className={mobileTab === 'score' ? 'hidden sm:block' : ''} style={{ flex: 1, minWidth: 0, maxWidth: showScorePanel ? undefined : '100%' }}>
           {/* TOOLBAR */}
           <div className="bg-white border-b"
             style={{ position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -2216,11 +2231,12 @@ export const CorrectEssay = () => {
 
       {/* PAINEL DIREITO - Avaliação */}
         <div
-          className={`bg-white border-l ${mobileTab === 'canvas' ? 'hidden sm:block' : 'w-full sm:w-auto block'}`}
+          className={`bg-white border-l ${mobileTab === 'canvas' ? 'hidden sm:block' : 'w-full sm:w-auto block'} ${!showScorePanel ? 'hidden' : ''}`}
           style={{
             width: '38%', minWidth: '360px', maxWidth: '480px',
             position: 'sticky', top: '72px',
             height: 'calc(100vh - 72px)', overflowY: 'auto',
+            transition: 'width 0.2s ease',
           }}
         >
           <div className="p-4 sm:p-6 space-y-6">
