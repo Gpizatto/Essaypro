@@ -2497,7 +2497,6 @@ async def list_backups(current_user: dict = Depends(get_current_user)):
 async def download_backup(backup_id: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    from fastapi.responses import JSONResponse
     # Buscar pelo backup_id (string de created_at) ou o mais recente se "latest"
     if backup_id == "latest":
         backup = await db.backups.find_one({}, sort=[("created_at", -1)])
@@ -2834,8 +2833,6 @@ ALLOWED_ORIGINS = list(set([
 ]))
 
 # S-02: Rate limiting geral — 300 requests por minuto por IP
-from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse as _JSONResponse
 
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -2847,7 +2844,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
         field = " → ".join(str(loc) for loc in e.get("loc", []))
         msg = e.get("msg", "inválido")
         messages.append(f"{field}: {msg}")
-    return _JSONResponse(
+    return JSONResponse(
         status_code=422,
         content={"detail": "; ".join(messages) or "Dados inválidos"}
     )
@@ -2862,7 +2859,6 @@ async def global_rate_limit_middleware(request: Request, call_next):
     window_start = now - 60  # janela de 1 minuto
     _rate_store[f"global:{ip}"] = [t for t in _rate_store[f"global:{ip}"] if t > window_start]
     if len(_rate_store[f"global:{ip}"]) >= 300:
-        from fastapi.responses import JSONResponse
         return JSONResponse(
             status_code=429,
             content={"detail": "Muitas requisições. Tente novamente em instantes."},
