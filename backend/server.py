@@ -807,26 +807,36 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
     # Notificar aluno que a correção ficou pronta
     essay_data = await db.essays.find_one({"id": correction_data.essay_id}, {"_id": 0})
     if essay_data:
+        # Buscar título da proposta (não é salvo no essay, precisa buscar separado)
+        prompt_doc_email = await db.prompts.find_one(
+            {"id": essay_data.get("prompt_id")}, {"_id": 0, "title": 1}
+        )
+        prompt_title_email = prompt_doc_email["title"] if prompt_doc_email else "sua redação"
+        student_id_str = str(essay_data.get("student_id", ""))
+
         await db.notifications.insert_one({
-            "user_id": essay_data.get("student_id"),
+            "user_id": student_id_str,
             "type": "correction_ready",
             "title": "Sua redação foi corrigida! ✅",
-            "message": f"A correção de '{essay_data.get('prompt_title', 'sua redação')}' já está disponível.",
-            "link": f"/my-essays",
+            "message": f"A correção de '{prompt_title_email}' já está disponível.",
+            "link": f"/essay/{correction_data.essay_id}/correction",
             "read": False,
             "created_at": datetime.now(timezone.utc)
         })
         # Enviar email ao aluno
         try:
-            student = await db.users.find_one({"_id": ObjectId(essay_data["student_id"])}, {"_id": 0, "email": 1, "name": 1})
+            student = await db.users.find_one(
+                {"_id": ObjectId(student_id_str)}, {"_id": 0, "email": 1, "name": 1}
+            )
             if student:
                 await send_correction_ready_email(
                     to_email=student["email"],
                     to_name=student["name"],
-                    prompt_title=essay_data.get("prompt_title", "sua redação"),
+                    prompt_title=prompt_title_email,
                     essay_id=correction_data.essay_id,
                 )
-        except (Exception,) as e:  # httpx.RequestError, ValueError
+                logger.info(f"Correction email sent to {student['email']}")
+        except Exception as e:
             logger.warning(f"Correction email failed: {str(e)}")
 
 
@@ -844,18 +854,7 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
         detail=f"Nota: {correction_data.total_score} pts"
     )
 
-    # Notificar aluno que a correção ficou pronta
-    essay_doc = await db.essays.find_one({"id": correction_data.essay_id})
-    if essay_doc:
-        prompt_doc = await db.prompts.find_one({"id": essay_doc.get("prompt_id")}, {"_id": 0, "title": 1})
-        prompt_title = prompt_doc["title"] if prompt_doc else "sua redação"
-        await create_notification(
-            user_id=essay_doc["student_id"],
-            title="Correção disponível! ✅",
-            message=f"Sua redação sobre '{prompt_title}' foi corrigida.",
-            type="success",
-            link=f"/essay/{correction_data.essay_id}/correction"
-        )
+
 
     return CorrectionResponse(**correction_doc)
 
