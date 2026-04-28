@@ -164,9 +164,9 @@ class PromptResponse(BaseModel):
 
 class EssaySubmit(BaseModel):
     prompt_id: str = Field(..., max_length=100)
-    content: Optional[str] = Field("", max_length=100000)
+    content: Optional[str] = Field("", max_length=500000)  # PDF multi-página pode gerar JSON grande
     submission_method: str = Field(..., max_length=20)
-    file_url: Optional[str] = Field(None, max_length=2000)
+    file_url: Optional[str] = Field(None, max_length=5000)
     student_note: Optional[str] = Field(None, max_length=1000)
     parent_essay_id: Optional[str] = Field(None, max_length=100)
     is_rewrite: bool = False
@@ -547,6 +547,8 @@ async def get_all_prompts(
 
 @api_router.post("/essays", response_model=EssayResponse)
 async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get_current_user)):
+    # Log para debug de 422
+    logger.info(f"submit_essay: method={essay_data.submission_method}, content_len={len(essay_data.content or '')}, file_url={bool(essay_data.file_url)}")
     if current_user["role"] != "student":
         raise HTTPException(status_code=403, detail="Only students can submit essays")
 
@@ -2381,29 +2383,66 @@ import asyncio
 import json as json_module2
 
 async def run_backup():
-    """Exporta todas as coleções para um documento de backup no MongoDB"""
+    """Exporta todas as coleções para um documento de backup no MongoDB.
+    Mantém os últimos 7 backups. Notifica admin por email em caso de falha."""
+    started_at = datetime.now(timezone.utc)
     try:
-        collections = ["users", "essays", "corrections", "prompts", "courses", "drafts"]
-        backup_data = {"created_at": datetime.now(timezone.utc).isoformat(), "collections": {}}
+        collections = ["users", "essays", "corrections", "prompts", "courses", "drafts",
+                       "notifications", "course_settings", "activity_logs"]
+        backup_data = {"created_at": started_at.isoformat(), "collections": {}, "counts": {}}
+        total_docs = 0
         for col in collections:
             docs = await db[col].find({}, {"_id": 0}).to_list(10000)
             backup_data["collections"][col] = docs
+            backup_data["counts"][col] = len(docs)
+            total_docs += len(docs)
+
+        raw_size = len(str(backup_data))
+        size_kb = round(raw_size / 1024, 1)
+
         await db.backups.insert_one({
-            "created_at": datetime.now(timezone.utc),
+            "created_at": started_at,
             "data": backup_data,
-            "size": len(str(backup_data))
+            "size": raw_size,
+            "size_kb": size_kb,
+            "total_docs": total_docs,
+            "collections": list(backup_data["counts"].keys()),
+            "counts": backup_data["counts"],
         })
+
         # Manter apenas os últimos 7 backups
         all_backups = await db.backups.find({}, {"_id": 1}).sort("created_at", -1).to_list(100)
         if len(all_backups) > 7:
             old_ids = [b["_id"] for b in all_backups[7:]]
             await db.backups.delete_many({"_id": {"$in": old_ids}})
-        logger.info("Backup automático concluído")
+
+        elapsed = round((datetime.now(timezone.utc) - started_at).total_seconds(), 1)
+        logger.info(f"Backup automático concluído: {total_docs} docs, {size_kb}KB em {elapsed}s")
+        return {"total_docs": total_docs, "size_kb": size_kb, "elapsed": elapsed}
+
     except (OSError, IOError, Exception) as e:
         logger.error(f"Backup error: {str(e)}")
+        # Notificar admin por email
+        try:
+            admin_email = os.getenv("ADMIN_EMAIL", "")
+            if admin_email:
+                platform = os.getenv("PLATFORM_NAME", "EssayPro")
+                await send_email(
+                    admin_email,
+                    f"⚠️ Falha no backup — {platform}",
+                    f"<p>O backup automático falhou em {started_at.strftime('%d/%m/%Y %H:%M')}.</p>"
+                    f"<p><strong>Erro:</strong> {str(e)}</p>"
+                    f"<p>Verifique os logs do servidor.</p>"
+                )
+        except Exception:
+            pass
+        raise
 
 async def backup_scheduler():
-    """Roda backup diário"""
+    """Roda backup diário — faz um backup inicial 5min após o servidor subir,
+    depois a cada 24h."""
+    await asyncio.sleep(5 * 60)  # aguarda 5min para o servidor estabilizar
+    await run_backup()           # backup inicial
     while True:
         await asyncio.sleep(24 * 60 * 60)  # 24 horas
         await run_backup()
@@ -2431,25 +2470,48 @@ async def health_check():
 async def manual_backup(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    await run_backup()
-    return {"message": "Backup realizado com sucesso!"}
+    stats = await run_backup()
+    return {
+        "message": "Backup realizado com sucesso!",
+        "total_docs": stats.get("total_docs", 0),
+        "size_kb": stats.get("size_kb", 0),
+        "elapsed_seconds": stats.get("elapsed", 0),
+    }
 
 @api_router.get("/admin/backup/list")
 async def list_backups(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
-    backups = await db.backups.find({}, {"_id": 0, "data": 0}).sort("created_at", -1).to_list(10)
-    return backups
+    backups = await db.backups.find(
+        {}, {"_id": 1, "created_at": 1, "size_kb": 1, "total_docs": 1, "counts": 1}
+    ).sort("created_at", -1).to_list(10)
+    return [{
+        "id": str(b["_id"]),
+        "created_at": b["created_at"].isoformat() if hasattr(b["created_at"], "isoformat") else b["created_at"],
+        "size_kb": b.get("size_kb", 0),
+        "total_docs": b.get("total_docs", 0),
+        "counts": b.get("counts", {}),
+    } for b in backups]
 
 @api_router.get("/admin/backup/download/{backup_id}")
 async def download_backup(backup_id: str, current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     from fastapi.responses import JSONResponse
-    backup = await db.backups.find_one({"created_at": {"$exists": True}}, sort=[("created_at", -1)])
+    # Buscar pelo backup_id (string de created_at) ou o mais recente se "latest"
+    if backup_id == "latest":
+        backup = await db.backups.find_one({}, sort=[("created_at", -1)])
+    else:
+        try:
+            backup = await db.backups.find_one({"_id": ObjectId(backup_id)})
+        except Exception:
+            backup = await db.backups.find_one({}, sort=[("created_at", -1)])
     if not backup:
         raise HTTPException(status_code=404, detail="Backup não encontrado")
-    return JSONResponse(content=backup["data"])
+    return JSONResponse(
+        content=backup["data"],
+        headers={"Content-Disposition": f"attachment; filename=backup-{backup['created_at'].strftime('%Y%m%d-%H%M')}.json"}
+    )
 
 # ============================================================
 # EVOLUÇÃO DO ALUNO POR COMPETÊNCIA
@@ -2772,6 +2834,24 @@ ALLOWED_ORIGINS = list(set([
 ]))
 
 # S-02: Rate limiting geral — 300 requests por minuto por IP
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse as _JSONResponse
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    errors = exc.errors()
+    logger.warning(f"Validation error on {request.url.path}: {errors}")
+    # Extrair mensagem legível
+    messages = []
+    for e in errors:
+        field = " → ".join(str(loc) for loc in e.get("loc", []))
+        msg = e.get("msg", "inválido")
+        messages.append(f"{field}: {msg}")
+    return _JSONResponse(
+        status_code=422,
+        content={"detail": "; ".join(messages) or "Dados inválidos"}
+    )
+
 @app.middleware("http")
 async def global_rate_limit_middleware(request: Request, call_next):
     # Ignorar rotas estáticas e de saúde
