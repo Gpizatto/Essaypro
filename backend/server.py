@@ -6,6 +6,8 @@ ROOT_DIR = Path(__file__).parent
 load_dotenv(ROOT_DIR / '.env')
 
 from fastapi import FastAPI, APIRouter, HTTPException, Request, Response, Depends, Query, UploadFile, File
+from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from motor.motor_asyncio import AsyncIOMotorClient
 from pydantic import BaseModel, Field, EmailStr, ConfigDict
@@ -1600,7 +1602,6 @@ async def upload_file(
 @api_router.get("/files/{file_id}")
 async def serve_file(file_id: str, request: Request):
     """Serve o arquivo pelo ID — sem autenticação."""
-    from fastapi.responses import Response
     try:
         doc = await db.uploaded_files.find_one({"file_id": file_id})
         if not doc:
