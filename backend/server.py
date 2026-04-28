@@ -607,7 +607,12 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
     except (Exception,) as e:  # KeyError, TypeError, ValueError
         logger.warning(f"Essay enrich error: {e}")
 
-    return EssayResponse(**essay_doc)
+    try:
+        return EssayResponse(**essay_doc)
+    except Exception as e:
+        logger.error(f"EssayResponse serialization error: {e}, doc keys: {list(essay_doc.keys())}")
+        # Retornar dict simples se EssayResponse falhar
+        return {k: str(v) if hasattr(v, 'isoformat') else v for k, v in essay_doc.items()}
 
 @api_router.get("/essays/my", response_model=List[EssayResponse])
 async def get_my_essays(current_user: dict = Depends(get_current_user)):
