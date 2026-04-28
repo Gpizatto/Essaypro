@@ -313,9 +313,16 @@ export const SubmitEssay = () => {
       navigate('/my-essays');
     } catch (error) {
       console.error('Submit error:', error);
-      const detail = error?.response?.data?.detail;
-      const msg = typeof detail === 'string' ? detail : 'Erro ao enviar redação. Tente novamente.';
-      toast.error(msg);
+      console.error('Response data:', error?.response?.data);
+      console.error('Status:', error?.response?.status);
+      const data = error?.response?.data;
+      let msg = 'Erro ao enviar redação. Tente novamente.';
+      if (typeof data?.detail === 'string') {
+        msg = data.detail;
+      } else if (Array.isArray(data?.detail)) {
+        msg = data.detail.map(e => `${e.loc?.join('.')}: ${e.msg}`).join('; ');
+      }
+      toast.error(msg, { duration: 8000 });
     } finally {
       setSubmitting(false);
     }
