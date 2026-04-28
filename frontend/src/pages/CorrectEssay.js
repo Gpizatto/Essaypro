@@ -2364,7 +2364,7 @@ export const CorrectEssay = () => {
                 data-testid="general-feedback-input"
               />
             </div>
-}
+
           </div>
         </div>
       </div>
