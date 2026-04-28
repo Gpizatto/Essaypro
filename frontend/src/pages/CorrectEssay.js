@@ -1521,8 +1521,8 @@ export const CorrectEssay = () => {
         <div className={mobileTab === 'score' ? 'hidden sm:block' : ''} style={{ flex: 1, minWidth: 0, maxWidth: showScorePanel ? undefined : '100%' }}>
           {/* TOOLBAR */}
           <div className="bg-white border-b"
-            style={{ position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)', overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <div className="p-3 sm:p-4 flex items-center gap-2" style={{ minWidth: 'max-content' }}>
+            style={{ position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
+          <div className="p-2 sm:p-3 flex flex-wrap items-center gap-1.5">
             {/* Ferramentas de texto */}
             <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
               {TOOLS.filter(t => t.group === 'text').map(tool => {
@@ -1593,8 +1593,8 @@ export const CorrectEssay = () => {
               </Button>
             </div>
 
-            {/* Cores sempre visíveis — independente da ferramenta */}
-            <Separator orientation="vertical" className="h-6" />
+            {/* Linha 2: Cores + Espessura */}
+            <div className="w-full flex flex-wrap items-center gap-1.5 pt-1 border-t" style={{ borderColor: 'var(--border-color)' }}>
             <div className="flex gap-1">
               {COLORS.map(color => (
                 <button
@@ -1611,7 +1611,6 @@ export const CorrectEssay = () => {
 
             {/* Espessura do traço — sempre visível */}
             <>
-              <Separator orientation="vertical" className="h-6" />
               <div className="flex items-center gap-2">
                 <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Esp:</span>
                 <input
@@ -1628,8 +1627,7 @@ export const CorrectEssay = () => {
 
             {selectedTool === 'eraser' && (
               <>
-                <Separator orientation="vertical" className="h-6" />
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 ml-2">
                   <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Tam:</span>
                   <input
                     type="range"
@@ -1644,8 +1642,9 @@ export const CorrectEssay = () => {
               </>
             )}
 
-          </div>{/* fim toolbar inner */}
-          </div>{/* fim toolbar scroll wrapper */}
+            </div>{/* fim linha 2 */}
+          </div>{/* fim toolbar */}
+          </div>{/* fim toolbar wrapper */}
 
           {/* RECADO DO ALUNO */}
           {essay.student_note && (
