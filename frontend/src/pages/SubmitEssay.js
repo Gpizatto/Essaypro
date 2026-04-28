@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import axios from 'axios';
 
 // Componente que renderiza PDF como imagens usando PDF.js
@@ -43,17 +43,17 @@ const PdfViewer = ({ url }) => {
   }, [url]);
 
   if (loading) return (
-    <div style={{ padding: '40px', textAlign: 'center', color: '#6B5B4E' }}>
+    <div style={{ padding: '40px', textAlign: 'center', color: 'var(--text-secondary)' }}>
       ⏳ Carregando PDF...
     </div>
   );
   if (error) return (
     <div style={{ padding: '24px', textAlign: 'center' }}>
-      <p style={{ color: '#7C1805', marginBottom: '12px' }}>
+      <p style={{ color: 'var(--accent-red)', marginBottom: '12px' }}>
         Não foi possível visualizar o PDF inline.
       </p>
       <a href={url} target="_blank" rel="noreferrer"
-        style={{ backgroundColor: '#7C1805', color: 'white', padding: '8px 16px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px' }}>
+        style={{ backgroundColor: 'var(--accent-red)', color: 'white', padding: '8px 16px', borderRadius: '8px', textDecoration: 'none', fontSize: '13px' }}>
         ↗ Abrir PDF em nova aba
       </a>
     </div>
@@ -63,7 +63,7 @@ const PdfViewer = ({ url }) => {
       {pages.map((src, i) => (
         <div key={i}>
           {pages.length > 1 && (
-            <div style={{ padding: '6px 12px', backgroundColor: '#F0EBE3', fontSize: '12px', color: '#6B5B4E' }}>
+            <div style={{ padding: '6px 12px', backgroundColor: '#F0EBE3', fontSize: '12px', color: 'var(--text-secondary)' }}>
               Página {i + 1} de {pages.length}
             </div>
           )}
@@ -231,8 +231,19 @@ export const SubmitEssay = () => {
       let fileUrl = null;
 
       if (method === 'editor') {
-        content = editor.getText();
+        const rawText = editor.getText().trim();
+        if (!rawText || rawText === 'Comece a escrever sua redação aqui...') {
+          toast.error('Escreva sua redação antes de enviar.');
+          setSubmitting(false);
+          return;
+        }
+        content = editor.getHTML(); // HTML preserva formatação para exibição
       } else if (method === 'paste') {
+        if (!pasteContent.trim()) {
+          toast.error('Cole o texto da sua redação antes de enviar.');
+          setSubmitting(false);
+          return;
+        }
         content = pasteContent;
       } else if (method === 'upload') {
         if (!uploadFile && !uploadUrl) {
@@ -302,7 +313,9 @@ export const SubmitEssay = () => {
       navigate('/my-essays');
     } catch (error) {
       console.error('Submit error:', error);
-      toast.error('Erro ao enviar redação');
+      const detail = error?.response?.data?.detail;
+      const msg = typeof detail === 'string' ? detail : 'Erro ao enviar redação. Tente novamente.';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -333,14 +346,14 @@ export const SubmitEssay = () => {
     <Layout>
       <div className="space-y-6">
         <div>
-          <h1 className="font-heading font-black text-3xl md:text-4xl" style={{ color: '#7C1805' }} data-testid="submit-essay-title">
+          <h1 className="font-heading font-black text-3xl md:text-4xl" style={{ color: 'var(--accent-red)' }} data-testid="submit-essay-title">
             {prompt.title}
           </h1>
           <p className="text-lg mt-2 text-slate-600">{prompt.theme}</p>
         </div>
 
-        <Card className="p-6 bg-white border" style={{ backgroundColor: '#FDF3E8' }}>
-          <h3 className="font-semibold mb-2" style={{ color: '#7C1805' }}>
+        <Card className="p-6 bg-white border" style={{ backgroundColor: 'var(--bg-primary)' }}>
+          <h3 className="font-semibold mb-2" style={{ color: 'var(--accent-red)' }}>
             Textos de Apoio
           </h3>
           {/* Textos de apoio */}
@@ -352,10 +365,10 @@ export const SubmitEssay = () => {
           {(prompt.supporting_files || []).length > 0 && (
             <div className="space-y-4 mt-2">
               {prompt.supporting_files.map((file, i) => (
-                <div key={i} className="rounded-xl overflow-hidden" style={{ border: '1px solid #E8DDD0' }}>
+                <div key={i} className="rounded-xl overflow-hidden" style={{ border: '1px solid var(--border-color)' }}>
                   {/* Header com nome e botões */}
-                  <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: '#FDF3E8' }}>
-                    <span className="text-sm font-semibold flex items-center gap-2" style={{ color: '#7C1805' }}>
+                  <div className="flex items-center justify-between px-4 py-2" style={{ backgroundColor: 'var(--bg-primary)' }}>
+                    <span className="text-sm font-semibold flex items-center gap-2" style={{ color: 'var(--accent-red)' }}>
                       {file.type === 'pdf' ? '📄' : '🖼️'} {file.name}
                     </span>
                     <div className="flex gap-2">
@@ -364,7 +377,7 @@ export const SubmitEssay = () => {
                         target="_blank"
                         rel="noreferrer"
                         className="text-xs px-3 py-1 rounded font-semibold"
-                        style={{ backgroundColor: '#7C1805', color: 'white' }}
+                        style={{ backgroundColor: 'var(--accent-red)', color: 'white' }}
                       >
                         ↗ Abrir
                       </a>
@@ -372,7 +385,7 @@ export const SubmitEssay = () => {
                         href={file.url}
                         download={file.name}
                         className="text-xs px-3 py-1 rounded font-semibold border"
-                        style={{ borderColor: '#7C1805', color: '#7C1805', backgroundColor: 'white' }}
+                        style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)', backgroundColor: 'white' }}
                       >
                         ⬇ Baixar
                       </a>
@@ -395,7 +408,7 @@ export const SubmitEssay = () => {
         </Card>
 
         <Card className="p-6 bg-white border">
-          <h3 className="font-semibold mb-2" style={{ color: '#7C1805' }}>
+          <h3 className="font-semibold mb-2" style={{ color: 'var(--accent-red)' }}>
             Instruções
           </h3>
           <p className="text-slate-700 leading-relaxed">{prompt.instructions}</p>
@@ -404,17 +417,17 @@ export const SubmitEssay = () => {
         {/* Banner de créditos */}
         {credits && credits.mode !== 'unlimited' && (
           <Card className="p-4 border" style={{
-            borderColor: credits.remaining === 0 ? '#7C1805' : '#E8DDD0',
-            backgroundColor: credits.remaining === 0 ? '#FEF2F2' : '#FDF3E8'
+            borderColor: credits.remaining === 0 ? 'var(--accent-red)' : 'var(--border-color)',
+            backgroundColor: credits.remaining === 0 ? '#FEF2F2' : 'var(--bg-primary)'
           }}>
             <div className="flex items-center justify-between flex-wrap gap-2">
               <div>
-                <p className="text-sm font-semibold" style={{ color: credits.remaining === 0 ? '#7C1805' : '#2C1A0E' }}>
+                <p className="text-sm font-semibold" style={{ color: credits.remaining === 0 ? 'var(--accent-red)' : 'var(--text-primary)' }}>
                   {credits.remaining === 0
                     ? '⚠️ Você atingiu seu limite de envios'
                     : `⚡ ${credits.remaining} crédito${credits.remaining !== 1 ? 's' : ''} restante${credits.remaining !== 1 ? 's' : ''}`}
                 </p>
-                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                   {credits.used} de {credits.limit} usados {credits.mode === 'monthly' ? 'este mês' : 'esta semana'}
                   {credits.renews_at ? ` · renova em ${credits.renews_at}` : ''}
                 </p>
@@ -424,7 +437,7 @@ export const SubmitEssay = () => {
                   <div
                     key={i}
                     className="w-4 h-4 rounded-full"
-                    style={{ backgroundColor: i < credits.used ? '#7C1805' : '#E8DDD0' }}
+                    style={{ backgroundColor: i < credits.used ? 'var(--accent-red)' : 'var(--border-color)' }}
                   />
                 ))}
               </div>
@@ -434,12 +447,12 @@ export const SubmitEssay = () => {
 
         {/* Banner de reescrita */}
         {isRewrite && (
-          <Card className="p-4 border-l-4" style={{ borderLeftColor: '#D66B27', backgroundColor: '#FFF8F0' }}>
+          <Card className="p-4 border-l-4" style={{ borderLeftColor: 'var(--accent-orange)', backgroundColor: '#FFF8F0' }}>
             <div className="flex items-start gap-3">
               <span style={{ fontSize: '20px' }}>✏️</span>
               <div>
-                <p className="font-semibold text-sm" style={{ color: '#D66B27' }}>Você está enviando uma reescrita</p>
-                <p className="text-xs mt-0.5" style={{ color: '#6B5B4E' }}>
+                <p className="font-semibold text-sm" style={{ color: 'var(--accent-orange)' }}>Você está enviando uma reescrita</p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--text-secondary)' }}>
                   Esta redação ficará vinculada à versão anterior. A professora poderá comparar as duas versões.
                 </p>
               </div>
@@ -449,8 +462,8 @@ export const SubmitEssay = () => {
 
         {/* Recado para a professora */}
         <Card className="p-5 bg-white border">
-          <Label htmlFor="student-note" className="font-semibold" style={{ color: '#7C1805' }}>
-            Recado para a professora <span className="text-sm font-normal" style={{ color: '#6B5B4E' }}>(opcional)</span>
+          <Label htmlFor="student-note" className="font-semibold" style={{ color: 'var(--accent-red)' }}>
+            Recado para a professora <span className="text-sm font-normal" style={{ color: 'var(--text-secondary)' }}>(opcional)</span>
           </Label>
           <Textarea
             id="student-note"
@@ -462,7 +475,7 @@ export const SubmitEssay = () => {
             placeholder="Deixe um recado, dúvida ou contexto para a sua professora..."
             data-testid="student-note-textarea"
           />
-          <p className="text-xs mt-1 text-right" style={{ color: '#6B5B4E' }}>{studentNote.length}/300</p>
+          <p className="text-xs mt-1 text-right" style={{ color: 'var(--text-secondary)' }}>{studentNote.length}/300</p>
         </Card>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
@@ -490,7 +503,7 @@ export const SubmitEssay = () => {
                 onClick={() => handleSubmit('editor')}
                 disabled={submitting || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
                 size="lg"
-                style={{ backgroundColor: '#7C1805' }}
+                style={{ backgroundColor: 'var(--accent-red)' }}
                 data-testid="submit-editor-button"
               >
                 {submitting ? 'Enviando...' : credits?.remaining === 0 ? 'Sem créditos' : 'Enviar Redação'}
@@ -516,7 +529,7 @@ export const SubmitEssay = () => {
                 onClick={() => handleSubmit('paste')}
                 disabled={submitting || !pasteContent.trim() || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
                 size="lg"
-                style={{ backgroundColor: '#7C1805' }}
+                style={{ backgroundColor: 'var(--accent-red)' }}
                 data-testid="submit-paste-button"
               >
                 {submitting ? 'Enviando...' : credits?.remaining === 0 ? 'Sem créditos' : 'Enviar Redação'}
@@ -550,12 +563,12 @@ export const SubmitEssay = () => {
                     <img
                       src={URL.createObjectURL(uploadFile)}
                       alt="Preview"
-                      style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid #E8DDD0', objectFit: 'contain' }}
+                      style={{ maxWidth: '100%', maxHeight: '400px', borderRadius: '8px', border: '1px solid var(--border-color)', objectFit: 'contain' }}
                     />
                   )}
                   {uploadFile.type === 'application/pdf' && (
                     <div className="mt-2">
-                      <p className="text-xs px-3 py-2 rounded mb-2" style={{ backgroundColor: '#FDF3E8', color: '#7C1805' }}>
+                      <p className="text-xs px-3 py-2 rounded mb-2" style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-red)' }}>
                         📄 PDF selecionado — pré-visualização abaixo. Será convertido para imagem ao enviar.
                       </p>
                       <PdfViewer url={URL.createObjectURL(uploadFile)} />
@@ -569,7 +582,7 @@ export const SubmitEssay = () => {
                 </div>
               )}
               {uploadUrl && (
-                <p className="mt-2 text-xs font-semibold" style={{ color: '#36555A' }}>
+                <p className="mt-2 text-xs font-semibold" style={{ color: 'var(--accent-green)' }}>
                   ✓ Arquivo enviado com sucesso! Clique em "Enviar Redação" para concluir.
                 </p>
               )}
@@ -579,7 +592,7 @@ export const SubmitEssay = () => {
                 onClick={() => handleSubmit('upload')}
                 disabled={submitting || !uploadFile || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
                 size="lg"
-                style={{ backgroundColor: '#7C1805' }}
+                style={{ backgroundColor: 'var(--accent-red)' }}
                 data-testid="submit-upload-button"
               >
                 {submitting ? 'Enviando...' : credits?.remaining === 0 ? 'Sem créditos' : 'Enviar Redação'}
