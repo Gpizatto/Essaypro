@@ -178,7 +178,7 @@ class EssayResponse(BaseModel):
     student_name: Optional[str] = None
     prompt_id: str
     prompt_title: Optional[str] = None
-    content: str
+    content: Optional[str] = ""
     submission_method: str
     file_url: Optional[str] = None
     student_note: Optional[str] = None
@@ -574,9 +574,9 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
     
     essay_doc = {
         "id": str(ObjectId()),
-        "student_id": current_user["_id"],
+        "student_id": str(current_user["_id"]),  # garantir string para serialização
         "prompt_id": essay_data.prompt_id,
-        "content": essay_data.content,
+        "content": essay_data.content or "",
         "submission_method": essay_data.submission_method,
         "file_url": essay_data.file_url,
         "student_note": essay_data.student_note,
