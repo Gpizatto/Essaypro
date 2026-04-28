@@ -142,10 +142,9 @@ export const CorrectEssay = () => {
   const [showShortcuts, setShowShortcuts] = useState(false); // U-09
   const [mobileTab, setMobileTab] = useState('canvas'); // 'canvas' | 'score' — abas em mobile
   const [showScorePanel, setShowScorePanel] = useState(true); // ocultar/mostrar painel de notas
+  const [suggestRewrite, setSuggestRewrite] = useState(false); // toggle no header — só envia ao finalizar
   const [confirmBeforePublish, setConfirmBeforePublish] = useState(true);
   const pendingDraftRef = useRef(null);
-  const [requestingRewrite, setRequestingRewrite] = useState(false);
-  const [rewriteRequested, setRewriteRequested] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -1173,7 +1172,20 @@ export const CorrectEssay = () => {
         { withCredentials: true }
       );
 
-      toast.success('Correção finalizada com sucesso!');
+      // Se reescrita marcada, notificar o aluno via endpoint de intervenção
+      if (suggestRewrite) {
+        try {
+          await axios.post(
+            `${API_URL}/api/corrections/${essayId}/intervention`,
+            { suggest_rewrite: true },
+            { withCredentials: true }
+          );
+        } catch (e) {
+          console.warn('Rewrite intervention failed:', e);
+        }
+      }
+
+      toast.success(suggestRewrite ? 'Correção enviada e reescrita solicitada!' : 'Correção finalizada com sucesso!');
       navigate('/correction-queue');
     } catch (error) {
       console.error('Submit error:', error);
@@ -1183,58 +1195,7 @@ export const CorrectEssay = () => {
     }
   };
 
-  // Solicitar reescrita — envia a correção e notifica o aluno
-  const handleRequestRewrite = async () => {
-    if (!feedback.general_feedback.trim()) {
-      toast.error('Preencha o feedback geral antes de solicitar reescrita');
-      return;
-    }
-    setRequestingRewrite(true);
-    burnTextboxesToCanvas();
-    try {
-      // 1. Finalizar a correção normalmente
-      const criteria_scores = prompt.criteria.map(c => ({
-        criteria_id: c.id, nome: c.nome,
-        score: scores[c.id] || 0, max: c.peso_maximo
-      }));
-      const totalScore = criteria_scores.reduce((sum, cs) => sum + cs.score, 0);
-      let canvasData = null;
-      if (nativeCanvasRef.current) {
-        const c = nativeCanvasRef.current;
-        if (c.width > 0 && c.height > 0) canvasData = { dataUrl: c.toDataURL('image/png') };
-      }
-      if ((pdfDocRef.current || pdfImagePages.length > 0) && nativeCanvasRef.current?.width > 0) {
-        pdfAnnotationsRef.current[pdfPageRef.current] = nativeCanvasRef.current.toDataURL('image/png');
-      }
-      await axios.post(`${API_URL}/api/corrections`, {
-        essay_id: essayId,
-        criteria_scores,
-        total_score: totalScore,
-        ...feedback,
-        inline_comments: inlineComments,
-        canvas_annotations: canvasData,
-        pdf_annotations: (pdfDocRef.current || pdfImagePages.length > 0) ? pdfAnnotationsRef.current : undefined,
-        correction_time_minutes: Math.round((Date.now() - correctionStartTime.current) / 60000),
-      }, { withCredentials: true });
-
-      // 2. Marcar suggest_rewrite = true (envia notificação ao aluno via backend)
-      await axios.post(`${API_URL}/api/corrections/${essayId}/intervention`,
-        { suggest_rewrite: true },
-        { withCredentials: true }
-      );
-
-      setRewriteRequested(true);
-      toast.success('Correção enviada e reescrita solicitada ao aluno!');
-      setTimeout(() => navigate('/correction-queue'), 1500);
-    } catch (error) {
-      console.error('Rewrite request error:', error);
-      toast.error('Erro ao solicitar reescrita');
-    } finally {
-      setRequestingRewrite(false);
-    }
-  };
-
-  // Helper: abre popup de edição para uma textbox existente
+  // Helper  // Helper: abre popup de edição para uma textbox existente
   // Helper: JSX de uma textbox arrastável com resize nativo
   // Componente React para textbox arrastável e redimensionável
   const TextboxItem = React.memo(({ tb, draggingId, canvasRef, onDragStart, onResize, onRemove }) => {
@@ -1474,18 +1435,19 @@ export const CorrectEssay = () => {
             ⌨
           </Button>
           <Button
-            onClick={handleRequestRewrite}
-            disabled={requestingRewrite || submitting || rewriteRequested}
+            onClick={() => setSuggestRewrite(v => !v)}
+            disabled={submitting}
             size="sm"
-            variant="outline"
+            variant={suggestRewrite ? 'default' : 'outline'}
             style={{
-              borderColor: rewriteRequested ? 'var(--accent-green)' : 'var(--accent-orange)',
-              color: rewriteRequested ? 'var(--accent-green)' : 'var(--accent-orange)',
+              borderColor: suggestRewrite ? 'var(--accent-orange)' : 'var(--accent-orange)',
+              backgroundColor: suggestRewrite ? 'var(--accent-orange)' : 'transparent',
+              color: suggestRewrite ? 'white' : 'var(--accent-orange)',
               minHeight: '36px', fontSize: '12px',
             }}
-            title="Envia a correção e solicita que o aluno reescreva"
+            title={suggestRewrite ? 'Reescrita será solicitada ao finalizar (clique para desmarcar)' : 'Marcar para solicitar reescrita ao finalizar'}
           >
-            {requestingRewrite ? 'Enviando...' : rewriteRequested ? '✓ Reescrita' : '✏️ Reescrita'}
+            {suggestRewrite ? '✓ Reescrita marcada' : '✏️ Solicitar Reescrita'}
           </Button>
           <Button
             onClick={() => confirmBeforePublish ? setShowConfirmPublish(true) : handleSubmit()}
@@ -2364,7 +2326,7 @@ export const CorrectEssay = () => {
                 data-testid="general-feedback-input"
               />
             </div>
-
+}
           </div>
         </div>
       </div>
@@ -2740,6 +2702,9 @@ export const CorrectEssay = () => {
             </div>
           </div>
         </div>
+      )}
+
+
       )}
 
       {/* U-09: MODAL DE ATALHOS DE TECLADO */}
