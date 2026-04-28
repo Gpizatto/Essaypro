@@ -280,9 +280,9 @@ async def register(user_data: UserRegister, request: Request):
         "name": user_data.name,
         "email": email,
         "password_hash": hashed_pw,
-        "role": "student",
-        "is_active": True,
-        "is_approved": False,
+        "role": user_data.role if user_data.role in ["student", "teacher"] else "student",
+        "is_active": False,    # inativo até admin aprovar
+        "is_approved": False,  # pendente de aprovação
         "phone": getattr(user_data, 'phone', None) or "",
         "created_at": datetime.now(timezone.utc)
     }
@@ -309,11 +309,8 @@ async def login(login_data: UserLogin, response: Response, request: Request):
     is_approved = user.get("is_approved", True)
     is_active = user.get("is_active", True)
     logger.info(f"Login attempt: {email}, is_approved={is_approved}, is_active={is_active}, role={user.get('role')}")
-    if not is_approved:
+    if not is_approved or not is_active:
         raise HTTPException(status_code=403, detail="Sua conta ainda não foi aprovada pelo administrador. Aguarde.")
-    # is_active=False só bloqueia se explicitamente desativado pelo admin (não para novos cadastros)
-    if is_active == False and is_approved:
-        raise HTTPException(status_code=403, detail="Sua conta foi desativada. Entre em contato com o administrador.")
     
     user_id = str(user["_id"])
     access_token = create_access_token(user_id, email)
@@ -2947,14 +2944,8 @@ async def startup_event():
 
     logger.info("Índices MongoDB criados/verificados")
     
-    # Migração: usuários com is_active=True mas is_approved=False → aprovar automaticamente
-    # Esses usuários foram "ativados" pelo toggle mas não aprovados pelo fluxo correto
-    fixed = await db.users.update_many(
-        {"is_active": True, "is_approved": False},
-        {"$set": {"is_approved": True}}
-    )
-    if fixed.modified_count > 0:
-        logger.info(f"Migração: {fixed.modified_count} usuário(s) aprovado(s) automaticamente (is_active=True, is_approved=False)")
+    # Migração removida — novos cadastros chegam com is_active=False, is_approved=False
+    # Admin precisa ativar manualmente via painel
 
     # Corrigir URLs de arquivos que foram salvas sem domínio
     backend_url = os.getenv("BACKEND_URL", "").rstrip("/")
