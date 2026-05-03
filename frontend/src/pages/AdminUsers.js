@@ -10,9 +10,10 @@ import { toast } from 'sonner';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const ROLE_MAP = {
-  student: { label: 'Aluno',     color: '#2563EB' },
-  teacher: { label: 'Professor', color: 'var(--accent-green)' },
-  admin:   { label: 'Admin',     color: 'var(--accent-red)' },
+  student:  { label: 'Aluno',     color: '#2563EB' },
+  teacher:  { label: 'Professor', color: 'var(--accent-green)' },
+  corretor: { label: 'Corretor',  color: '#7C3AED' },
+  admin:    { label: 'Admin',     color: 'var(--accent-red)' },
 };
 
 export const AdminUsers = () => {
