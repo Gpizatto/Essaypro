@@ -152,6 +152,13 @@ export const Layout = ({ children }) => {
         { path: '/manage-prompts',    icon: BookOpen,  label: 'Propostas' },
         { path: '/teacher/report',    icon: BarChart3,label: 'Meu Relatório' },
       ];
+    } else if (user.role === 'corretor') {
+      return [
+        { path: '/dashboard',         icon: Home,     label: 'Início' },
+        { path: '/correction-queue',  icon: PenTool,  label: 'Correções' },
+        { path: '/teacher/students',  icon: Users,    label: 'Alunos' },
+        { path: '/admin/reports',     icon: BarChart3,label: 'Relatórios' },
+      ];
     } else if (user.role === 'admin') {
       return [
         { path: '/dashboard',      icon: Home,      label: 'Início' },
@@ -168,8 +175,8 @@ export const Layout = ({ children }) => {
   };
 
   const menuItems = getMenuItems();
-  const roleLabel = user.role === 'student' ? 'ALUNA' : user.role === 'teacher' ? 'PROF.' : 'ADMIN';
-  const roleColor = user.role === 'student' ? 'var(--accent-green)' : user.role === 'teacher' ? 'var(--accent-orange)' : 'var(--accent-red)';
+  const roleLabel = user.role === 'student' ? 'ALUNA' : user.role === 'teacher' ? 'PROF.' : user.role === 'corretor' ? 'COR.' : 'ADMIN';
+  const roleColor = user.role === 'student' ? 'var(--accent-green)' : user.role === 'teacher' ? 'var(--accent-orange)' : user.role === 'corretor' ? '#7C3AED' : 'var(--accent-red)';
   const initials = getInitials(user.name);
 
   // ── Conteúdo do sidebar (reutilizado em desktop e mobile) ────────────────
