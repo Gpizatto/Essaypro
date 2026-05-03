@@ -63,18 +63,17 @@ export const CorrectionView = () => {
 
   const fetchData = async () => {
     try {
+      // 1ª onda — dados principais
       const [essayRes, correctionRes] = await Promise.all([
         axios.get(`${API_URL}/api/essays/${essayId}`, { withCredentials: true }),
         axios.get(`${API_URL}/api/corrections/${essayId}`, { withCredentials: true }),
       ]);
-      const essayData = { ...essayRes.data };
 
-      // Normalizar file_url relativa
+      const essayData = { ...essayRes.data };
       if (essayData.file_url && essayData.file_url.startsWith('/api/')) {
         essayData.file_url = `${process.env.REACT_APP_BACKEND_URL}${essayData.file_url}`;
       }
 
-      // Detectar PDF convertido em imagens
       let pages = [];
       try {
         const parsed = JSON.parse(essayData.content || '');
@@ -85,7 +84,6 @@ export const CorrectionView = () => {
         }
       } catch (e) {}
 
-      // Fallback: qualquer file_url de imagem
       if (pages.length === 0 && essayData.file_url &&
           /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url)) {
         pages = [essayData.file_url];
@@ -94,12 +92,11 @@ export const CorrectionView = () => {
       setPdfPages(pages);
       setEssay(essayData);
       setCorrection(correctionRes.data);
-      
-      // Carregar imagem
+
       if (essayData.file_url && pages.length === 0 &&
           (essayData.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essayData.file_url))) {
         if (essayData.file_url.startsWith('data:')) {
-          setImageBlobUrl(essayData.file_url); // data URL — usar direto
+          setImageBlobUrl(essayData.file_url);
         } else {
           fetch(essayData.file_url, { credentials: 'include' })
             .then(r => r.ok ? r.blob() : Promise.reject(r.status))
@@ -108,57 +105,32 @@ export const CorrectionView = () => {
         }
       }
 
-      // Buscar proposta diretamente pelo ID (funciona mesmo se arquivada)
-      try {
-        const promptRes = await axios.get(`${API_URL}/api/prompts/${essayRes.data.prompt_id}`, { withCredentials: true });
-        if (promptRes.data) setPrompt(promptRes.data);
-      } catch (e) {
-        // Fallback: buscar da lista
-        try {
-          const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
-          const found = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
-          if (found) setPrompt(found);
-        } catch (e2) { /* sem proposta */ }
-      }
+      // 2ª onda — todos os dados secundários em paralelo
+      const [
+        promptRes,
+        settingsRes,
+        intRes,
+        histRes,
+        evolutionRes,
+        rewriteRes,
+        parentRes,
+      ] = await Promise.all([
+        axios.get(`${API_URL}/api/prompts/${essayRes.data.prompt_id}`, { withCredentials: true }).catch(() => ({ data: null })),
+        axios.get(`${API_URL}/api/settings/course`, { withCredentials: true }).catch(() => ({ data: {} })),
+        axios.get(`${API_URL}/api/corrections/${essayId}/intervention`, { withCredentials: true }).catch(() => ({ data: null })),
+        axios.get(`${API_URL}/api/corrections/${essayId}/history`, { withCredentials: true }).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/api/student/evolution`, { withCredentials: true }).catch(() => ({ data: [] })),
+        axios.get(`${API_URL}/api/essays/${essayId}/rewrite`, { withCredentials: true, validateStatus: s => s === 200 || s === 404 }).catch(() => ({ status: 404 })),
+        axios.get(`${API_URL}/api/essays/${essayId}/parent-correction`, { withCredentials: true, validateStatus: s => s === 200 || s === 404 }).catch(() => ({ status: 404 })),
+      ]);
 
-      // Buscar configurações do curso
-      const settingsRes = await axios.get(`${API_URL}/api/settings/course`, { withCredentials: true });
+      if (promptRes.data) setPrompt(promptRes.data);
       setCourseSettings(settingsRes.data);
-
-      // Buscar intervenção do professor
-      try {
-        const intRes = await axios.get(`${API_URL}/api/corrections/${essayId}/intervention`, { withCredentials: true });
-        setIntervention(intRes.data);
-      } catch (e) { /* sem intervenção ainda */ }
-
-      // Buscar histórico de versões
-      try {
-        const histRes = await axios.get(`${API_URL}/api/corrections/${essayId}/history`, { withCredentials: true });
-        setCorrectionHistory(histRes.data);
-      } catch (e) { /* sem histórico */ }
-      // Buscar evolução por competência (outras correções do mesmo aluno)
-      try {
-        const evolutionRes = await axios.get(`${API_URL}/api/student/evolution`, { withCredentials: true });
-        setEvolutionData(evolutionRes.data || []);
-      } catch (e) { /* sem evolução */ }
-
-      // Reescrita: professor vê se existe reescrita desta redação
-      try {
-        const rewriteRes = await axios.get(`${API_URL}/api/essays/${essayId}/rewrite`, {
-          withCredentials: true,
-          validateStatus: s => s === 200 || s === 404,
-        });
-        if (rewriteRes.status === 200) setRewriteData(rewriteRes.data);
-      } catch (e) { /* sem reescrita */ }
-
-      // Reescrita: aluno vê nota original se esta for uma reescrita
-      try {
-        const parentRes = await axios.get(`${API_URL}/api/essays/${essayId}/parent-correction`, {
-          withCredentials: true,
-          validateStatus: s => s === 200 || s === 404,
-        });
-        if (parentRes.status === 200) setParentCorrectionData(parentRes.data);
-      } catch (e) { /* não é reescrita */ }
+      if (intRes.data) setIntervention(intRes.data);
+      setCorrectionHistory(histRes.data || []);
+      setEvolutionData(evolutionRes.data || []);
+      if (rewriteRes.status === 200) setRewriteData(rewriteRes.data);
+      if (parentRes.status === 200) setParentCorrectionData(parentRes.data);
 
     } catch (error) {
       console.error('Error fetching data:', error);
