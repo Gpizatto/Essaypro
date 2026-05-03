@@ -458,20 +458,10 @@ export const CorrectionView = () => {
             Ver Proposta
           </Button>
           {courseSettings?.allow_download !== false && (
-            <>
-              <Button variant="outline" size="sm" onClick={handleDownloadEssay}>
-                <FileText size={15} className="mr-2" />
-                Baixar Redação
-              </Button>
-              <Button variant="outline" size="sm" onClick={handleDownloadCorrection}>
-                <Download size={15} className="mr-2" />
-                Baixar Correção
-              </Button>
-              <Button variant="outline" size="sm" onClick={handlePrintCorrection}>
-                <Printer size={15} className="mr-2" />
-                Imprimir / PDF
-              </Button>
-            </>
+            <Button variant="outline" size="sm" onClick={handlePrintCorrection}>
+              <Printer size={15} className="mr-2" />
+              Imprimir / PDF
+            </Button>
           )}
         </div>
 
@@ -1045,22 +1035,48 @@ export const CorrectionView = () => {
                 <X size={20} />
               </button>
             </div>
-            <div className="p-4 sm:p-6 space-y-4">
-              <div>
-                <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>TEMA</p>
-                <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{prompt.theme}</p>
-              </div>
+            <div className="p-4 sm:p-6 space-y-5">
+              {prompt.theme && (
+                <div>
+                  <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>TEMA</p>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{prompt.theme}</p>
+                </div>
+              )}
               {prompt.supporting_texts && (
                 <div>
                   <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>TEXTOS DE APOIO</p>
-                  <p className="text-sm whitespace-pre-line" style={{ color: 'var(--text-primary)' }}>{prompt.supporting_texts}</p>
+                  <p className="text-sm whitespace-pre-line leading-relaxed" style={{ color: 'var(--text-primary)' }}>{prompt.supporting_texts}</p>
+                </div>
+              )}
+              {prompt.supporting_files && prompt.supporting_files.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold mb-2" style={{ color: 'var(--accent-orange)' }}>ARQUIVOS DE APOIO</p>
+                  <div className="space-y-2">
+                    {prompt.supporting_files.map((file, i) => (
+                      <a
+                        key={i}
+                        href={file.url?.startsWith('/api/') ? `${process.env.REACT_APP_BACKEND_URL}${file.url}` : file.url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="flex items-center gap-2 p-2 rounded-lg border text-sm"
+                        style={{ borderColor: 'var(--border-color)', color: 'var(--accent-red)', textDecoration: 'none' }}
+                      >
+                        <FileText size={14} />
+                        {file.name || `Arquivo ${i + 1}`}
+                        <ExternalLink size={12} style={{ marginLeft: 'auto', opacity: 0.5 }} />
+                      </a>
+                    ))}
+                  </div>
                 </div>
               )}
               {prompt.instructions && (
                 <div>
                   <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>INSTRUÇÕES</p>
-                  <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{prompt.instructions}</p>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--text-primary)' }}>{prompt.instructions}</p>
                 </div>
+              )}
+              {!prompt.theme && !prompt.supporting_texts && !prompt.instructions && (
+                <p className="text-sm" style={{ color: 'var(--text-secondary)' }}>Nenhum detalhe disponível para esta proposta.</p>
               )}
             </div>
           </div>
