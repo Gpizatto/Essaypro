@@ -2089,6 +2089,8 @@ export const CorrectEssay = () => {
                   onTouchEnd={handleCanvasMouseUp}
                 />
               )}
+              {/* Textboxes arrastáveis — modo texto digitado */}
+              {!essay?.file_url && pdfImagePages.length === 0 && canvasTextboxes.map(tb => renderTextbox(tb))}
             </div>
           </div>
         </div>
