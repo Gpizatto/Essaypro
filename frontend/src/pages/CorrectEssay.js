@@ -479,37 +479,40 @@ export const CorrectEssay = () => {
 
   const fetchData = async () => {
     try {
-      const essayRes = await axios.get(`${API_URL}/api/essays/${essayId}`, { withCredentials: true });
-      // Corrigir file_url relativa (upload sem BACKEND_URL configurado)
+      // Disparar todos os requests em paralelo
+      const [essayRes, settingsRes, draftRes, promptsRes] = await Promise.all([
+        axios.get(`${API_URL}/api/essays/${essayId}`, { withCredentials: true }),
+        axios.get(`${API_URL}/api/settings/course`, { withCredentials: true }).catch(() => ({ data: {} })),
+        axios.get(`${API_URL}/api/corrections/draft/${essayId}`, {
+          withCredentials: true,
+          validateStatus: (s) => s === 200 || s === 404,
+        }).catch(() => ({ status: 404 })),
+        axios.get(`${API_URL}/api/prompts`, { withCredentials: true }).catch(() => ({ data: [] })),
+      ]);
+
+      // ── Redação ──────────────────────────────────────────────────────────
       const essayData = { ...essayRes.data };
       if (essayData.file_url && essayData.file_url.startsWith('/api/')) {
         essayData.file_url = `${API_URL}${essayData.file_url}`;
       }
       setEssay(essayData);
-      // Para redações de upload: não mostrar "Conteúdo não disponível"
+
       const isUpload = essayRes.data.submission_method === 'upload';
-      // Verificar se é PDF convertido em múltiplas páginas
       const rawContent = essayRes.data.content || '';
       let pdfPages = [];
       try {
         const parsed = JSON.parse(rawContent);
         if (parsed.type === 'pdf_pages' && Array.isArray(parsed.urls)) {
-          // Corrigir URLs relativas — adicionar domínio do backend se necessário
-          pdfPages = parsed.urls.map(url => {
-            if (url && url.startsWith('/api/files/')) {
-              return `${API_URL}${url}`;
-            }
-            return url;
-          });
+          pdfPages = parsed.urls.map(url =>
+            url && url.startsWith('/api/files/') ? `${API_URL}${url}` : url
+          );
         }
       } catch (e) {}
 
       if (pdfPages.length > 0) {
-        // PDF convertido em múltiplas páginas
         setPdfImagePages(pdfPages);
         setEssayHtml('');
       } else if (essayData.file_url) {
-        // Arquivo direto (JPG/PNG/PDF) — manter no essay.file_url, não em pdfImagePages
         setEssayHtml('');
       } else {
         setEssayHtml(
@@ -519,41 +522,30 @@ export const CorrectEssay = () => {
         );
       }
 
-      // Buscar configurações do curso
-      try {
-        const settingsRes = await axios.get(`${API_URL}/api/settings/course`, { withCredentials: true });
-        setCourseSettings(settingsRes.data);
-        setConfirmBeforePublish(settingsRes.data.confirm_before_publish !== false);
-      } catch (e) { console.error('Error fetching settings:', e); }
+      // ── Configurações ────────────────────────────────────────────────────
+      setCourseSettings(settingsRes.data);
+      setConfirmBeforePublish(settingsRes.data.confirm_before_publish !== false);
 
-      // Carregar rascunho se existir (404 é esperado quando não há rascunho)
-      try {
-        const draftRes = await axios.get(`${API_URL}/api/corrections/draft/${essayId}`, {
-          withCredentials: true,
-          validateStatus: (status) => status === 200 || status === 404,
-        });
-        if (draftRes.status === 200) {
-          const d = draftRes.data;
-          if (d.scores) setScores(d.scores);
-          if (d.feedback) setFeedback(d.feedback);
-          if (d.inlineComments) setInlineComments(d.inlineComments);
-          pendingDraftRef.current = {
-            textAnnotations: d.textAnnotations || null,
-            canvasDataUrl: d.canvasDataUrl || null,
-          };
-          setDraftLoaded(true);
-        }
-      } catch (e) { /* ignorar */ }
+      // ── Rascunho ─────────────────────────────────────────────────────────
+      if (draftRes.status === 200) {
+        const d = draftRes.data;
+        if (d.scores) setScores(d.scores);
+        if (d.feedback) setFeedback(d.feedback);
+        if (d.inlineComments) setInlineComments(d.inlineComments);
+        pendingDraftRef.current = {
+          textAnnotations: d.textAnnotations || null,
+          canvasDataUrl: d.canvasDataUrl || null,
+        };
+        setDraftLoaded(true);
+      }
 
-      const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
+      // ── Proposta ─────────────────────────────────────────────────────────
       const promptData = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
       setPrompt(promptData);
 
       if (promptData && promptData.criteria) {
         const initialScores = {};
-        promptData.criteria.forEach(c => {
-          initialScores[c.id] = 0;
-        });
+        promptData.criteria.forEach(c => { initialScores[c.id] = 0; });
         setScores(initialScores);
       }
     } catch (error) {
