@@ -1903,56 +1903,39 @@ def _email_wrapper(title: str, body_html: str) -> str:
     """
 
 async def send_email(to_email: str, subject: str, html: str) -> bool:
-    """Envia email via Gmail SMTP (primário) ou Resend (fallback)."""
-    import smtplib
-    from email.mime.multipart import MIMEMultipart
-    from email.mime.text import MIMEText
+    """Envia email via Brevo (funciona no Render — usa HTTPS)."""
+    import httpx
 
-    gmail_user = os.getenv("GMAIL_USER")
-    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
-
-    if gmail_user and gmail_password:
-        try:
-            msg = MIMEMultipart("alternative")
-            msg["Subject"] = subject
-            msg["From"] = f"Redação com Nicolle <{gmail_user}>"
-            msg["To"] = to_email
-            msg.attach(MIMEText(html, "html", "utf-8"))
-
-            import asyncio
-            loop = asyncio.get_event_loop()
-            def _send():
-                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
-                    server.login(gmail_user, gmail_password)
-                    server.sendmail(gmail_user, to_email, msg.as_string())
-            await loop.run_in_executor(None, _send)
-            logger.info(f"Email enviado via Gmail para {to_email}")
-            return True
-        except Exception as e:
-            logger.error(f"Gmail SMTP error: {str(e)}")
-            return False
-
-    # Fallback: Resend
-    resend_key = os.getenv("RESEND_API_KEY")
-    if not resend_key:
-        logger.warning("Nenhuma configuração de email (GMAIL_USER ou RESEND_API_KEY) encontrada")
+    brevo_key = os.getenv("BREVO_API_KEY", "").strip()
+    if not brevo_key:
+        logger.warning("BREVO_API_KEY não configurada — email não enviado")
         return False
 
-    email_from = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
-    import httpx
+    sender_email = os.getenv("EMAIL_FROM", "gustavopizatto@hotmail.com").strip()
+    sender_name = os.getenv("EMAIL_FROM_NAME", "Redação com Nicolle").strip()
+
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(
-                "https://api.resend.com/emails",
-                json={"from": email_from, "to": [to_email], "subject": subject, "html": html},
-                headers={"Authorization": f"Bearer {resend_key}", "Content-Type": "application/json"}
+                "https://api.brevo.com/v3/smtp/email",
+                json={
+                    "sender": {"name": sender_name, "email": sender_email},
+                    "to": [{"email": to_email}],
+                    "subject": subject,
+                    "htmlContent": html,
+                },
+                headers={
+                    "api-key": brevo_key,
+                    "Content-Type": "application/json",
+                }
             )
-            if resp.status_code not in (200, 201):
-                logger.error(f"Resend error {resp.status_code}: {resp.text}")
+            if resp.status_code not in (200, 201, 202):
+                logger.error(f"Brevo error {resp.status_code}: {resp.text}")
                 return False
+            logger.info(f"Email enviado via Brevo para {to_email}")
             return True
     except Exception as e:
-        logger.error(f"Resend exception: {str(e)}")
+        logger.error(f"Brevo exception ({type(e).__name__}): {str(e)}")
         return False
 
 async def send_reset_email(to_email: str, to_name: str, reset_token: str):
@@ -2959,7 +2942,36 @@ async def cors_middleware(request: Request, call_next):
 
     return response
 
-app.include_router(api_router)
+@api_router.post("/admin/test-email")
+async def test_email(body: dict, current_user: dict = Depends(get_current_user)):
+    """Endpoint de diagnóstico — admin envia um email de teste para qualquer endereço."""
+    if current_user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Apenas admins podem usar este endpoint")
+
+    to_email = body.get("to_email", "").strip()
+    if not to_email:
+        raise HTTPException(status_code=400, detail="Informe o campo to_email")
+
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+    resend_key = os.getenv("RESEND_API_KEY")
+
+    config_status = {
+        "GMAIL_USER": "configurado" if gmail_user else "NÃO configurado",
+        "GMAIL_APP_PASSWORD": "configurado" if gmail_password else "NÃO configurado",
+        "RESEND_API_KEY": "configurado" if resend_key else "NÃO configurado",
+        "metodo_ativo": "Gmail" if (gmail_user and gmail_password) else ("Resend" if resend_key else "nenhum"),
+    }
+
+    ok = await send_email(
+        to_email,
+        "✅ Teste de email — Essaypro",
+        "<h2>Email de teste</h2><p>Se você recebeu este email, o envio está funcionando corretamente.</p>"
+    )
+
+    return {"enviado": ok, "destinatario": to_email, "configuracao": config_status}
+
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -3177,3 +3189,4 @@ async def startup_event():
 @app.on_event("shutdown")
 async def shutdown_db_client():
     client.close()
+app.include_router(api_router)
