@@ -1903,14 +1903,42 @@ def _email_wrapper(title: str, body_html: str) -> str:
     """
 
 async def send_email(to_email: str, subject: str, html: str) -> bool:
-    """Envia email via Resend. Retorna True se enviou, False se não há chave configurada."""
+    """Envia email via Gmail SMTP (primário) ou Resend (fallback)."""
+    import smtplib
+    from email.mime.multipart import MIMEMultipart
+    from email.mime.text import MIMEText
+
+    gmail_user = os.getenv("GMAIL_USER")
+    gmail_password = os.getenv("GMAIL_APP_PASSWORD")
+
+    if gmail_user and gmail_password:
+        try:
+            msg = MIMEMultipart("alternative")
+            msg["Subject"] = subject
+            msg["From"] = f"Redação com Nicolle <{gmail_user}>"
+            msg["To"] = to_email
+            msg.attach(MIMEText(html, "html", "utf-8"))
+
+            import asyncio
+            loop = asyncio.get_event_loop()
+            def _send():
+                with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=15) as server:
+                    server.login(gmail_user, gmail_password)
+                    server.sendmail(gmail_user, to_email, msg.as_string())
+            await loop.run_in_executor(None, _send)
+            logger.info(f"Email enviado via Gmail para {to_email}")
+            return True
+        except Exception as e:
+            logger.error(f"Gmail SMTP error: {str(e)}")
+            return False
+
+    # Fallback: Resend
     resend_key = os.getenv("RESEND_API_KEY")
     if not resend_key:
-        logger.warning("RESEND_API_KEY não configurada — email não enviado")
+        logger.warning("Nenhuma configuração de email (GMAIL_USER ou RESEND_API_KEY) encontrada")
         return False
 
     email_from = os.getenv("EMAIL_FROM", "onboarding@resend.dev")
-
     import httpx
     try:
         async with httpx.AsyncClient(timeout=10) as client:
@@ -1923,8 +1951,8 @@ async def send_email(to_email: str, subject: str, html: str) -> bool:
                 logger.error(f"Resend error {resp.status_code}: {resp.text}")
                 return False
             return True
-    except (Exception,) as e:  # httpx.RequestError, httpx.TimeoutException, OSError
-        logger.error(f"Email send exception: {str(e)}")
+    except Exception as e:
+        logger.error(f"Resend exception: {str(e)}")
         return False
 
 async def send_reset_email(to_email: str, to_name: str, reset_token: str):
