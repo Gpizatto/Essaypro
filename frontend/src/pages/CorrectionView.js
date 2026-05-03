@@ -108,10 +108,18 @@ export const CorrectionView = () => {
         }
       }
 
-      // Buscar proposta para o modal
-      const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
-      const found = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
-      if (found) setPrompt(found);
+      // Buscar proposta diretamente pelo ID (funciona mesmo se arquivada)
+      try {
+        const promptRes = await axios.get(`${API_URL}/api/prompts/${essayRes.data.prompt_id}`, { withCredentials: true });
+        if (promptRes.data) setPrompt(promptRes.data);
+      } catch (e) {
+        // Fallback: buscar da lista
+        try {
+          const promptsRes = await axios.get(`${API_URL}/api/prompts`, { withCredentials: true });
+          const found = promptsRes.data.find(p => p.id === essayRes.data.prompt_id);
+          if (found) setPrompt(found);
+        } catch (e2) { /* sem proposta */ }
+      }
 
       // Buscar configurações do curso
       const settingsRes = await axios.get(`${API_URL}/api/settings/course`, { withCredentials: true });
@@ -645,9 +653,13 @@ export const CorrectionView = () => {
             Avaliação por Critérios
           </h2>
           <div className="space-y-4">
-            {correction.criteria_scores && correction.criteria_scores.map((cs) => {
+            {correction.criteria_scores && correction.criteria_scores.map((cs, idx) => {
               // Buscar level_descriptions do prompt para esta competência
-              const promptCriterion = prompt?.criteria?.find(c => c.id === cs.criteria_id);
+              // Tenta por ID, depois por nome, depois por posição
+              const promptCriterion =
+                prompt?.criteria?.find(c => c.id === cs.criteria_id) ||
+                prompt?.criteria?.find(c => c.nome === cs.nome) ||
+                prompt?.criteria?.[idx];
               const levelDescriptions = promptCriterion?.level_descriptions || [];
               const levelInfo = levelDescriptions.find(l => Math.abs(parseFloat(l.pontuacao) - parseFloat(cs.score)) < 0.01);
               const pct = cs.max > 0 ? (cs.score / cs.max) * 100 : 0;
