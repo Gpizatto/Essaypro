@@ -45,7 +45,7 @@ const DashboardRouter = () => {
   const { user, loading } = useAuth();
   if (loading) return <PageLoader />;
   if (user.role === 'student') return <StudentDashboard />;
-  if (user.role === 'teacher') return <TeacherDashboard />;
+  if (user.role === 'teacher' || user.role === 'corretor') return <TeacherDashboard />;
   if (user.role === 'admin') return <AdminDashboard />;
   return <Navigate to="/login" />;
 };
@@ -65,18 +65,18 @@ function App() {
             <Route path="/prompts" element={<ProtectedRoute allowedRoles={['student']}><PromptsList /></ProtectedRoute>} />
             <Route path="/my-essays" element={<ProtectedRoute allowedRoles={['student']}><MyEssays /></ProtectedRoute>} />
             <Route path="/submit-essay/:promptId" element={<ProtectedRoute allowedRoles={['student']}><SubmitEssay /></ProtectedRoute>} />
-            <Route path="/essay/:essayId/correction" element={<ProtectedRoute allowedRoles={['student', 'teacher', 'admin']}><CorrectionView /></ProtectedRoute>} />
-            <Route path="/correction-queue" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><CorrectionQueue /></ProtectedRoute>} />
-            <Route path="/correct-essay/:essayId" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><CorrectEssay /></ProtectedRoute>} />
+            <Route path="/essay/:essayId/correction" element={<ProtectedRoute allowedRoles={['student', 'teacher', 'corretor', 'admin']}><CorrectionView /></ProtectedRoute>} />
+            <Route path="/correction-queue" element={<ProtectedRoute allowedRoles={['teacher', 'corretor', 'admin']}><CorrectionQueue /></ProtectedRoute>} />
+            <Route path="/correct-essay/:essayId" element={<ProtectedRoute allowedRoles={['teacher', 'corretor', 'admin']}><CorrectEssay /></ProtectedRoute>} />
             <Route path="/create-prompt" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><CreatePrompt /></ProtectedRoute>} />
             <Route path="/admin/users" element={<ProtectedRoute allowedRoles={['admin']}><AdminUsers /></ProtectedRoute>} />
             <Route path="/manage-prompts" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><ManagePrompts /></ProtectedRoute>} />
             <Route path="/settings" element={<ProtectedRoute allowedRoles={['admin']}><CourseSettings /></ProtectedRoute>} />
-            <Route path="/teacher/students" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><TeacherStudents /></ProtectedRoute>} />
-            <Route path="/teacher/student/:studentId" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><StudentProgress /></ProtectedRoute>} />
-            <Route path="/teacher/report" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><TeacherReport /></ProtectedRoute>} />
+            <Route path="/teacher/students" element={<ProtectedRoute allowedRoles={['teacher', 'corretor', 'admin']}><TeacherStudents /></ProtectedRoute>} />
+            <Route path="/teacher/student/:studentId" element={<ProtectedRoute allowedRoles={['teacher', 'corretor', 'admin']}><StudentProgress /></ProtectedRoute>} />
+            <Route path="/teacher/report" element={<ProtectedRoute allowedRoles={['teacher', 'corretor', 'admin']}><TeacherReport /></ProtectedRoute>} />
             <Route path="/admin/branding" element={<ProtectedRoute allowedRoles={['admin']}><BrandingSettings /></ProtectedRoute>} />
-            <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><AdvancedReports /></ProtectedRoute>} />
+            <Route path="/admin/reports" element={<ProtectedRoute allowedRoles={['teacher', 'corretor', 'admin']}><AdvancedReports /></ProtectedRoute>} />
             <Route path="/admin/logs" element={<ProtectedRoute allowedRoles={['admin']}><ActivityLogs /></ProtectedRoute>} />
             <Route path="/admin/courses" element={<ProtectedRoute allowedRoles={['admin']}><ManageCourses /></ProtectedRoute>} />
             <Route path="/admin/stats" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
