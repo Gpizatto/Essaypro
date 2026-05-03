@@ -366,6 +366,13 @@ async def logout(response: Response):
     response.delete_cookie("refresh_token")
     return {"message": "Logged out successfully"}
 
+@api_router.get("/prompts/{prompt_id}", response_model=PromptResponse)
+async def get_prompt_by_id(prompt_id: str, current_user: dict = Depends(get_current_user)):
+    prompt = await db.prompts.find_one({"id": prompt_id}, {"_id": 0})
+    if not prompt:
+        raise HTTPException(status_code=404, detail="Proposta não encontrada")
+    return PromptResponse(**prompt)
+
 @api_router.get("/prompts", response_model=List[PromptResponse])
 async def get_prompts(current_user: dict = Depends(get_current_user)):
     user_course_ids = current_user.get("course_ids", [])
