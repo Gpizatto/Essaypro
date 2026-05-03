@@ -280,7 +280,7 @@ async def register(user_data: UserRegister, request: Request):
         "name": user_data.name,
         "email": email,
         "password_hash": hashed_pw,
-        "role": user_data.role if user_data.role in ["student", "teacher"] else "student",
+        "role": user_data.role if user_data.role in ["student", "teacher", "corretor"] else "student",
         "is_active": False,    # inativo até admin aprovar
         "is_approved": False,  # pendente de aprovação
         "phone": getattr(user_data, 'phone', None) or "",
@@ -534,7 +534,7 @@ async def get_all_prompts(
     is_active: Optional[bool] = Query(None, description="Filtrar por status ativo/inativo"),
 ):
     """P-08: Busca e filtro server-side em propostas."""
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     query: dict = {}
@@ -595,7 +595,7 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
 
     # Notificar professores/admins sobre nova redação
     try:
-        teachers = await db.users.find({"role": {"$in": ["teacher", "admin"]}}, {"_id": 1}).to_list(100)
+        teachers = await db.users.find({"role": {"$in": ["teacher", "corretor", "admin"]}}, {"_id": 1}).to_list(100)
         prompt_doc2 = await db.prompts.find_one({"id": essay_doc["prompt_id"]}, {"_id": 0, "title": 1})
         prompt_title2 = prompt_doc2["title"] if prompt_doc2 else "proposta"
         student_doc = await db.users.find_one({"_id": ObjectId(current_user["_id"])}, {"_id": 0, "name": 1})
@@ -640,13 +640,13 @@ async def get_my_essays(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/essays/queue", response_model=List[EssayResponse])
 async def get_correction_queue(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Se professor pertence a turmas, filtra só alunos dessas turmas
     essay_query = {"status": "pending"}
     teacher_course_ids = current_user.get("course_ids", [])
-    if current_user["role"] == "teacher" and teacher_course_ids:
+    if current_user["role"] in ["teacher", "corretor"] and teacher_course_ids:
         # Buscar IDs dos alunos nas mesmas turmas do professor
         students_in_courses = await db.users.find(
             {"role": "student", "course_ids": {"$in": teacher_course_ids}},
@@ -687,7 +687,7 @@ async def get_correction_queue(current_user: dict = Depends(get_current_user)):
 
 @api_router.patch("/essays/{essay_id}/status")
 async def update_essay_status(essay_id: str, body: dict, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     new_status = body.get("status")
     valid = ["pending", "in_progress", "corrected", "returned"]
@@ -707,7 +707,7 @@ async def get_all_teacher_essays(
     course_id: Optional[str] = Query(None, description="Filtrar por turma"),
 ):
     """Retorna redações paginadas com filtro por status e turma."""
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     query: dict = {}
@@ -783,7 +783,7 @@ async def get_essay(essay_id: str, current_user: dict = Depends(get_current_user
 
 @api_router.post("/corrections", response_model=CorrectionResponse)
 async def submit_correction(correction_data: CorrectionSubmit, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can submit corrections")
     
     essay = await db.essays.find_one({"id": correction_data.essay_id})
@@ -1032,7 +1032,7 @@ async def update_user_role(user_id: str, body: dict, current_user: dict = Depend
     if current_user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Admin only")
     new_role = body.get("role")
-    if new_role not in ["student", "teacher", "admin"]:
+    if new_role not in ["student", "teacher", "corretor", "admin"]:
         raise HTTPException(status_code=400, detail="Invalid role")
     if user_id == current_user["_id"]:
         raise HTTPException(status_code=400, detail="Cannot change your own role")
@@ -1153,7 +1153,7 @@ async def mark_all_read(current_user: dict = Depends(get_current_user)):
 @api_router.get("/teacher/my-stats")
 async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
     """P-02: Calcula stats do professor via aggregation pipeline — sem carregar 10.000 docs."""
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     tid = current_user["_id"]
@@ -1224,7 +1224,7 @@ async def get_teacher_stats(current_user: dict = Depends(get_current_user)):
 
 @api_router.post("/corrections/draft")
 async def save_draft(body: dict, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     essay_id = body.get("essay_id")
     if not essay_id:
@@ -1244,7 +1244,7 @@ async def save_draft(body: dict, current_user: dict = Depends(get_current_user))
 
 @api_router.get("/corrections/draft/{essay_id}")
 async def get_draft(essay_id: str, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     draft = await db.drafts.find_one(
         {"essay_id": essay_id, "teacher_id": current_user["_id"]},
@@ -1260,7 +1260,7 @@ async def get_draft(essay_id: str, current_user: dict = Depends(get_current_user
 
 @api_router.post("/corrections/{essay_id}/intervention")
 async def save_teacher_intervention(essay_id: str, body: dict, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     allowed = {"teacher_comment", "suggest_rewrite", "mark_important", "extra_material"}
@@ -1350,12 +1350,12 @@ async def get_teacher_students(
     search: Optional[str] = Query(None, description="Buscar por nome ou email do aluno"),
 ):
     """P-08: Busca server-side de alunos via $regex no MongoDB."""
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     # Filtrar alunos pelas turmas do professor
     teacher_course_ids = current_user.get("course_ids", [])
-    if current_user["role"] == "teacher" and teacher_course_ids:
+    if current_user["role"] in ["teacher", "corretor"] and teacher_course_ids:
         student_query: dict = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
     else:
         student_query = {"role": "student"}
@@ -1431,7 +1431,7 @@ async def get_teacher_students(
 
 @api_router.get("/teacher/student/{student_id}")
 async def get_student_detail(student_id: str, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     try:
@@ -1674,7 +1674,7 @@ async def debug_file(file_id: str):
 
 @api_router.get("/users/quick-comments")
 async def get_quick_comments(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can access quick comments")
 
     user = await db.users.find_one({"_id": ObjectId(current_user["_id"])}, {"_id": 0, "quick_comments": 1})
@@ -1701,7 +1701,7 @@ async def get_quick_comments(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/admin/quick-comments")
 async def get_shared_quick_comments(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     config = await db.settings.find_one({"key": "shared_quick_comments"})
     return {"quick_comments": config.get("comments", []) if config else []}
@@ -1719,7 +1719,7 @@ async def update_shared_quick_comments(body: dict, current_user: dict = Depends(
 
 @api_router.put("/users/quick-comments")
 async def update_quick_comments(request: Request, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can update quick comments")
     
     body = await request.json()
@@ -1739,7 +1739,7 @@ async def update_quick_comments(request: Request, current_user: dict = Depends(g
 
 @api_router.put("/users/quick-comments/use/{comment_id}")
 async def use_quick_comment(comment_id: str, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can use quick comments")
     
     user = await db.users.find_one({"_id": ObjectId(current_user["_id"])})
@@ -1762,14 +1762,14 @@ async def use_quick_comment(comment_id: str, current_user: dict = Depends(get_cu
 
 @api_router.get("/users/criteria-models")
 async def get_criteria_models(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can access criteria models")
     user = await db.users.find_one({"_id": ObjectId(current_user["_id"])}, {"_id": 0, "criteria_models": 1})
     return {"criteria_models": user.get("criteria_models", [])}
 
 @api_router.post("/users/criteria-models")
 async def save_criteria_model(body: dict, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can save criteria models")
     name = body.get("name", "").strip()
     criteria = body.get("criteria", [])
@@ -1792,7 +1792,7 @@ async def save_criteria_model(body: dict, current_user: dict = Depends(get_curre
 
 @api_router.delete("/users/criteria-models/{model_id}")
 async def delete_criteria_model(model_id: str, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Only teachers can delete criteria models")
     user = await db.users.find_one({"_id": ObjectId(current_user["_id"])})
     models = [m for m in user.get("criteria_models", []) if m.get("id") != model_id]
@@ -2147,7 +2147,7 @@ async def get_correction_history(essay_id: str, current_user: dict = Depends(get
         essay = await db.essays.find_one({"id": essay_id}, {"_id": 0, "student_id": 1})
         if not essay or str(essay.get("student_id", "")) != str(current_user["_id"]):
             raise HTTPException(status_code=403, detail="Access denied")
-    elif current_user["role"] not in ["teacher", "admin"]:
+    elif current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     history = await db.correction_history.find(
         {"essay_id": essay_id}, {"_id": 0}
@@ -2160,12 +2160,12 @@ async def get_correction_history(essay_id: str, current_user: dict = Depends(get
 
 @api_router.get("/admin/reports/ranking")
 async def get_ranking(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     try:
         # Admin vê todos; professor filtra por turma
         teacher_course_ids = current_user.get("course_ids", [])
-        if current_user["role"] == "teacher" and teacher_course_ids:
+        if current_user["role"] in ["teacher", "corretor"] and teacher_course_ids:
             student_filter = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
         else:
             student_filter = {"role": "student"}
@@ -2249,7 +2249,7 @@ async def get_ranking(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/admin/reports/prompts")
 async def get_prompt_stats(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     prompts = await db.prompts.find({}, {"_id": 0, "id": 1, "title": 1}).to_list(1000)
@@ -2302,7 +2302,7 @@ class CourseResponse(BaseModel):
 
 @api_router.get("/courses", response_model=List[CourseResponse])
 async def list_courses(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     courses = await db.courses.find({}, {"_id": 0}).to_list(1000)
     result = []
@@ -2362,7 +2362,7 @@ async def delete_course(course_id: str, current_user: dict = Depends(get_current
 
 @api_router.get("/courses/{course_id}/members")
 async def get_course_members(course_id: str, current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     members = await db.users.find(
         {"course_ids": course_id},
@@ -2575,7 +2575,7 @@ async def get_student_evolution(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/admin/reports/course-engagement")
 async def get_course_engagement(current_user: dict = Depends(get_current_user)):
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
     def _parse_dt(v):
@@ -2667,7 +2667,7 @@ async def get_course_engagement(current_user: dict = Depends(get_current_user)):
 @api_router.post("/corrections/batch-comment")
 async def batch_comment(body: dict, current_user: dict = Depends(get_current_user)):
     """Adiciona um comentário a múltiplas redações de uma vez"""
-    if current_user["role"] not in ["teacher", "admin"]:
+    if current_user["role"] not in ["teacher", "corretor", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
     essay_ids = body.get("essay_ids", [])
     comment = body.get("comment", "").strip()
@@ -2712,6 +2712,7 @@ DEFAULT_BRANDING = {
     # Nomes de perfis
     "role_student": "Aluno",
     "role_teacher": "Professor",
+    "role_corretor": "Corretor",
     "role_admin": "Admin",
     "welcome_message": "",
     "footer_text": "",
