@@ -31,6 +31,7 @@ const BrandingSettings = lazy(() => import('./pages/BrandingSettings').then(m =>
 const AdvancedReports = lazy(() => import('./pages/AdvancedReports').then(m => ({ default: m.AdvancedReports })));
 const ActivityLogs = lazy(() => import('./pages/ActivityLogs').then(m => ({ default: m.ActivityLogs })));
 const ManageCourses = lazy(() => import('./pages/ManageCourses').then(m => ({ default: m.ManageCourses })));
+const ChangePassword = lazy(() => import('./pages/ChangePassword').then(m => ({ default: m.ChangePassword })));
 
 // Loading mínimo entre páginas
 const PageLoader = () => (
@@ -79,6 +80,7 @@ function App() {
             <Route path="/admin/logs" element={<ProtectedRoute allowedRoles={['admin']}><ActivityLogs /></ProtectedRoute>} />
             <Route path="/admin/courses" element={<ProtectedRoute allowedRoles={['admin']}><ManageCourses /></ProtectedRoute>} />
             <Route path="/admin/stats" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+            <Route path="/change-password" element={<ProtectedRoute><ChangePassword /></ProtectedRoute>} />
             <Route path="/" element={<Navigate to="/dashboard" />} />
           </Routes>
         </Suspense>
