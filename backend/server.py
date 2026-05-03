@@ -2058,6 +2058,26 @@ async def reset_password(body: dict):
 
     return {"message": "Senha redefinida com sucesso! Faça login com sua nova senha."}
 
+@api_router.post("/auth/change-password")
+async def change_password(body: dict, current_user: dict = Depends(get_current_user)):
+    current_password = body.get("current_password", "").strip()
+    new_password = body.get("new_password", "").strip()
+
+    if not current_password or not new_password:
+        raise HTTPException(status_code=400, detail="Senha atual e nova senha são obrigatórias")
+    if len(new_password) < 6:
+        raise HTTPException(status_code=400, detail="A nova senha deve ter pelo menos 6 caracteres")
+    if current_password == new_password:
+        raise HTTPException(status_code=400, detail="A nova senha deve ser diferente da atual")
+
+    user = await db.users.find_one({"_id": ObjectId(current_user["_id"])})
+    if not user or not verify_password(current_password, user["password_hash"]):
+        raise HTTPException(status_code=400, detail="Senha atual incorreta")
+
+    hashed = hash_password(new_password)
+    await db.users.update_one({"_id": ObjectId(current_user["_id"])}, {"$set": {"password_hash": hashed}})
+    return {"message": "Senha alterada com sucesso!"}
+
 @api_router.get("/auth/validate-reset-token/{token}")
 async def validate_reset_token(token: str):
     reset = await db.password_resets.find_one({"token": token, "used": False})
