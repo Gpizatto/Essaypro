@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { useBranding } from '../contexts/BrandingContext';
 import { Button } from './ui/button';
-import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Palette, Calendar, Menu, X } from 'lucide-react';
+import { Home, FileText, Users, LogOut, PenTool, BookOpen, BarChart3, Settings, Bell, Palette, Calendar, Menu, X, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import axios from 'axios';
 
@@ -295,6 +295,22 @@ export const Layout = ({ children }) => {
               )}
             </div>
             <span>Avisos</span>
+          </button>
+
+          {/* Alterar senha */}
+          <button
+            onClick={() => navigate('/change-password')}
+            title="Alterar senha"
+            style={{
+              width: '44px', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              padding: '8px 0', borderRadius: '8px',
+              border: '1px solid rgba(253,243,232,0.12)',
+              backgroundColor: 'transparent', cursor: 'pointer',
+              color: 'rgba(253,243,232,0.65)', transition: 'background-color 0.15s',
+              minHeight: '40px',
+            }}
+          >
+            <KeyRound size={13} />
           </button>
 
           {/* Sair */}
