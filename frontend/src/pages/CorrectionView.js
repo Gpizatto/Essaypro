@@ -199,9 +199,9 @@ export const CorrectionView = () => {
 
   const renderInlineComments = () => {
     if (!textRef.current || !correction.inline_comments) return;
-    
+
     const textContent = essay.content;
-    const sortedComments = [...correction.inline_comments].sort((a, b) => 
+    const sortedComments = [...correction.inline_comments].sort((a, b) =>
       textContent.indexOf(a.selected_text) - textContent.indexOf(b.selected_text)
     );
 
@@ -209,57 +209,97 @@ export const CorrectionView = () => {
       const index = textContent.indexOf(comment.selected_text);
       if (index === -1) return;
 
-      const range = document.createRange();
       const walker = document.createTreeWalker(textRef.current, NodeFilter.SHOW_TEXT);
       let charCount = 0;
       let startNode = null;
       let startOffset = 0;
       let endNode = null;
       let endOffset = 0;
-      
+
       while (walker.nextNode()) {
         const node = walker.currentNode;
         const nodeLength = node.textContent.length;
-        
+
         if (!startNode && charCount + nodeLength > index) {
           startNode = node;
           startOffset = index - charCount;
         }
-        
+
         if (startNode && charCount + nodeLength >= index + comment.selected_text.length) {
           endNode = node;
           endOffset = index + comment.selected_text.length - charCount;
           break;
         }
-        
+
         charCount += nodeLength;
       }
-      
+
       if (startNode && endNode) {
         try {
+          const range = document.createRange();
           range.setStart(startNode, startOffset);
           range.setEnd(endNode, endOffset);
-          
-          const span = document.createElement('span');
-          span.textContent = comment.selected_text;
-          span.style.backgroundColor = '#FEF3C7';
-          span.style.borderBottom = '2px dotted #92400E';
-          span.style.padding = '2px 4px';
-          span.style.borderRadius = '2px';
-          span.style.cursor = 'help';
-          span.setAttribute('data-comment-id', comment.id);
-          span.className = 'inline-comment-readonly';
-          
+
+          // Wrapper que agrupa o trecho + balão de comentário abaixo
+          const wrapper = document.createElement('span');
+          wrapper.style.display = 'inline';
+          wrapper.style.position = 'relative';
+
+          // Trecho marcado em amarelo
+          const highlighted = document.createElement('mark');
+          highlighted.textContent = comment.selected_text;
+          highlighted.style.backgroundColor = '#FEF3C7';
+          highlighted.style.borderBottom = '2px solid #92400E';
+          highlighted.style.padding = '1px 2px';
+          highlighted.style.borderRadius = '2px';
+          highlighted.style.color = 'inherit';
+
+          // Número sobrescrito
           const badge = document.createElement('sup');
           badge.textContent = comment.id;
-          badge.style.fontSize = '10px';
-          badge.style.fontWeight = 'bold';
+          badge.style.fontSize = '9px';
+          badge.style.fontWeight = '700';
           badge.style.color = '#92400E';
-          badge.style.marginLeft = '2px';
-          span.appendChild(badge);
-          
+          badge.style.marginLeft = '1px';
+          badge.style.verticalAlign = 'super';
+
+          // Caixa do comentário — aparece logo após o trecho marcado (display block)
+          const bubble = document.createElement('span');
+          bubble.style.display = 'block';
+          bubble.style.marginTop = '6px';
+          bubble.style.marginBottom = '10px';
+          bubble.style.marginLeft = '8px';
+          bubble.style.padding = '8px 12px';
+          bubble.style.backgroundColor = '#FFFBEB';
+          bubble.style.border = '1px solid #FCD34D';
+          bubble.style.borderLeft = '3px solid #92400E';
+          bubble.style.borderRadius = '6px';
+          bubble.style.fontSize = '14px';
+          bubble.style.lineHeight = '1.5';
+          bubble.style.color = '#44403C';
+          bubble.style.fontFamily = 'inherit';
+          bubble.style.fontStyle = 'normal';
+
+          const label = document.createElement('span');
+          label.textContent = `Comentário ${comment.id}: `;
+          label.style.fontWeight = '700';
+          label.style.color = '#92400E';
+          label.style.fontSize = '12px';
+          label.style.textTransform = 'uppercase';
+          label.style.letterSpacing = '0.03em';
+
+          const commentText = document.createElement('span');
+          commentText.textContent = comment.comment;
+
+          bubble.appendChild(label);
+          bubble.appendChild(commentText);
+
+          wrapper.appendChild(highlighted);
+          wrapper.appendChild(badge);
+          wrapper.appendChild(bubble);
+
           range.deleteContents();
-          range.insertNode(span);
+          range.insertNode(wrapper);
         } catch (error) {
           console.error('Error rendering comment:', error);
         }
@@ -605,21 +645,41 @@ export const CorrectionView = () => {
             Avaliação por Critérios
           </h2>
           <div className="space-y-4">
-            {correction.criteria_scores && correction.criteria_scores.map((cs) => (
+            {correction.criteria_scores && correction.criteria_scores.map((cs) => {
+              // Buscar level_descriptions do prompt para esta competência
+              const promptCriterion = prompt?.criteria?.find(c => c.id === cs.criteria_id);
+              const levelDescriptions = promptCriterion?.level_descriptions || [];
+              const levelInfo = levelDescriptions.find(l => Math.abs(parseFloat(l.pontuacao) - parseFloat(cs.score)) < 0.01);
+              const pct = cs.max > 0 ? (cs.score / cs.max) * 100 : 0;
+              const scoreColor = pct >= 80 ? 'var(--accent-green)' : pct >= 60 ? '#3B82F6' : pct >= 40 ? '#F59E0B' : '#EF4444';
+
+              return (
               <Card key={cs.criteria_id} className="p-4 sm:p-6 bg-white border" data-testid={`competency-${cs.criteria_id}`}>
                 <div className="flex items-center justify-between mb-3">
                   <div className="flex-1">
                     <p className="font-semibold" style={{ color: 'var(--accent-red)' }}>
                       {cs.nome}
                     </p>
+                    {levelInfo?.proficiencia && (
+                      <p className="text-xs font-semibold mt-0.5" style={{ color: scoreColor }}>
+                        {levelInfo.proficiencia}
+                      </p>
+                    )}
                   </div>
-                  <span className="text-xl sm:text-2xl font-bold ml-2 sm:ml-4 whitespace-nowrap" style={{ color: 'var(--accent-green)' }}>
+                  <span className="text-xl sm:text-2xl font-bold ml-2 sm:ml-4 whitespace-nowrap" style={{ color: scoreColor }}>
                     {cs.score}/{cs.max}
                   </span>
                 </div>
-                <Progress value={(cs.score / cs.max) * 100} className="h-2" />
+                <Progress value={pct} className="h-2" />
+                {levelInfo?.descricao && (
+                  <div className="mt-3 p-3 rounded-lg text-sm leading-relaxed" style={{ backgroundColor: '#F8F5FF', border: '1px solid #E9D5FF', color: '#44403C' }}>
+                    <span className="font-semibold text-xs uppercase tracking-wide mr-2" style={{ color: '#7C3AED' }}>O que isso significa:</span>
+                    {levelInfo.descricao}
+                  </div>
+                )}
               </Card>
-            ))}
+              );
+            })}
           </div>
         </div>
 
