@@ -385,7 +385,7 @@ async def get_prompts(current_user: dict = Depends(get_current_user)):
         ]}
     else:
         prompt_query = {"is_active": True}
-    prompts = await db.prompts.find(prompt_query, {"_id": 0}).to_list(1000)
+    prompts = await db.prompts.find(prompt_query, {"_id": 0, "supporting_texts": 0, "supporting_files": 0}).to_list(1000)
     
     default_criteria = [
         {"id": "c1", "nome": "Competência 1 — Domínio da Norma Culta", "descricao": "Demonstrar domínio da modalidade escrita formal da língua portuguesa", "peso_maximo": 200},
@@ -544,7 +544,7 @@ async def get_all_prompts(
     if is_active is not None:
         query["is_active"] = is_active
 
-    prompts = await db.prompts.find(query, {"_id": 0}).to_list(1000)
+    prompts = await db.prompts.find(query, {"_id": 0, "supporting_texts": 0, "supporting_files": 0}).to_list(1000)
     default_criteria = [{"id": "c1", "nome": "Competência 1", "descricao": "", "peso_maximo": 200}]
     for p in prompts:
         if "criteria" not in p or not p["criteria"]:
@@ -2426,32 +2426,80 @@ import asyncio
 import json as json_module2
 
 async def run_backup():
-    """Exporta todas as coleções para um documento de backup no MongoDB.
-    Mantém os últimos 7 backups. Notifica admin por email em caso de falha."""
+    """Exporta metadados das coleções para backup no MongoDB.
+    Exclui campos pesados (content, canvas_annotations, pdf_annotations) para evitar limite BSON de 16MB.
+    Mantém os últimos 7 backups."""
     started_at = datetime.now(timezone.utc)
+    BSON_LIMIT = 15 * 1024 * 1024  # 15MB — margem de segurança abaixo do limite de 16MB
+
     try:
-        collections = ["users", "essays", "corrections", "prompts", "courses", "drafts",
-                       "notifications", "course_settings", "activity_logs"]
+        # Campos pesados excluídos do backup (imagens base64, conteúdo longo)
+        essay_projection    = {"_id": 0, "content": 0}
+        correction_projection = {"_id": 0, "canvas_annotations": 0, "pdf_annotations": 0}
+        default_projection  = {"_id": 0}
+
+        collections_config = {
+            "users":           default_projection,
+            "essays":          essay_projection,
+            "corrections":     correction_projection,
+            "prompts":         default_projection,
+            "courses":         default_projection,
+            "drafts":          {"_id": 0, "textAnnotations": 0, "canvasDataUrl": 0},
+            "notifications":   default_projection,
+            "course_settings": default_projection,
+            "activity_logs":   default_projection,
+        }
+
         backup_data = {"created_at": started_at.isoformat(), "collections": {}, "counts": {}}
         total_docs = 0
-        for col in collections:
-            docs = await db[col].find({}, {"_id": 0}).to_list(10000)
-            backup_data["collections"][col] = docs
-            backup_data["counts"][col] = len(docs)
-            total_docs += len(docs)
 
-        raw_size = len(str(backup_data))
+        for col, projection in collections_config.items():
+            try:
+                docs = await db[col].find({}, projection).to_list(10000)
+                backup_data["collections"][col] = docs
+                backup_data["counts"][col] = len(docs)
+                total_docs += len(docs)
+            except Exception as col_err:
+                logger.warning(f"Backup: erro ao exportar coleção '{col}': {col_err}")
+                backup_data["collections"][col] = []
+                backup_data["counts"][col] = 0
+
+        # Estimar tamanho — se ainda for grande, salvar só os metadados
+        import json as _json
+        try:
+            raw_bytes = _json.dumps(backup_data, default=str).encode("utf-8")
+        except Exception:
+            raw_bytes = b""
+
+        raw_size = len(raw_bytes)
         size_kb = round(raw_size / 1024, 1)
 
-        await db.backups.insert_one({
-            "created_at": started_at,
-            "data": backup_data,
-            "size": raw_size,
-            "size_kb": size_kb,
-            "total_docs": total_docs,
-            "collections": list(backup_data["counts"].keys()),
-            "counts": backup_data["counts"],
-        })
+        if raw_size > BSON_LIMIT:
+            # Salvar só contagens, sem os documentos
+            logger.warning(f"Backup muito grande ({size_kb}KB) — salvando apenas metadados")
+            save_data = {
+                "created_at": started_at,
+                "data": {"created_at": started_at.isoformat(), "collections": {}, "counts": backup_data["counts"]},
+                "size": raw_size,
+                "size_kb": size_kb,
+                "total_docs": total_docs,
+                "collections": list(backup_data["counts"].keys()),
+                "counts": backup_data["counts"],
+                "truncated": True,
+            }
+        else:
+            save_data = {
+                "created_at": started_at,
+                "data": backup_data,
+                "size": raw_size,
+                "size_kb": size_kb,
+                "total_docs": total_docs,
+                "collections": list(backup_data["counts"].keys()),
+                "counts": backup_data["counts"],
+                "truncated": False,
+            }
+
+        await db.backups.insert_one(save_data)
 
         # Manter apenas os últimos 7 backups
         all_backups = await db.backups.find({}, {"_id": 1}).sort("created_at", -1).to_list(100)
