@@ -105,6 +105,7 @@ export const AdminUsers = () => {
     total: users.length,
     students: users.filter(u => u.role === 'student').length,
     teachers: users.filter(u => u.role === 'teacher').length,
+    corretores: users.filter(u => u.role === 'corretor').length,
     inactive: users.filter(u => u.is_active === false).length,
   }), [users]);
 
@@ -131,7 +132,7 @@ export const AdminUsers = () => {
             Gerenciamento de Usuários
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {counts.total} usuários · {counts.students} alunos · {counts.teachers} professores
+            {counts.total} usuários · {counts.students} alunos · {counts.teachers} professores · {counts.corretores} corretores
             {counts.inactive > 0 && ` · ${counts.inactive} inativos`}
           </p>
         </div>
@@ -156,6 +157,7 @@ export const AdminUsers = () => {
               <option value="all">Todas as funções</option>
               <option value="student">Alunos</option>
               <option value="teacher">Professores</option>
+              <option value="corretor">Corretores</option>
               <option value="admin">Admins</option>
             </select>
             <select value={filterActive} onChange={e => setFilterActive(e.target.value)} style={selectStyle}>
@@ -210,6 +212,7 @@ export const AdminUsers = () => {
                             onChange={e => updateRole(user.id, e.target.value)}
                             disabled={changingRole === user.id}
                             data-testid={`role-badge-${user.role}`}
+                            style={{ color: user.role === 'corretor' ? '#7C3AED' : undefined }}
                             style={{
                               ...selectStyle,
                               backgroundColor: ROLE_MAP[user.role]?.color,
@@ -221,6 +224,7 @@ export const AdminUsers = () => {
                           >
                             <option value="student">Aluno</option>
                             <option value="teacher">Professor</option>
+                            <option value="corretor">Corretor</option>
                             <option value="admin">Admin</option>
                           </select>
                         </td>
