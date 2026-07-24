@@ -599,7 +599,7 @@ async def submit_essay(essay_data: EssaySubmit, current_user: dict = Depends(get
         prompt_doc2 = await db.prompts.find_one({"id": essay_doc["prompt_id"]}, {"_id": 0, "title": 1})
         prompt_title2 = prompt_doc2["title"] if prompt_doc2 else "proposta"
         student_doc = await db.users.find_one({"_id": ObjectId(current_user["_id"])}, {"_id": 0, "name": 1})
-        student_name = student_doc["name"] if student_doc else "Um aluno"
+        student_name = student_doc["name"] if student_doc else "Um estudante"
         for t in teachers:
             await create_notification(
                 user_id=str(t["_id"]),
@@ -643,11 +643,11 @@ async def get_correction_queue(current_user: dict = Depends(get_current_user)):
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Se professor pertence a turmas, filtra só alunos dessas turmas
+    # Se professor pertence a turmas, filtra só estudantes dessas turmas
     essay_query = {"status": "pending"}
     teacher_course_ids = current_user.get("course_ids", [])
     if current_user["role"] == "teacher" and teacher_course_ids:
-        # Buscar IDs dos alunos nas mesmas turmas do professor
+        # Buscar IDs dos estudantes nas mesmas turmas do professor
         students_in_courses = await db.users.find(
             {"role": "student", "course_ids": {"$in": teacher_course_ids}},
             {"_id": 1}
@@ -811,7 +811,7 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
     await db.corrections.insert_one(correction_doc)
     await db.essays.update_one({"id": correction_data.essay_id}, {"$set": {"status": "corrected"}})
 
-    # Notificar aluno que a correção ficou pronta
+    # Notificar estudante que a correção ficou pronta
     essay_data = await db.essays.find_one({"id": correction_data.essay_id}, {"_id": 0})
     if essay_data:
         # Buscar título da proposta (não é salvo no essay, precisa buscar separado)
@@ -830,7 +830,7 @@ async def submit_correction(correction_data: CorrectionSubmit, current_user: dic
             "read": False,
             "created_at": datetime.now(timezone.utc)
         })
-        # Enviar email ao aluno
+        # Enviar email ao estudante
         try:
             student = await db.users.find_one(
                 {"_id": ObjectId(student_id_str)}, {"_id": 0, "email": 1, "name": 1}
@@ -1276,7 +1276,7 @@ async def save_teacher_intervention(essay_id: str, body: dict, current_user: dic
         {"$set": update}
     )
 
-    # Se professor solicitou reescrita → notificar aluno
+    # Se professor solicitou reescrita → notificar estudante
     if update.get("suggest_rewrite"):
         essay_doc = await db.essays.find_one({"id": essay_id}, {"_id": 0})
         if essay_doc:
@@ -1290,7 +1290,7 @@ async def save_teacher_intervention(essay_id: str, body: dict, current_user: dic
                 type="warning",
                 link=f"/essay/{essay_id}/correction"
             )
-            # Enviar email ao aluno
+            # Enviar email ao estudante
             try:
                 student = await db.users.find_one({"_id": ObjectId(essay_doc["student_id"])}, {"_id": 0, "email": 1, "name": 1})
                 if student:
@@ -1350,13 +1350,13 @@ async def get_parent_correction(essay_id: str, current_user: dict = Depends(get_
 @api_router.get("/teacher/students")
 async def get_teacher_students(
     current_user: dict = Depends(get_current_user),
-    search: Optional[str] = Query(None, description="Buscar por nome ou email do aluno"),
+    search: Optional[str] = Query(None, description="Buscar por nome ou email do estudante"),
 ):
-    """P-08: Busca server-side de alunos via $regex no MongoDB."""
+    """P-08: Busca server-side de estudantes via $regex no MongoDB."""
     if current_user["role"] not in ["teacher", "admin"]:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Filtrar alunos pelas turmas do professor
+    # Filtrar estudantes pelas turmas do professor
     teacher_course_ids = current_user.get("course_ids", [])
     if current_user["role"] == "teacher" and teacher_course_ids:
         student_query: dict = {"role": "student", "course_ids": {"$in": teacher_course_ids}}
@@ -1522,7 +1522,7 @@ async def get_admin_stats(current_user: dict = Depends(get_current_user)):
         pmap = {p["id"]: p["title"] for p in plist}
         top_prompts = [{"title": pmap[r["_id"]], "count": r["count"]} for r in prompt_agg if r.get("_id") in pmap]
 
-    # P-03: top alunos via aggregation
+    # P-03: top estudantes via aggregation
     student_agg = await db.essays.aggregate([
         {"$group": {"_id": "$student_id", "count": {"$sum": 1}}},
         {"$sort": {"count": -1}},
@@ -1606,7 +1606,7 @@ async def upload_file(
     # (Antes retornava um data URL base64 gigante: navegadores bloqueiam
     # data URLs em nova aba — "Visualizar" não abria — e o payload de
     # POST /essays estourava o limite de documento do MongoDB, quebrando
-    # o envio de imagem/PDF pelo aluno.)
+    # o envio de imagem/PDF pelo estudante.)
     return {
         "file_id": file_id,
         "filename": file.filename,
@@ -2165,7 +2165,7 @@ async def get_activity_logs(
 
 @api_router.get("/corrections/{essay_id}/history")
 async def get_correction_history(essay_id: str, current_user: dict = Depends(get_current_user)):
-    # Alunos podem ver o histórico da própria redação
+    # Estudantes podem ver o histórico da própria redação
     if current_user["role"] == "student":
         essay = await db.essays.find_one({"id": essay_id}, {"_id": 0, "student_id": 1})
         if not essay or str(essay.get("student_id", "")) != str(current_user["_id"]):
@@ -2613,7 +2613,7 @@ async def download_backup(backup_id: str, current_user: dict = Depends(get_curre
     )
 
 # ============================================================
-# EVOLUÇÃO DO ALUNO POR COMPETÊNCIA
+# EVOLUÇÃO DO ESTUDANTE POR COMPETÊNCIA
 # ============================================================
 
 @api_router.get("/student/evolution")
@@ -2672,7 +2672,7 @@ async def get_course_engagement(current_user: dict = Depends(get_current_user)):
             if not cid:
                 continue
 
-            # Alunos da turma
+            # Estudantes da turma
             students = await db.users.find(
                 {"role": "student", "course_ids": cid}, {"_id": 1}
             ).to_list(1000)
@@ -2694,7 +2694,7 @@ async def get_course_engagement(current_user: dict = Depends(get_current_user)):
                 {"_id": 0, "id": 1, "student_id": 1, "status": 1, "submitted_at": 1}
             ).to_list(5000)
 
-            # Alunos ativos nas últimas 4 semanas
+            # Estudantes ativos nas últimas 4 semanas
             active_sids = set()
             for e in essays:
                 dt = _parse_dt(e.get("submitted_at"))
@@ -2873,7 +2873,7 @@ async def get_my_credits(current_user: dict = Depends(get_current_user)):
     if current_user["role"] != "student":
         raise HTTPException(status_code=403, detail="Students only")
 
-    # Verificar config específica da turma do aluno primeiro
+    # Verificar config específica da turma do estudante primeiro
     student_course_ids = current_user.get("course_ids", [])
     course_config = None
     for cid in student_course_ids:
