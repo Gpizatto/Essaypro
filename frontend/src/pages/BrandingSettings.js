@@ -18,7 +18,7 @@ const DEFAULTS = {
   primary_color: '#7C1805',
   secondary_color: '#D66B27',
   accent_color: '#36555A',
-  role_student: 'Aluno',
+  role_student: 'Estudante',
   role_teacher: 'Professor',
   role_admin: 'Admin',
   welcome_message: '',
@@ -195,7 +195,7 @@ export const BrandingSettings = () => {
           </p>
 
           {[
-            { key: 'role_student', label: 'Nome do aluno', placeholder: 'Aluno' },
+            { key: 'role_student', label: 'Nome do estudante', placeholder: 'Estudante' },
             { key: 'role_teacher', label: 'Nome do professor/corretor', placeholder: 'Professor' },
             { key: 'role_admin', label: 'Nome do administrador', placeholder: 'Admin' },
           ].map(({ key, label, placeholder }) => (
