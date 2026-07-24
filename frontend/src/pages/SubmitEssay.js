@@ -494,7 +494,17 @@ export const SubmitEssay = () => {
             <Card className="border bg-white shadow-sm" style={{ maxWidth: '900px', margin: '0 auto' }}>
               <EditorContent editor={editor} data-testid="tiptap-editor" />
             </Card>
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex justify-center gap-3">
+              <Button
+                onClick={() => navigate(-1)}
+                disabled={submitting}
+                size="lg"
+                variant="outline"
+                style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+                data-testid="cancel-editor-button"
+              >
+                Cancelar
+              </Button>
               <Button
                 onClick={() => handleSubmit('editor')}
                 disabled={submitting || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
@@ -527,9 +537,21 @@ export const SubmitEssay = () => {
               />
               {uploadFile && (
                 <div className="mt-4">
-                  <p className="text-sm text-slate-600 mb-2">
-                    ✅ Arquivo selecionado: <strong>{uploadFile.name}</strong>
-                  </p>
+                  <div className="flex items-center justify-center gap-2 mb-2">
+                    <p className="text-sm text-slate-600">
+                      ✅ Arquivo selecionado: <strong>{uploadFile.name}</strong>
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => { setUploadFile(null); setUploadUrl(''); }}
+                      className="text-xs font-semibold px-2 py-1 rounded border"
+                      style={{ borderColor: 'var(--accent-red)', color: 'var(--accent-red)', background: 'none', cursor: 'pointer' }}
+                      title="Remover arquivo selecionado"
+                      data-testid="remove-file-button"
+                    >
+                      ✕ Remover
+                    </button>
+                  </div>
                   {uploadFile.type.startsWith('image/') && (
                     <img
                       src={URL.createObjectURL(uploadFile)}
@@ -558,7 +580,17 @@ export const SubmitEssay = () => {
                 </p>
               )}
             </Card>
-            <div className="mt-6 flex justify-center">
+            <div className="mt-6 flex justify-center gap-3">
+              <Button
+                onClick={() => navigate(-1)}
+                disabled={submitting}
+                size="lg"
+                variant="outline"
+                style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}
+                data-testid="cancel-upload-button"
+              >
+                Cancelar
+              </Button>
               <Button
                 onClick={() => handleSubmit('upload')}
                 disabled={submitting || !uploadFile || (credits && credits.mode !== 'unlimited' && credits.remaining === 0)}
