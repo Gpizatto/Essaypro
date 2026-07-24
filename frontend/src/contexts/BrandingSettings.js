@@ -198,7 +198,7 @@ export const BrandingSettings = () => {
           </p>
 
           {[
-            { key: 'role_student', label: 'Nome do aluno', placeholder: 'Aluno' },
+            { key: 'role_student', label: 'Nome do estudante', placeholder: 'Estudante' },
             { key: 'role_teacher', label: 'Nome do professor/corretor', placeholder: 'Professor' },
             { key: 'role_admin', label: 'Nome do administrador', placeholder: 'Admin' },
           ].map(({ key, label, placeholder }) => (
