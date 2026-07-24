@@ -109,7 +109,12 @@ export const BrandingProvider = ({ children }) => {
   };
 
   const roleLabel = (role) => {
-    if (role === 'student') return branding.role_student || 'Estudante';
+    if (role === 'student') {
+      const v = branding.role_student;
+      // Valores legados salvos no banco antes da mudança de nomenclatura
+      if (!v || v === 'Aluno' || v === 'Aluna' || v === 'ALUNO' || v === 'ALUNA') return 'Estudante';
+      return v;
+    }
     if (role === 'teacher') return branding.role_teacher || 'Professor';
     if (role === 'admin')   return branding.role_admin   || 'Admin';
     return role;
