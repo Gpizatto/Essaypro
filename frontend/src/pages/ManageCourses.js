@@ -93,7 +93,7 @@ export const ManageCourses = () => {
   };
 
   const deleteCourse = async (courseId) => {
-    if (!window.confirm('Excluir esta turma? Os alunos serão desvinculados mas não excluídos.')) return;
+    if (!window.confirm('Excluir esta turma? Os estudantes serão desvinculados mas não excluídos.')) return;
     try {
       await axios.delete(`${API_URL}/api/courses/${courseId}`, { withCredentials: true });
       toast.success('Turma excluída');
@@ -217,7 +217,7 @@ export const ManageCourses = () => {
           <Card className="p-10 text-center bg-white">
             <BookOpen size={40} className="mx-auto mb-3" style={{ color: '#D66B27' }} />
             <p style={{ color: '#6B5B4E' }}>Nenhuma turma criada ainda</p>
-            <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>Crie turmas para organizar alunos e professores</p>
+            <p className="text-xs mt-1" style={{ color: '#6B5B4E' }}>Crie turmas para organizar estudantes e professores</p>
           </Card>
         ) : (
           <div className="space-y-3">
@@ -246,7 +246,7 @@ export const ManageCourses = () => {
                       )}
                       <p className="text-xs" style={{ color: '#6B5B4E' }}>
                         👨‍🏫 {course.teacher_count} professor{course.teacher_count !== 1 ? 'es' : ''} · 
-                        👩‍🎓 {course.student_count} aluno{course.student_count !== 1 ? 's' : ''}
+                        👩‍🎓 {course.student_count} estudante{course.student_count !== 1 ? 's' : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-1 shrink-0">
@@ -288,7 +288,7 @@ export const ManageCourses = () => {
                         <option value="">Selecionar usuário para adicionar...</option>
                         {nonMembers.map(u => (
                           <option key={u.id} value={u.id}>
-                            {u.name} ({u.role === 'student' ? 'Aluno' : u.role === 'teacher' ? 'Professor' : 'Admin'})
+                            {u.name} ({u.role === 'student' ? 'Estudante' : u.role === 'teacher' ? 'Professor' : 'Admin'})
                           </option>
                         ))}
                       </select>
@@ -309,7 +309,7 @@ export const ManageCourses = () => {
                               <span className="text-sm font-medium" style={{ color: '#2C1A0E' }}>{m.name}</span>
                               <span className="text-xs ml-2 px-1.5 py-0.5 rounded-full"
                                 style={{ backgroundColor: m.role === 'teacher' ? '#36555A' : '#7C1805', color: '#FDF3E8' }}>
-                                {m.role === 'student' ? 'Aluno' : m.role === 'teacher' ? 'Professor' : 'Admin'}
+                                {m.role === 'student' ? 'Estudante' : m.role === 'teacher' ? 'Professor' : 'Admin'}
                               </span>
                             </div>
                             <button onClick={() => removeMember(course.id, m.id)}

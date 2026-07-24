@@ -66,7 +66,7 @@ export const StudentProgress = () => {
     const scores = essays.filter(e => e.score != null).map(e => e.score);
     const avg = scores.length ? Math.round(scores.reduce((a,b)=>a+b,0)/scores.length) : 0;
     exportToPDF(`Evolução — ${student.name}`, `
-      <h1>Evolução do Aluno</h1>
+      <h1>Evolução do Estudante</h1>
       <p class="subtitle">${student.name} · ${student.email}</p>
       <div class="stat-grid">
         <div class="stat-box"><div class="stat-value">${stats.total}</div><div class="stat-label">Total de Redações</div></div>
@@ -119,7 +119,7 @@ export const StudentProgress = () => {
   if (!data) return (
     <Layout>
       <Card className="p-10 text-center bg-white">
-        <p style={{ color: 'var(--text-secondary)' }}>Aluno não encontrado</p>
+        <p style={{ color: 'var(--text-secondary)' }}>Estudante não encontrado</p>
       </Card>
     </Layout>
   );

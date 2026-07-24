@@ -201,7 +201,7 @@ export const Register = () => {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="student">Aluno</SelectItem>
+                    <SelectItem value="student">Estudante</SelectItem>
                     <SelectItem value="teacher">Professor</SelectItem>
                   </SelectContent>
                 </Select>

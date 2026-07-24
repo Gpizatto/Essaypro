@@ -165,9 +165,9 @@ export const AdminDashboard = () => {
           ${stats.top_prompts.map((p, i) => `<tr><td>${i+1}</td><td>${p.title}</td><td>${p.count}</td></tr>`).join('')}
         </table>` : ''}
       ${stats?.top_students?.length ? `
-        <h2>Alunos Mais Ativos</h2>
+        <h2>Estudantes Mais Ativos</h2>
         <table>
-          <tr><th>#</th><th>Aluno</th><th>Redações</th></tr>
+          <tr><th>#</th><th>Estudante</th><th>Redações</th></tr>
           ${stats.top_students.map((s, i) => `<tr><td>${i+1}</td><td>${s.name}</td><td>${s.count}</td></tr>`).join('')}
         </table>` : ''}
     `);
@@ -177,7 +177,7 @@ export const AdminDashboard = () => {
     const headers = ['Métrica', 'Valor'];
     const rows = [
       ['Total de Usuários', stats?.total_users || 0],
-      ['Total de Alunos', stats?.total_students || 0],
+      ['Total de Estudantes', stats?.total_students || 0],
       ['Total de Professores', stats?.total_teachers || 0],
       ['Redações Enviadas', stats?.total_essays || 0],
       ['Redações Pendentes', stats?.total_pending || 0],
@@ -278,7 +278,7 @@ export const AdminDashboard = () => {
         {/* Métricas principais */}
         <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <StatCard label="Usuários" value={stats?.total_users || 0} Icon={Users} color="var(--accent-red)"
-            sub={`${stats?.total_students || 0} alunos · ${stats?.total_teachers || 0} prof.`} />
+            sub={`${stats?.total_students || 0} estudantes · ${stats?.total_teachers || 0} prof.`} />
           <StatCard label="Redações" value={stats?.total_essays || 0} Icon={FileText} color="var(--accent-orange)" />
           <StatCard label="Pendentes" value={stats?.total_pending || 0} Icon={Clock} color="#DAB257"
             sub={`${pendingRate}% do total`} />
@@ -357,7 +357,7 @@ export const AdminDashboard = () => {
                           onChange={e => setPendingSelections(prev => ({ ...prev, [u.id]: { ...prev[u.id], role: e.target.value }}))}
                           style={{ fontSize: '12px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', color: 'var(--text-primary)', backgroundColor: 'white' }}
                         >
-                          <option value="student">Aluno</option>
+                          <option value="student">Estudante</option>
                           <option value="teacher">Professor</option>
                           <option value="admin">Admin</option>
                         </select>
@@ -396,7 +396,7 @@ export const AdminDashboard = () => {
           </Card>
         )}
 
-        {/* Top propostas + Top alunos */}
+        {/* Top propostas + Top estudantes */}
         <div className="grid md:grid-cols-2 gap-4">
           <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: 'var(--border-color)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
@@ -423,7 +423,7 @@ export const AdminDashboard = () => {
           <Card className="bg-white border" style={{ padding: '20px', borderRadius: '14px', borderColor: 'var(--border-color)' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
               <TrendingUp size={16} style={{ color: 'var(--accent-red)' }} />
-              <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-red)' }}>Alunos mais ativos</h2>
+              <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-red)' }}>Estudantes mais ativos</h2>
             </div>
             {stats?.top_students?.length > 0 ? (
               <div className="space-y-3">
@@ -450,7 +450,7 @@ export const AdminDashboard = () => {
             <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--accent-red)' }}>Créditos de Envio</h2>
           </div>
           <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginBottom: '16px' }}>
-            Configure quantas redações cada aluno pode enviar por período.
+            Configure quantas redações cada estudante pode enviar por período.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'flex-end', gap: '12px' }}>
             <div>

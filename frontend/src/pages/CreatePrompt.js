@@ -281,7 +281,7 @@ export const CreatePrompt = () => {
             <h1 className="font-heading font-black" style={{ color: 'var(--accent-red)', fontSize: 'clamp(24px, 6vw, 36px)' }} data-testid="create-prompt-title">
               Criar Nova Proposta
             </h1>
-            <p className="text-lg mt-2 text-slate-600">Adicione uma nova proposta de redação para os alunos</p>
+            <p className="text-lg mt-2 text-slate-600">Adicione uma nova proposta de redação para os estudantes</p>
           </div>
           {/* #3 — Botão Salvar Rascunho no topo */}
           <div className="flex items-center gap-2 pt-1 flex-wrap">
@@ -323,7 +323,7 @@ export const CreatePrompt = () => {
               {availableCourses.length > 0 && (
                 <div>
                   <Label className="text-sm font-semibold">Restringir a turmas <span className="font-normal">(opcional)</span></Label>
-                  <p className="text-xs mt-0.5 mb-2" style={{ color: 'var(--text-secondary)' }}>Deixe em branco para todos os alunos verem.</p>
+                  <p className="text-xs mt-0.5 mb-2" style={{ color: 'var(--text-secondary)' }}>Deixe em branco para todos os estudantes verem.</p>
                   <div className="flex flex-wrap gap-2">
                     {availableCourses.filter(c => c.is_active).map(c => (
                       <label key={c.id} className="flex items-center gap-1.5 cursor-pointer text-xs px-3 py-1.5 rounded-full border transition-all"

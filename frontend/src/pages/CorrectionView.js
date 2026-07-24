@@ -42,12 +42,12 @@ export const CorrectionView = () => {
   const [intervention, setIntervention] = useState({ teacher_comment: '', suggest_rewrite: false, mark_important: false, extra_material: '' });
   const [correctionHistory, setCorrectionHistory] = useState([]);
   const [showHistory, setShowHistory] = useState(false); // U-10
-  const [evolutionData, setEvolutionData] = useState([]); // evolução do aluno por competência
+  const [evolutionData, setEvolutionData] = useState([]); // evolução do estudante por competência
   const [savingIntervention, setSavingIntervention] = useState(false);
   const [interventionDirty, setInterventionDirty] = useState(false);
   // Reescrita
   const [rewriteData, setRewriteData] = useState(null);       // { rewrite, rewrite_correction } — para professor ver reescrita
-  const [parentCorrectionData, setParentCorrectionData] = useState(null); // { parent_essay_id, parent_correction } — para aluno ver nota original
+  const [parentCorrectionData, setParentCorrectionData] = useState(null); // { parent_essay_id, parent_correction } — para estudante ver nota original
 
   useEffect(() => {
     fetchData();
@@ -555,7 +555,7 @@ export const CorrectionView = () => {
             <div style={{ position: 'relative', maxWidth: '800px', width: '100%', margin: '0 auto' }}>
               <img
                 src={imageBlobUrl || essay.file_url}
-                alt="Redação do aluno"
+                alt="Redação do estudante"
                 style={{ width: '100%', display: 'block', borderRadius: '8px', border: '1px solid var(--border-color)' }}
               />
               {/* Mostrar anotações: preferir pdf_annotations[1], fallback para canvas_annotations */}
@@ -669,7 +669,7 @@ export const CorrectionView = () => {
           <p className="text-slate-700 leading-relaxed">{correction.general_feedback}</p>
         </Card>
 
-        {/* COMPARAÇÃO DE NOTAS — aluno vê nota original vs reescrita */}
+        {/* COMPARAÇÃO DE NOTAS — estudante vê nota original vs reescrita */}
         {user?.role === 'student' && parentCorrectionData && (
           <Card className="p-4 sm:p-6 bg-white border" style={{ borderLeft: '4px solid var(--accent-green)' }}>
             <h3 className="font-semibold mb-4 flex items-center gap-2" style={{ color: 'var(--accent-red)' }}>
@@ -713,7 +713,7 @@ export const CorrectionView = () => {
             <div className="flex items-center justify-between flex-wrap gap-3">
               <div>
                 <p className="font-semibold text-sm flex items-center gap-2" style={{ color: 'var(--accent-orange)' }}>
-                  <RotateCcw size={16} /> O aluno enviou uma reescrita
+                  <RotateCcw size={16} /> O estudante enviou uma reescrita
                 </p>
                 <p className="text-xs mt-1" style={{ color: 'var(--text-secondary)' }}>
                   {rewriteData.rewrite_correction
@@ -732,7 +732,7 @@ export const CorrectionView = () => {
           </Card>
         )}
 
-        {/* COMENTÁRIO COMPLEMENTAR DO PROFESSOR — visível ao aluno */}
+        {/* COMENTÁRIO COMPLEMENTAR DO PROFESSOR — visível ao estudante */}
         {correction.teacher_comment && user?.role === 'student' && (
           <Card className="p-4 sm:p-5 bg-white border" style={{ borderLeft: '4px solid #D9B2CF' }}>
             <div className="flex items-center gap-2 mb-2">
@@ -743,7 +743,7 @@ export const CorrectionView = () => {
           </Card>
         )}
 
-        {/* MATERIAL EXTRA — visível ao aluno */}
+        {/* MATERIAL EXTRA — visível ao estudante */}
         {correction.extra_material && user?.role === 'student' && (
           <Card className="p-4 sm:p-5 bg-white border" style={{ borderLeft: '4px solid #DAB257' }}>
             <div className="flex items-center gap-2 mb-2">
@@ -798,14 +798,14 @@ export const CorrectionView = () => {
                   }}
                 >
                   <RotateCcw size={14} />
-                  {intervention.suggest_rewrite ? 'Reescrita sugerida ✓' : 'Sugerir reescrita ao aluno'}
+                  {intervention.suggest_rewrite ? 'Reescrita sugerida ✓' : 'Sugerir reescrita ao estudante'}
                 </button>
               </div>
 
               {/* Comentário complementar */}
               <div>
                 <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-primary)' }}>
-                  Comentário complementar <span style={{ color: 'var(--text-secondary)' }}>(visível ao aluno)</span>
+                  Comentário complementar <span style={{ color: 'var(--text-secondary)' }}>(visível ao estudante)</span>
                 </label>
                 <Textarea
                   rows={3}
@@ -819,7 +819,7 @@ export const CorrectionView = () => {
               {/* Material extra */}
               <div>
                 <label className="text-xs font-semibold block mb-1" style={{ color: 'var(--text-primary)' }}>
-                  Material extra <span style={{ color: 'var(--text-secondary)' }}>(link ou descrição — visível ao aluno)</span>
+                  Material extra <span style={{ color: 'var(--text-secondary)' }}>(link ou descrição — visível ao estudante)</span>
                 </label>
                 <input
                   type="text"
@@ -858,7 +858,7 @@ export const CorrectionView = () => {
         )}
       </div>
 
-        {/* BOTÃO REESCRITA — aluno vê quando permitido ou quando professor solicitou */}
+        {/* BOTÃO REESCRITA — estudante vê quando permitido ou quando professor solicitou */}
         {user?.role === 'student' && courseSettings?.allow_rewrite !== false && !rewriteData && (
         <Card className="p-4 sm:p-6 bg-white border" style={{
           borderColor: intervention.suggest_rewrite ? 'var(--accent-orange)' : '#DAB257',
@@ -1072,4 +1072,3 @@ export const CorrectionView = () => {
     </Layout>
   );
 };
- 

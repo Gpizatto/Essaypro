@@ -10,7 +10,7 @@ import { toast } from 'sonner';
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 const ROLE_MAP = {
-  student:  { label: 'Aluno',     color: '#2563EB' },
+  student:  { label: 'Estudante',     color: '#2563EB' },
   teacher:  { label: 'Professor', color: 'var(--accent-green)' },
   corretor: { label: 'Corretor',  color: '#7C3AED' },
   admin:    { label: 'Admin',     color: 'var(--accent-red)' },
@@ -133,7 +133,7 @@ export const AdminUsers = () => {
             Gerenciamento de Usuários
           </h1>
           <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-            {counts.total} usuários · {counts.students} alunos · {counts.teachers} professores · {counts.corretores} corretores
+            {counts.total} usuários · {counts.students} estudantes · {counts.teachers} professores · {counts.corretores} corretores
             {counts.inactive > 0 && ` · ${counts.inactive} inativos`}
           </p>
         </div>
@@ -156,7 +156,7 @@ export const AdminUsers = () => {
             </div>
             <select value={filterRole} onChange={e => handleRoleFilterChange(e.target.value)} style={selectStyle}>
               <option value="all">Todas as funções</option>
-              <option value="student">Alunos</option>
+              <option value="student">Estudantes</option>
               <option value="teacher">Professores</option>
               <option value="corretor">Corretores</option>
               <option value="admin">Admins</option>
@@ -223,7 +223,7 @@ export const AdminUsers = () => {
                               padding: '4px 8px',
                             }}
                           >
-                            <option value="student">Aluno</option>
+                            <option value="student">Estudante</option>
                             <option value="teacher">Professor</option>
                             <option value="corretor">Corretor</option>
                             <option value="admin">Admin</option>

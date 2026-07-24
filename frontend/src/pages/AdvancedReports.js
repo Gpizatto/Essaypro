@@ -70,11 +70,11 @@ export const AdvancedReports = () => {
   }, [students, search, sortBy]);
 
   const handleExportRankingPDF = () => {
-    exportToPDF('Ranking de Alunos — RcN', `
-      <h1>Ranking de Desempenho dos Alunos</h1>
-      <p class="subtitle">Gerado em ${new Date().toLocaleDateString('pt-BR')} · ${students.length} alunos</p>
+    exportToPDF('Ranking de Estudantes — RcN', `
+      <h1>Ranking de Desempenho dos Estudantes</h1>
+      <p class="subtitle">Gerado em ${new Date().toLocaleDateString('pt-BR')} · ${students.length} estudantes</p>
       <table>
-        <tr><th>#</th><th>Aluno</th><th>Redações</th><th>Média</th><th>Melhor</th><th>Evolução</th><th>Freq./sem</th></tr>
+        <tr><th>#</th><th>Estudante</th><th>Redações</th><th>Média</th><th>Melhor</th><th>Evolução</th><th>Freq./sem</th></tr>
         ${filteredStudents.map((s, i) => `<tr>
           <td>${i + 1}</td><td>${s.name}</td><td>${s.total_essays}</td>
           <td>${s.average_score || '—'}</td><td>${s.best_score || '—'}</td>
@@ -86,7 +86,7 @@ export const AdvancedReports = () => {
   };
 
   const handleExportRankingExcel = () => {
-    exportToExcel('ranking-alunos',
+    exportToExcel('ranking-estudantes',
       ['#', 'Nome', 'Redações', 'Corrigidas', 'Reescritas', 'Média', 'Melhor Nota', 'Evolução', 'Freq./Semana', 'Último Envio'],
       filteredStudents.map((s, i) => [
         i + 1, s.name, s.total_essays, s.corrected, s.rewrites,
@@ -125,7 +125,7 @@ export const AdvancedReports = () => {
   };
 
   const TABS = [
-    { key: 'ranking', label: 'Ranking de Alunos', icon: Trophy },
+    { key: 'ranking', label: 'Ranking de Estudantes', icon: Trophy },
     { key: 'prompts', label: 'Análise de Propostas', icon: BookOpen },
     { key: 'engagement', label: 'Engajamento por Turma', icon: Users },
   ];
@@ -174,7 +174,7 @@ export const AdvancedReports = () => {
                 <div className="relative flex-1 min-w-[180px]">
                   <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: '#6B5B4E' }} />
                   <input value={search} onChange={e => setSearch(e.target.value)}
-                    placeholder="Buscar aluno..."
+                    placeholder="Buscar estudante..."
                     style={{ width: '100%', padding: '6px 10px 6px 28px', borderRadius: '6px', border: '1px solid #E8DDD0', fontSize: '13px', color: '#2C1A0E', outline: 'none' }} />
                 </div>
                 <select value={sortBy} onChange={e => setSortBy(e.target.value)} style={selectStyle}>
@@ -228,7 +228,7 @@ export const AdvancedReports = () => {
                   <thead>
                     <tr style={{ backgroundColor: '#FDF3E8', borderBottom: '1px solid #E8DDD0' }}>
                       <th className="text-left px-4 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>#</th>
-                      <th className="text-left px-4 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>ALUNO</th>
+                      <th className="text-left px-4 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>ESTUDANTE</th>
                       <th className="text-center px-3 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>RED.</th>
                       <th className="text-center px-3 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>MÉDIA</th>
                       <th className="text-center px-3 py-3 text-xs font-bold" style={{ color: '#7C1805' }}>MELHOR</th>
@@ -272,7 +272,7 @@ export const AdvancedReports = () => {
                 </table>
               </div>
               <div className="px-4 py-2 text-xs" style={{ color: '#6B5B4E', borderTop: '1px solid #F0EBE3' }}>
-                {filteredStudents.length} aluno{filteredStudents.length !== 1 ? 's' : ''}
+                {filteredStudents.length} estudante{filteredStudents.length !== 1 ? 's' : ''}
               </div>
             </Card>
           </div>

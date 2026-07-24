@@ -1186,7 +1186,7 @@ export const CorrectEssay = () => {
         { withCredentials: true }
       );
 
-      // Se reescrita marcada, notificar o aluno via endpoint de intervenção
+      // Se reescrita marcada, notificar o estudante via endpoint de intervenção
       if (suggestRewrite) {
         try {
           await axios.post(
@@ -1642,10 +1642,10 @@ export const CorrectEssay = () => {
           </div>{/* fim toolbar */}
           </div>{/* fim toolbar wrapper */}
 
-          {/* RECADO DO ALUNO */}
+          {/* RECADO DO ESTUDANTE */}
           {essay.student_note && (
             <div className="mx-4 mt-3 px-4 py-3 rounded-lg" style={{ backgroundColor: 'var(--bg-primary)', border: '1px solid #DAB257' }}>
-              <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>✉ Recado do aluno:</p>
+              <p className="text-xs font-semibold mb-1" style={{ color: 'var(--accent-orange)' }}>✉ Recado do estudante:</p>
               <p className="text-sm" style={{ color: 'var(--text-primary)' }}>{essay.student_note}</p>
             </div>
           )}
@@ -1672,7 +1672,7 @@ export const CorrectEssay = () => {
               {/* Header: título + navegação de páginas + botões */}
               <div className="flex items-center justify-between mb-3">
                 <span className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>
-                  📄 PDF do aluno
+                  📄 PDF do estudante
                 </span>
                 <div className="flex items-center gap-2">
                   {pdfTotalPages > 1 && (
@@ -1906,7 +1906,7 @@ export const CorrectEssay = () => {
               {essay?.file_url && pdfImagePages.length === 0 &&
                (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) && (
                 <div className="flex items-center justify-between mb-2 flex-wrap gap-2">
-                  <span className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>🖼️ Imagem do aluno</span>
+                  <span className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>🖼️ Imagem do estudante</span>
                   <div className="flex gap-1 items-center">
                     <button onClick={() => setImageRotation(r => (r - 90 + 360) % 360)} title="Girar esquerda"
                       className="text-xs px-2 py-1 rounded border font-bold" style={{ borderColor: 'var(--border-color)', color: 'var(--text-secondary)' }}>↺</button>
@@ -1959,7 +1959,7 @@ export const CorrectEssay = () => {
                 </div>
               )}
 
-              {/* Imagem direta (JPG/PNG enviado pelo aluno) */}
+              {/* Imagem direta (JPG/PNG enviado pelo estudante) */}
               {essay?.file_url && pdfImagePages.length === 0 &&
                (essay.submission_method === 'upload' || /\.(jpg|jpeg|png|gif|webp)/i.test(essay.file_url)) && (
                 <div style={{ overflow: 'auto', maxHeight: '92vh', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
@@ -1986,7 +1986,7 @@ export const CorrectEssay = () => {
                     )}
                     <img
                       src={imageBlobUrl || ''}
-                      alt="Redação do aluno"
+                      alt="Redação do estudante"
                       style={{ width: '100%', display: imageBlobUrl ? 'block' : 'none' }}
                       onLoad={(e) => {
                         const canvas = nativeCanvasRef.current;
@@ -2402,7 +2402,7 @@ export const CorrectEssay = () => {
                 value={feedback.general_feedback}
                 onChange={(e) => setFeedback({ ...feedback, general_feedback: e.target.value })}
                 rows={6}
-                placeholder="Escreva aqui o feedback completo para o aluno..." style={{ fontSize: "16px" }}
+                placeholder="Escreva aqui o feedback completo para o estudante..." style={{ fontSize: "16px" }}
                 data-testid="general-feedback-input"
               />
             </div>

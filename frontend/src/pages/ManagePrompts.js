@@ -316,7 +316,7 @@ export const ManagePrompts = () => {
                           {(prompt.course_ids || []).length === 0 && (
                             <span className="text-xs px-2 py-0.5 rounded-full"
                               style={{ backgroundColor: 'var(--bg-primary)', color: 'var(--accent-orange)', border: '1px solid var(--accent-orange)' }}>
-                              Todos os alunos
+                              Todos os estudantes
                             </span>
                           )}
                         </div>

@@ -51,10 +51,10 @@ export const TeacherStudents = () => {
       <div className="space-y-5">
         <div>
           <h1 className="font-heading font-bold text-3xl" style={{ color: '#7C1805' }}>
-            Acompanhamento de Alunos
+            Acompanhamento de Estudantes
           </h1>
           <p className="text-sm mt-1" style={{ color: '#6B5B4E' }}>
-            {students.length} aluno{students.length !== 1 ? 's' : ''} cadastrado{students.length !== 1 ? 's' : ''}
+            {students.length} estudante{students.length !== 1 ? 's' : ''} cadastrado{students.length !== 1 ? 's' : ''}
           </p>
         </div>
 
@@ -65,7 +65,7 @@ export const TeacherStudents = () => {
             <input
               value={search}
               onChange={e => handleSearchChange(e.target.value)}
-              placeholder="Buscar aluno por nome ou email..."
+              placeholder="Buscar estudante por nome ou email..."
               style={{
                 width: '100%', padding: '7px 10px 7px 30px',
                 borderRadius: '6px', border: '1px solid #E8DDD0',
@@ -78,7 +78,7 @@ export const TeacherStudents = () => {
         {filtered.length === 0 ? (
           <Card className="p-10 text-center bg-white">
             <Users size={40} className="mx-auto mb-3" style={{ color: '#D66B27' }} />
-            <p style={{ color: '#6B5B4E' }}>Nenhum aluno encontrado</p>
+            <p style={{ color: '#6B5B4E' }}>Nenhum estudante encontrado</p>
           </Card>
         ) : (
           <div className="space-y-2">

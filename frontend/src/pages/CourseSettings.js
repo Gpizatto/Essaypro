@@ -139,7 +139,7 @@ export const CourseSettings = () => {
               Configurações Pedagógicas
             </h1>
             <p className="text-sm mt-1" style={{ color: 'var(--text-secondary)' }}>
-              Controle o que alunos e corretores podem fazer na plataforma
+              Controle o que estudantes e corretores podem fazer na plataforma
             </p>
           </div>
           <div className="flex gap-2 flex-wrap">
@@ -161,35 +161,35 @@ export const CourseSettings = () => {
           </div>
         )}
 
-        {/* SEÇÃO ALUNO */}
+        {/* SEÇÃO ESTUDANTE */}
         <Card className="p-5 bg-white border shadow-sm">
-          <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent-orange)' }}>ÁREA DO ALUNO</p>
+          <p className="text-xs font-bold mb-1" style={{ color: 'var(--accent-orange)' }}>ÁREA DO ESTUDANTE</p>
 
           <SettingRow
             icon={User}
             title="Exibir nome do corretor"
-            description="O aluno vê quem corrigiu a redação dele"
+            description="O estudante vê quem corrigiu a redação dele"
             checked={settings.show_teacher_name}
             onChange={v => update('show_teacher_name', v)}
           />
           <SettingRow
             icon={MessageSquare}
             title="Permitir dúvidas pós-correção"
-            description="O aluno pode enviar uma mensagem após receber a correção"
+            description="O estudante pode enviar uma mensagem após receber a correção"
             checked={settings.allow_post_correction_doubt}
             onChange={v => update('allow_post_correction_doubt', v)}
           />
           <SettingRow
             icon={Download}
             title="Permitir downloads"
-            description="O aluno pode baixar redação e correção em arquivo"
+            description="O estudante pode baixar redação e correção em arquivo"
             checked={settings.allow_download}
             onChange={v => update('allow_download', v)}
           />
           <SettingRow
             icon={RotateCcw}
             title="Permitir reescrita"
-            description="O aluno pode enviar uma nova versão após ser corrigido"
+            description="O estudante pode enviar uma nova versão após ser corrigido"
             checked={settings.allow_rewrite}
             onChange={v => update('allow_rewrite', v)}
           />
@@ -197,7 +197,7 @@ export const CourseSettings = () => {
             <SettingRow
               icon={RotateCcw}
               title="Reescrita obrigatória"
-              description="O aluno é obrigado a reescrever antes de enviar nova redação"
+              description="O estudante é obrigado a reescrever antes de enviar nova redação"
               checked={settings.require_rewrite}
               onChange={v => update('require_rewrite', v)}
               disabled={!settings.allow_rewrite}
@@ -250,7 +250,7 @@ export const CourseSettings = () => {
           <SettingRow
             icon={Shield}
             title="Confirmar antes de publicar correção"
-            description="Exibe uma confirmação antes de publicar a correção para o aluno"
+            description="Exibe uma confirmação antes de publicar a correção para o estudante"
             checked={settings.confirm_before_publish !== false}
             onChange={v => update('confirm_before_publish', v)}
           />

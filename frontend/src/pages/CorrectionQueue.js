@@ -303,7 +303,7 @@ export const CorrectionQueue = () => {
               <input
                 value={search}
                 onChange={e => handleSearch(e.target.value)}
-                placeholder="Buscar aluno ou proposta..."
+                placeholder="Buscar estudante ou proposta..."
                 style={{
                   width: '100%', padding: '10px 10px 10px 30px',
                   borderRadius: '8px', border: '1px solid var(--border-color)',
@@ -332,7 +332,7 @@ export const CorrectionQueue = () => {
             <select value={sortBy} onChange={e => handleSort(e.target.value)} style={{ ...selectStyle, maxWidth: '180px' }}>
               <option value="oldest">Mais antigas primeiro</option>
               <option value="newest">Mais recentes primeiro</option>
-              <option value="name">Por nome do aluno</option>
+              <option value="name">Por nome do estudante</option>
             </select>
 
             {(search || filterPrompt !== 'all' || filterCourse !== 'all') && (
@@ -415,7 +415,7 @@ export const CorrectionQueue = () => {
                           </div>
                           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '14px', fontSize: '12.5px', color: 'var(--text-secondary)' }}>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                              <User size={13} /> {essay.student_name || 'Aluno'}
+                              <User size={13} /> {essay.student_name || 'Estudante'}
                             </span>
                             <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
                               <Clock size={13} />
@@ -467,7 +467,7 @@ export const CorrectionQueue = () => {
                             <Button
                               variant="ghost"
                               size="sm"
-                              onClick={() => deleteEssay(essay.id, essay.student_name || 'aluno')}
+                              onClick={() => deleteEssay(essay.id, essay.student_name || 'estudante')}
                               title="Deletar redação"
                               style={{ color: '#DC2626', padding: '6px 8px' }}
                             >
