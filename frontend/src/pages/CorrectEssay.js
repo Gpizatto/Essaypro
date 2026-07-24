@@ -102,7 +102,7 @@ export const CorrectEssay = () => {
   const [clickCommentText, setClickCommentText] = useState('');
   const [clickCommentCanvasPos, setClickCommentCanvasPos] = useState({ x: 0, y: 0 });
   // Caixa de texto no canvas (#9)
-  const [textboxInput, setTextboxInput] = useState({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
+  const [textboxInput, setTextboxInput] = useState({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16, bgMode: false, editingId: null });
   const textboxInputRef = useRef(null);
   // Caixas de texto arrastáveis — guardadas como objetos, não queimadas no canvas
   const [canvasTextboxes, setCanvasTextboxes] = useState([]);
@@ -308,6 +308,7 @@ export const CorrectEssay = () => {
           feedback,
           inlineComments,
           textAnnotations,
+          canvasTextboxes,
           // canvasDataUrl omitido intencionalmente no auto-save
         }, { withCredentials: true });
         setAutoSaveStatus('saved');
@@ -315,7 +316,7 @@ export const CorrectEssay = () => {
       } catch (e) { setAutoSaveStatus(''); }
     }, 45000); // 45s — menos frequente que antes (era 30s)
     return () => { if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current); };
-  }, [scores, feedback, inlineComments]);
+  }, [scores, feedback, inlineComments, canvasTextboxes]);
 
   // Inicializar canvas nativo quando o essay carregar
   useEffect(() => {
@@ -532,6 +533,7 @@ export const CorrectEssay = () => {
         if (d.scores) setScores(d.scores);
         if (d.feedback) setFeedback(d.feedback);
         if (d.inlineComments) setInlineComments(d.inlineComments);
+        if (d.canvasTextboxes) setCanvasTextboxes(d.canvasTextboxes);
         pendingDraftRef.current = {
           textAnnotations: d.textAnnotations || null,
           canvasDataUrl: d.canvasDataUrl || null,
@@ -689,11 +691,19 @@ export const CorrectEssay = () => {
 
   // Eventos de desenho no canvas nativo
   // Adicionar textbox arrastável
-  const commitTextbox = (text, canvasX, canvasY, color, fontSize) => {
+  const commitTextbox = (text, canvasX, canvasY, color, fontSize, bgMode = false, editingId = null) => {
     if (!text.trim()) return;
+    if (editingId) {
+      // Edição de caixa existente — preserva posição/tamanho, atualiza conteúdo e estilo
+      setCanvasTextboxes(prev => prev.map(tb => tb.id === editingId
+        ? { ...tb, text, color, fontSize, originalFontSize: fontSize, bgMode, width: null, height: null, initialWidth: null }
+        : tb));
+      return;
+    }
     setCanvasTextboxes(prev => [...prev, {
       id: `tb_${Date.now()}`,
       text, canvasX, canvasY, color,
+      bgMode,             // true = fundo colorido com letra branca
       fontSize,           // fontSize atual (muda proporcionalmente ao resize)
       originalFontSize: fontSize, // referência original para cálculo proporcional
       width: null, height: null,  // definidos após primeiro render/resize
@@ -708,12 +718,32 @@ export const CorrectEssay = () => {
     canvasTextboxes.forEach(tb => {
       ctx.save();
       ctx.font = `${tb.fontSize}px Arial, sans-serif`;
-      ctx.fillStyle = tb.color;
       ctx.textBaseline = 'top';
       const lines = tb.text.split('\n');
       const lineHeight = tb.fontSize * 1.4;
       // Usar maxWidth se a caixa foi redimensionada
       const maxW = tb.width ? tb.width - 8 : undefined;
+      if (tb.bgMode) {
+        // Fundo colorido arredondado + letra branca
+        const pad = 6;
+        const textW = maxW || Math.max(...lines.map(l => ctx.measureText(l).width));
+        const boxW = textW + pad * 2;
+        const boxH = lines.length * lineHeight + pad * 2 - (lineHeight - tb.fontSize);
+        const r = 6;
+        const x = tb.canvasX - pad, y = tb.canvasY - pad;
+        ctx.fillStyle = tb.color;
+        ctx.beginPath();
+        ctx.moveTo(x + r, y);
+        ctx.arcTo(x + boxW, y, x + boxW, y + boxH, r);
+        ctx.arcTo(x + boxW, y + boxH, x, y + boxH, r);
+        ctx.arcTo(x, y + boxH, x, y, r);
+        ctx.arcTo(x, y, x + boxW, y, r);
+        ctx.closePath();
+        ctx.fill();
+        ctx.fillStyle = '#FFFFFF';
+      } else {
+        ctx.fillStyle = tb.color;
+      }
       lines.forEach((line, i) => {
         if (maxW) ctx.fillText(line, tb.canvasX, tb.canvasY + i * lineHeight, maxW);
         else ctx.fillText(line, tb.canvasX, tb.canvasY + i * lineHeight);
@@ -735,27 +765,18 @@ export const CorrectEssay = () => {
       // Posição na tela (para o input flutuante)
       const screenX = e.clientX !== undefined ? e.clientX : rect.left + (pos.x / canvas.width) * rect.width;
       const screenY = e.clientY !== undefined ? e.clientY : rect.top + (pos.y / canvas.height) * rect.height;
-      setTextboxInput({ visible: true, x: screenX, y: screenY, canvasX: pos.x, canvasY: pos.y, text: '', fontSize: 16 });
+      setTextboxInput({ visible: true, x: screenX, y: screenY, canvasX: pos.x, canvasY: pos.y, text: '', fontSize: 16, bgMode: false, editingId: null });
       setTimeout(() => textboxInputRef.current?.focus(), 50);
       return;
     }
 
     // Comentário por clique em imagem/PDF (sem precisar selecionar texto)
+    // O pin visual é o overlay arrastável (💬) criado só APÓS confirmar o
+    // comentário — nada é desenhado em pixels no canvas, então dá para
+    // mover e remover depois sem "sujar" a imagem.
     if (tool === 'comment' && essay?.file_url) {
       if (!ensureCtx()) return;
       const pos = getPos(e);
-      const ctx = ctxRef.current;
-      const color = selectedColorRef.current;
-      ctx.save();
-      ctx.beginPath();
-      ctx.arc(pos.x, pos.y - 6, 10, 0, 2 * Math.PI);
-      ctx.fillStyle = color; ctx.fill();
-      ctx.beginPath();
-      ctx.moveTo(pos.x - 4, pos.y - 2); ctx.lineTo(pos.x + 4, pos.y - 2); ctx.lineTo(pos.x, pos.y + 8);
-      ctx.closePath(); ctx.fill();
-      ctx.fillStyle = 'white'; ctx.font = 'bold 11px sans-serif';
-      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-      ctx.fillText('!', pos.x, pos.y - 6); ctx.restore();
       setClickCommentText('');
       setClickCommentCanvasPos({ x: pos.x, y: pos.y });
       setShowClickCommentPopup(true);
@@ -880,7 +901,8 @@ export const CorrectEssay = () => {
   const saveDraft = async () => {
     setSavingDraft(true);
     try {
-      burnTextboxesToCanvas();
+      // Textboxes NÃO são queimadas no rascunho — ficam editáveis;
+      // são salvas como estado (canvasTextboxes) e queimadas só ao publicar.
       // Salvar canvas como dataUrl
       let canvasDraft = null;
       if (nativeCanvasRef.current) {
@@ -905,6 +927,7 @@ export const CorrectEssay = () => {
         inlineComments,
         canvasDataUrl: canvasDraft,
         textAnnotations,
+        canvasTextboxes,
         pdfAnnotations: (pdfDocRef.current || pdfImagePages.length > 0) ? pdfAnnotationsRef.current : undefined,
       }, { withCredentials: true });
       setDraftSaved(true);
@@ -1082,26 +1105,25 @@ export const CorrectEssay = () => {
   };
 
   const handleScoreChange = (criteriaId, value, max) => {
-    const numValue = parseInt(value) || 0;
-    
+    // Aceita vírgula ou ponto como separador decimal (ex.: "8,5")
+    const numValue = parseFloat(String(value).replace(',', '.')) || 0;
+
     if (numValue < 0) {
       setScores({ ...scores, [criteriaId]: 0 });
+      setScoreErrors({ ...scoreErrors, [criteriaId]: '' });
       return;
     }
-    
+
     if (numValue > max) {
       setScores({ ...scores, [criteriaId]: max });
       setScoreErrors({ ...scoreErrors, [criteriaId]: '' });
       return;
     }
-    
-    if (numValue % 40 !== 0) {
-      setScores({ ...scores, [criteriaId]: numValue });
-      setScoreErrors({ ...scoreErrors, [criteriaId]: 'Use múltiplos de 40 (0, 40, 80...)' });
-    } else {
-      setScores({ ...scores, [criteriaId]: numValue });
-      setScoreErrors({ ...scoreErrors, [criteriaId]: '' });
-    }
+
+    // Sem validação de múltiplos de 40: os níveis da grade definem os
+    // valores válidos, e grades personalizadas podem usar decimais.
+    setScores({ ...scores, [criteriaId]: Math.round(numValue * 100) / 100 });
+    setScoreErrors({ ...scoreErrors, [criteriaId]: '' });
   };
 
 
@@ -1190,7 +1212,7 @@ export const CorrectEssay = () => {
   // Helper  // Helper: abre popup de edição para uma textbox existente
   // Helper: JSX de uma textbox arrastável com resize nativo
   // Componente React para textbox arrastável e redimensionável
-  const TextboxItem = React.memo(({ tb, draggingId, canvasRef, onDragStart, onResize, onRemove }) => {
+  const TextboxItem = React.memo(({ tb, draggingId, canvasRef, onDragStart, onResize, onRemove, onEdit }) => {
     const elRef = React.useRef(null);
 
     // Capturar largura natural após montagem (sem chamar setState durante render)
@@ -1234,16 +1256,18 @@ export const CorrectEssay = () => {
       }}>
         <div
           ref={elRef}
+          onDoubleClick={(e) => { e.stopPropagation(); onEdit(tb, e); }}
+          title="Duplo clique para editar"
           style={{
             fontFamily: 'Arial, sans-serif',
             fontSize: `${tb.fontSize}px`,
-            color: tb.color,
+            color: tb.bgMode ? '#FFFFFF' : tb.color,
             whiteSpace: 'pre-wrap',
             lineHeight: 1.4,
-            padding: '2px 6px',
+            padding: tb.bgMode ? '4px 8px' : '2px 6px',
             border: '1px dashed rgba(0,0,0,0.3)',
-            borderRadius: '3px',
-            backgroundColor: 'rgba(255,255,255,0.05)',
+            borderRadius: tb.bgMode ? '6px' : '3px',
+            backgroundColor: tb.bgMode ? tb.color : 'rgba(255,255,255,0.05)',
             minWidth: '40px',
             minHeight: `${tb.fontSize * 1.4 + 6}px`,
             width: tb.width ? `${tb.width}px` : 'auto',
@@ -1291,6 +1315,23 @@ export const CorrectEssay = () => {
     setCanvasTextboxes(prev => prev.filter(t => t.id !== id));
   };
 
+  const handleTextboxEdit = (tb, e) => {
+    // Reabre o popup de edição preenchido com o conteúdo da caixa
+    setTextboxInput({
+      visible: true,
+      x: Math.min(e.clientX, window.innerWidth - 260),
+      y: Math.min(e.clientY, window.innerHeight - 220),
+      canvasX: tb.canvasX,
+      canvasY: tb.canvasY,
+      text: tb.text,
+      fontSize: tb.fontSize,
+      color: tb.color,
+      bgMode: !!tb.bgMode,
+      editingId: tb.id,
+    });
+    setTimeout(() => textboxInputRef.current?.focus(), 50);
+  };
+
   const renderTextbox = (tb) => (
     <TextboxItem
       key={tb.id}
@@ -1300,6 +1341,7 @@ export const CorrectEssay = () => {
       onDragStart={handleTextboxDragStart}
       onResize={handleTextboxResize}
       onRemove={handleTextboxRemove}
+      onEdit={handleTextboxEdit}
     />
   );
 
@@ -1380,7 +1422,7 @@ export const CorrectEssay = () => {
           <h1 className="font-heading font-bold truncate" style={{ color: 'var(--accent-red)', fontSize: 'clamp(15px, 3vw, 20px)' }}>
             {essay.prompt_title}
           </h1>
-          <p className="text-xs sm:text-sm text-slate-500 truncate">Aluno: {essay.student_name}</p>
+          <p className="text-xs sm:text-sm text-slate-500 truncate">Estudante: {essay.student_name}</p>
         </div>
         <div className="flex items-center gap-2 flex-wrap flex-shrink-0">
           <button
@@ -2008,7 +2050,6 @@ export const CorrectEssay = () => {
               {/* Campo de texto — só para redações digitadas (sem file_url e sem páginas PDF) */}
               <div
                 ref={textRef}
-                style={{ display: (essay?.file_url || pdfImagePages.length > 0) ? 'none' : undefined }}
                 onMouseUp={(e) => {
                   handleTextSelection(e);
                   // C1: Mini toolbar ao selecionar texto
@@ -2022,6 +2063,24 @@ export const CorrectEssay = () => {
                   }
                 }}
                 onDoubleClick={() => setSelectedTool('comment')}
+                onClick={(e) => {
+                  // Com a ferramenta Selecionar: clicar numa marcação
+                  // (sublinhado, grifo ou risco) remove a marcação.
+                  if (selectedToolRef.current !== 'select') return;
+                  const span = e.target.closest('span');
+                  if (!span || !textRef.current?.contains(span)) return;
+                  if (span.closest('[data-comment-id]')) return; // comentário tem seu próprio ✕
+                  const st = span.style || {};
+                  const isAnnotation = st.borderBottom || st.backgroundColor || (st.textDecoration || '').includes('line-through');
+                  if (!isAnnotation) return;
+                  if (!window.confirm('Remover esta marcação?')) return;
+                  saveDomHistory();
+                  const parent = span.parentNode;
+                  while (span.firstChild) parent.insertBefore(span.firstChild, span);
+                  parent.removeChild(span);
+                  parent.normalize();
+                  toast.success('Marcação removida');
+                }}
                 onContextMenu={(e) => { e.preventDefault(); setSelectedTool('pen'); }}
                 onMouseMove={(e) => {
                   setTooltipPosition({ x: e.clientX, y: e.clientY });
@@ -2043,6 +2102,7 @@ export const CorrectEssay = () => {
                 }}
                 className="bg-white shadow-sm rounded-lg p-12 relative z-10"
                 style={{
+                  display: (essay?.file_url || pdfImagePages.length > 0) ? 'none' : undefined,
                   fontSize: '18px',
                   fontFamily: 'Lora, serif',
                   lineHeight: '1.8',
@@ -2255,6 +2315,32 @@ export const CorrectEssay = () => {
                       })}
                     </div>
 
+                    {/* Campo livre — aceita decimais com vírgula (ex.: 8,5) */}
+                    <div className="flex items-center gap-2 mt-2">
+                      <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>Ou digite a nota:</span>
+                      <input
+                        type="text"
+                        inputMode="decimal"
+                        placeholder={`0 a ${criterion.peso_maximo}`}
+                        defaultValue=""
+                        onBlur={(e) => {
+                          if (e.target.value.trim() === '') return;
+                          handleScoreChange(criterion.id, e.target.value, criterion.peso_maximo);
+                          e.target.value = '';
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault();
+                            handleScoreChange(criterion.id, e.target.value, criterion.peso_maximo);
+                            e.target.value = '';
+                            e.target.blur();
+                          }
+                        }}
+                        style={{ width: '90px', padding: '4px 8px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}
+                        data-testid={`score-input-${criterion.id}`}
+                      />
+                    </div>
+
                     {/* Descrição do nível selecionado */}
                     {(() => {
                       // Comparação tolerante: 200 === 200.0, evita bug float vs int
@@ -2320,7 +2406,6 @@ export const CorrectEssay = () => {
                 data-testid="general-feedback-input"
               />
             </div>
-}
           </div>
         </div>
       </div>
@@ -2372,7 +2457,7 @@ export const CorrectEssay = () => {
             onChange={e => setTextboxInput(prev => ({ ...prev, text: e.target.value }))}
             onKeyDown={e => {
               if (e.key === 'Escape') {
-                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
+                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16, bgMode: false, editingId: null });
               }
               // Ctrl+Enter confirma
               if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
@@ -2383,8 +2468,10 @@ export const CorrectEssay = () => {
                   textboxInput.canvasY,
                   textboxInput.color || selectedColor,
                   textboxInput.fontSize,
+                  textboxInput.bgMode,
+                  textboxInput.editingId,
                 );
-                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
+                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16, bgMode: false, editingId: null });
               }
             }}
             placeholder="Digite o texto... (Ctrl+Enter para confirmar)"
@@ -2396,16 +2483,26 @@ export const CorrectEssay = () => {
               border: '1px solid var(--border-color)',
               fontSize: `${textboxInput.fontSize}px`,
               fontFamily: 'Arial, sans-serif',
-              color: textboxInput.color || selectedColor,
+              color: textboxInput.bgMode ? '#FFFFFF' : (textboxInput.color || selectedColor),
+              backgroundColor: textboxInput.bgMode ? (textboxInput.color || selectedColor) : 'transparent',
               resize: 'both',
               outline: 'none',
               boxSizing: 'border-box',
             }}
           />
+          {/* Opção: fundo colorido com letra branca */}
+          <label style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--text-primary)', cursor: 'pointer', userSelect: 'none' }}>
+            <input
+              type="checkbox"
+              checked={!!textboxInput.bgMode}
+              onChange={(e) => setTextboxInput(prev => ({ ...prev, bgMode: e.target.checked }))}
+              style={{ cursor: 'pointer' }}
+            />
+            Fundo colorido (letra branca)
+          </label>
           {/* Botões */}
           <div style={{ display: 'flex', gap: '6px', justifyContent: 'flex-end' }}>
-            <button onClick={() => setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 })}
-              onClick={() => setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 })}
+            <button onClick={() => setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16, bgMode: false, editingId: null })}
               style={{ fontSize: '12px', padding: '4px 10px', borderRadius: '6px', border: '1px solid var(--border-color)', color: 'var(--text-secondary)', cursor: 'pointer', background: 'white' }}>
               Cancelar
             </button>
@@ -2417,8 +2514,10 @@ export const CorrectEssay = () => {
                   textboxInput.canvasY,
                   textboxInput.color || selectedColor,
                   textboxInput.fontSize,
+                  textboxInput.bgMode,
+                  textboxInput.editingId,
                 );
-                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16 });
+                setTextboxInput({ visible: false, x: 0, y: 0, canvasX: 0, canvasY: 0, text: '', fontSize: 16, bgMode: false, editingId: null });
               }}
               disabled={!textboxInput.text.trim()}
               style={{
@@ -2427,7 +2526,7 @@ export const CorrectEssay = () => {
                 cursor: textboxInput.text.trim() ? 'pointer' : 'not-allowed',
                 opacity: textboxInput.text.trim() ? 1 : 0.5, fontWeight: 600,
               }}>
-              ✓ Inserir texto
+              {textboxInput.editingId ? '✓ Salvar alterações' : '✓ Inserir texto'}
             </button>
           </div>
         </div>
@@ -2696,9 +2795,6 @@ export const CorrectEssay = () => {
             </div>
           </div>
         </div>
-      )}
-
-
       )}
 
       {/* U-09: MODAL DE ATALHOS DE TECLADO */}
