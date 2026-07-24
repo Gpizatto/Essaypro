@@ -134,7 +134,17 @@ export const ManagePrompts = () => {
   const saveEdit = async (promptId) => {
     setSaving(true);
     try {
-      await axios.put(`${API_URL}/api/prompts/${promptId}`, editForm, { withCredentials: true });
+      const pBR = (v) => { const n = parseFloat(String(v ?? '').replace(',', '.')); return isNaN(n) ? 0 : n; };
+      const payload = {
+        ...editForm,
+        criteria: (editForm.criteria || []).map(c => ({
+          ...c,
+          ...(c.max !== undefined ? { max: pBR(c.max) } : {}),
+          ...(c.peso_maximo !== undefined ? { peso_maximo: pBR(c.peso_maximo) } : {}),
+          level_descriptions: (c.level_descriptions || []).map(l => ({ ...l, pontuacao: pBR(l.pontuacao) })),
+        })),
+      };
+      await axios.put(`${API_URL}/api/prompts/${promptId}`, payload, { withCredentials: true });
       toast.success('Proposta atualizada!');
       setEditingPrompt(null);
       fetchPrompts();
@@ -485,9 +495,10 @@ export const ManagePrompts = () => {
                               />
                               <div className="flex items-center gap-2">
                                 <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>Pontuação máx:</span>
-                                <input type="number" min="1"
+                                <input type="text" inputMode="decimal"
                                   value={crit.max}
-                                  onChange={e => updateCriterion(ci, 'max', Number(e.target.value))}
+                                  onChange={e => updateCriterion(ci, 'max', e.target.value.replace(/[^0-9.,]/g, ''))}
+                                  onBlur={e => updateCriterion(ci, 'max', parseFloat(String(e.target.value).replace(',', '.')) || 0)}
                                   style={{ width: '70px', padding: '3px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }}
                                 />
                               </div>
@@ -507,9 +518,10 @@ export const ManagePrompts = () => {
                             </div>
                             {(crit.level_descriptions || []).map((lv, li) => (
                               <div key={li} className="flex gap-2 items-center">
-                                <input type="number" min="0"
+                                <input type="text" inputMode="decimal"
                                   value={lv.pontuacao}
-                                  onChange={e => updateLevel(ci, li, 'pontuacao', Number(e.target.value))}
+                                  onChange={e => updateLevel(ci, li, 'pontuacao', e.target.value.replace(/[^0-9.,]/g, ''))}
+                                  onBlur={e => updateLevel(ci, li, 'pontuacao', parseFloat(String(e.target.value).replace(',', '.')) || 0)}
                                   style={{ width: '60px', padding: '3px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '11px' }}
                                   placeholder="Pts"
                                 />
