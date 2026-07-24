@@ -100,6 +100,13 @@ export const CreatePrompt = () => {
     return () => document.removeEventListener('keydown', handler);
   }, [formData, criteria, selectedModel]);
 
+  // Aceita vírgula OU ponto como separador decimal (ex.: "8,5" → 8.5)
+  const parseBR = (v) => {
+    if (typeof v === 'number') return v;
+    const n = parseFloat(String(v ?? '').replace(',', '.'));
+    return isNaN(n) ? 0 : n;
+  };
+
   const buildEmptyLevels = (pesoMaximo) => {
     const levels = [];
     const step = pesoMaximo <= 10 ? 1 : pesoMaximo <= 50 ? 5 : 40;
@@ -153,12 +160,13 @@ export const CreatePrompt = () => {
     const updated = criteria.map((c, i) => {
       if (i !== index) return c; // preserva os demais critérios intactos
       const next = { ...c, [field]: value };
-      if (field === 'peso_maximo' && !isNaN(value) && value > 0) {
+      const numValue = field === 'peso_maximo' ? parseBR(value) : null;
+      if (field === 'peso_maximo' && numValue > 0) {
         // Preserva TODOS os níveis existentes — apenas limita pontuações que ultrapassam o novo máximo
         const existing = c.level_descriptions || [];
         const newLevels = existing.map(l => ({
           ...l,
-          pontuacao: parseFloat(l.pontuacao) > value ? value : l.pontuacao,
+          pontuacao: parseBR(l.pontuacao) > numValue ? numValue : l.pontuacao,
         }));
         next.level_descriptions = newLevels;
       }
@@ -249,7 +257,12 @@ export const CreatePrompt = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      await axios.post(`${API_URL}/api/prompts`, { ...formData, criteria }, { withCredentials: true });
+      const normalizedCriteria = criteria.map(c => ({
+        ...c,
+        peso_maximo: parseBR(c.peso_maximo),
+        level_descriptions: (c.level_descriptions || []).map(l => ({ ...l, pontuacao: parseBR(l.pontuacao) })),
+      }));
+      await axios.post(`${API_URL}/api/prompts`, { ...formData, criteria: normalizedCriteria }, { withCredentials: true });
       await axios.delete(`${API_URL}/api/prompts/draft`, { withCredentials: true }).catch(() => {});
       toast.success('Proposta criada com sucesso!');
       navigate('/dashboard');
@@ -382,7 +395,7 @@ export const CreatePrompt = () => {
                           <span className="text-xs" style={{ color: 'var(--text-primary)' }}>{f.name}</span>
                         </div>
                         <div className="flex items-center gap-2">
-                          <a href={f.url} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--accent-green)' }}>Visualizar</a>
+                          <a href={f.url && f.url.startsWith('/api/') ? `${API_URL}${f.url}` : f.url} target="_blank" rel="noreferrer" className="text-xs" style={{ color: 'var(--accent-green)' }}>Visualizar</a>
                           <button type="button" onClick={() => removeFile(i)} className="text-xs" style={{ color: 'var(--accent-red)' }}>✕</button>
                         </div>
                       </div>
@@ -529,9 +542,10 @@ export const CreatePrompt = () => {
                     </div>
                     <div>
                       <Label className="text-xs">Pontuação Máxima</Label>
-                      <Input type="number" value={criterion.peso_maximo}
-                        onChange={(e) => handleCriterionChange(index, 'peso_maximo', parseFloat(e.target.value) || 0)}
-                        min={0.5} step={0.5} className="mt-1" data-testid={`criterion-peso-${index}`} />
+                      <Input type="text" inputMode="decimal" value={criterion.peso_maximo}
+                        onChange={(e) => handleCriterionChange(index, 'peso_maximo', e.target.value.replace(/[^0-9.,]/g, ''))}
+                        onBlur={(e) => handleCriterionChange(index, 'peso_maximo', parseBR(e.target.value) || 0)}
+                        placeholder="Ex: 200 ou 2,5" className="mt-1" data-testid={`criterion-peso-${index}`} />
                     </div>
 
                     {/* Níveis */}
@@ -553,8 +567,9 @@ export const CreatePrompt = () => {
                           {(criterion.level_descriptions || []).map((level, li) => (
                             <div key={li} className="p-3 rounded-lg border" style={{ backgroundColor: '#FFF', borderColor: 'var(--border-color)' }}>
                               <div className="flex items-center gap-2 mb-2">
-                                <input type="number" min="0" value={level.pontuacao}
-                                  onChange={(e) => handleLevelChange(index, li, 'pontuacao', Number(e.target.value))}
+                                <input type="text" inputMode="decimal" value={level.pontuacao}
+                                  onChange={(e) => handleLevelChange(index, li, 'pontuacao', e.target.value.replace(/[^0-9.,]/g, ''))}
+                                  onBlur={(e) => handleLevelChange(index, li, 'pontuacao', parseBR(e.target.value))}
                                   style={{ width: '64px', padding: '2px 6px', borderRadius: '6px', border: '1px solid var(--border-color)', fontSize: '12px' }} />
                                 <span className="text-xs" style={{ color: 'var(--text-secondary)' }}>pts</span>
                                 <Input value={level.proficiencia}
@@ -580,7 +595,7 @@ export const CreatePrompt = () => {
 
             <div className="mt-4 p-4 rounded-md" style={{ backgroundColor: '#E0E7FF' }}>
               <p className="text-sm font-semibold" style={{ color: 'var(--accent-red)' }}>
-                Pontuação Total: {criteria.reduce((sum, c) => sum + (c.peso_maximo || 0), 0)} pontos
+                Pontuação Total: {criteria.reduce((sum, c) => sum + parseBR(c.peso_maximo), 0)} pontos
               </p>
             </div>
           </Card>
