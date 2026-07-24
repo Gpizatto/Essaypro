@@ -19,7 +19,7 @@ export const BRANDING_DEFAULTS = {
   text_soft_color: '#6B5B4E',
   border_color: '#E8DDD0',
   // Nomes de perfis
-  role_student: 'Aluno',
+  role_student: 'Estudante',
   role_teacher: 'Professor',
   role_admin: 'Admin',
   // Textos
@@ -109,7 +109,7 @@ export const BrandingProvider = ({ children }) => {
   };
 
   const roleLabel = (role) => {
-    if (role === 'student') return branding.role_student || 'Aluno';
+    if (role === 'student') return branding.role_student || 'Estudante';
     if (role === 'teacher') return branding.role_teacher || 'Professor';
     if (role === 'admin')   return branding.role_admin   || 'Admin';
     return role;
