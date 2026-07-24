@@ -1233,7 +1233,7 @@ async def save_draft(body: dict, current_user: dict = Depends(get_current_user))
     if not essay_id:
         raise HTTPException(status_code=400, detail="essay_id required")
     # Salvar todos os campos incluindo canvasDataUrl e textAnnotations
-    allowed = {"scores", "feedback", "inlineComments", "canvasDataUrl", "textAnnotations"}
+    allowed = {"scores", "feedback", "inlineComments", "canvasDataUrl", "textAnnotations", "canvasTextboxes", "pdfAnnotations"}
     draft_data = {k: v for k, v in body.items() if k in allowed}
     draft_data["teacher_id"] = current_user["_id"]
     draft_data["saved_at"] = datetime.now(timezone.utc)
@@ -1590,9 +1590,8 @@ async def upload_file(
 
     import base64
     data_b64 = base64.b64encode(data).decode('utf-8')
-    data_url = f"data:{mime};base64,{data_b64}"
-    
-    # Salvar no MongoDB como backup
+
+    # Salvar no MongoDB
     await db.uploaded_files.insert_one({
         "file_id": file_id,
         "filename": file.filename,
@@ -1603,10 +1602,15 @@ async def upload_file(
         "created_at": datetime.now(timezone.utc),
     })
 
+    # Retornar URL relativa do endpoint de arquivos.
+    # (Antes retornava um data URL base64 gigante: navegadores bloqueiam
+    # data URLs em nova aba — "Visualizar" não abria — e o payload de
+    # POST /essays estourava o limite de documento do MongoDB, quebrando
+    # o envio de imagem/PDF pelo aluno.)
     return {
         "file_id": file_id,
         "filename": file.filename,
-        "url": data_url,  # data URL — funciona direto no <img src> sem HTTP request
+        "url": f"/api/files/{file_id}",
         "size": len(data),
     }
 
@@ -1648,11 +1652,16 @@ async def serve_file(file_id: str, request: Request):
 
         # CORS explícito — necessário para <img> cross-origin
         origin = request.headers.get("origin", "*")
+        # Nomes com acento (ex.: "redação.pdf") quebram o header HTTP (latin-1).
+        # RFC 5987: fallback ASCII + filename* codificado em UTF-8.
+        from urllib.parse import quote
+        ascii_name = filename.encode('ascii', 'ignore').decode('ascii') or f"arquivo.{(filename.rsplit('.', 1)[-1] if '.' in filename else 'bin')}"
+        content_disposition = f"inline; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(filename)}"
         return Response(
             content=file_bytes,
             media_type=mime,
             headers={
-                "Content-Disposition": f'inline; filename="{filename}"',
+                "Content-Disposition": content_disposition,
                 "Cache-Control": "public, max-age=3600",
                 "Content-Length": str(len(file_bytes)),
                 "Access-Control-Allow-Origin": origin,
@@ -2772,7 +2781,7 @@ DEFAULT_BRANDING = {
     "text_soft_color": "#6B5B4E",
     "border_color": "#E8DDD0",
     # Nomes de perfis
-    "role_student": "Aluno",
+    "role_student": "Estudante",
     "role_teacher": "Professor",
     "role_admin": "Admin",
     "welcome_message": "",
