@@ -16,6 +16,82 @@ const formatApiErrorDetail = (detail) => {
   return String(detail);
 };
 
+/* ───────────────────────── Stickers ilustrados (SVG) ─────────────────────────
+   Recriações em SVG dos elementos da identidade visual, cada um sobre um
+   "papelzinho" branco levemente rotacionado, como colagem num quadro.       */
+
+const Sticker = ({ style, rotate = 0, children, hideOnMobile = true }) => (
+  <div
+    aria-hidden="true"
+    className={hideOnMobile ? 'hidden md:block' : ''}
+    style={{
+      position: 'absolute',
+      backgroundColor: '#FFFFFF',
+      padding: '10px',
+      borderRadius: '4px',
+      boxShadow: '0 6px 18px rgba(60,40,20,0.14), 0 2px 4px rgba(60,40,20,0.08)',
+      transform: `rotate(${rotate}deg)`,
+      pointerEvents: 'none',
+      ...style,
+    }}
+  >
+    {children}
+  </div>
+);
+
+const PencilArt = () => (
+  <svg width="52" height="72" viewBox="0 0 52 72" fill="none">
+    <rect x="20" y="8" width="12" height="42" rx="2" transform="rotate(8 26 29)" fill="#C2410C" />
+    <rect x="20" y="4" width="12" height="8" rx="2" transform="rotate(8 26 8)" fill="#F59E0B" />
+    <path d="M24 52 L33 50 L30 63 Z" fill="#F3D9B1" />
+    <path d="M27.5 57 L31 56 L30 63 Z" fill="#7C1805" />
+    <path d="M14 18 C10 24 10 32 14 38" stroke="#7C1805" strokeWidth="2" strokeLinecap="round" fill="none" />
+    <path d="M40 16 C44 22 44 30 40 36" stroke="#7C1805" strokeWidth="2" strokeLinecap="round" fill="none" />
+  </svg>
+);
+
+const QuotesArt = () => (
+  <svg width="64" height="46" viewBox="0 0 64 46" fill="none">
+    <path d="M8 6 C2 12 2 22 8 28 L18 28 C14 22 14 14 20 8 Z" fill="#DAB257" />
+    <path d="M36 6 C30 12 30 22 36 28 L46 28 C42 22 42 14 48 8 Z" fill="#DAB257" />
+    <path d="M10 34 C20 42 44 42 54 34" stroke="#7C1805" strokeWidth="2" strokeLinecap="round" fill="none" />
+  </svg>
+);
+
+const OpenBookHandArt = () => (
+  <svg width="86" height="76" viewBox="0 0 86 76" fill="none">
+    {/* mão levantada */}
+    <path d="M46 30 L46 12 M42 14 L42 26 M50 14 L50 26 M54 18 L54 28" stroke="#7C1805" strokeWidth="4" strokeLinecap="round" />
+    <ellipse cx="48" cy="30" rx="8" ry="6" fill="#7C1805" />
+    {/* livro aberto */}
+    <path d="M8 44 C22 34 38 36 43 42 L43 68 C38 62 22 60 8 68 Z" fill="#C9B6E4" stroke="#7C1805" strokeWidth="2" />
+    <path d="M78 44 C64 34 48 36 43 42 L43 68 C48 62 64 60 78 68 Z" fill="#E5DCF2" stroke="#7C1805" strokeWidth="2" />
+    <path d="M16 48 C24 44 32 45 38 48 M16 54 C24 50 32 51 38 54 M48 48 C56 44 64 45 70 48 M48 54 C56 50 64 51 70 54" stroke="#7C1805" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+  </svg>
+);
+
+const BookArt = () => (
+  <svg width="72" height="60" viewBox="0 0 72 60" fill="none">
+    <path d="M6 16 C18 8 32 10 36 15 L36 50 C32 45 18 43 6 50 Z" fill="#F59E0B" stroke="#7C1805" strokeWidth="2" />
+    <path d="M66 16 C54 8 40 10 36 15 L36 50 C40 45 54 43 66 50 Z" fill="#FBBF24" stroke="#7C1805" strokeWidth="2" />
+    <path d="M12 20 C19 17 27 18 32 20 M12 27 C19 24 27 25 32 27 M12 34 C19 31 27 32 32 34 M40 20 C47 17 55 18 60 20 M40 27 C47 24 55 25 60 27" stroke="#7C1805" strokeWidth="1.5" strokeLinecap="round" fill="none" />
+  </svg>
+);
+
+const HandArt = () => (
+  <svg width="64" height="58" viewBox="0 0 64 58" fill="none">
+    <path d="M8 34 C8 26 14 22 20 24 L20 14 C20 10 26 10 26 14 L26 22 L28 8 C29 4 35 5 34 9 L33 22 L37 12 C38.5 8.5 44 10 43 14 L40 26 L46 20 C49 17 53 21 50 24 L40 38 C36 46 26 50 18 46 C12 43 8 39 8 34 Z" fill="#FDF3E8" stroke="#7C1805" strokeWidth="2.5" strokeLinejoin="round" />
+  </svg>
+);
+
+const ChairArt = () => (
+  <svg width="52" height="66" viewBox="0 0 52 66" fill="none">
+    <path d="M14 6 L14 34 M14 12 C24 8 34 8 40 12 L40 34" stroke="#3B6FA0" strokeWidth="3" strokeLinecap="round" fill="none" />
+    <path d="M10 34 L44 34 M14 34 L12 60 M40 34 L44 60 M18 34 L20 60 M36 34 L34 60" stroke="#3B6FA0" strokeWidth="3" strokeLinecap="round" />
+    <rect x="12" y="30" width="30" height="6" rx="2" fill="#8FB4D9" stroke="#3B6FA0" strokeWidth="2" />
+  </svg>
+);
+
 export const Login = () => {
   const [branding, setBranding] = useState({ platform_name: 'redação com nicolle', welcome_message: '', logo_url: '' });
 
@@ -47,136 +123,162 @@ export const Login = () => {
   };
 
   return (
-    <div className="min-h-screen flex" style={{ backgroundColor: 'var(--bg-primary)' }}>
-
-      {/* Painel esquerdo */}
-      <div
-        className="hidden md:flex md:w-2/5 lg:w-1/2 flex-col justify-between p-10 lg:p-12"
-        style={{ backgroundColor: 'var(--accent-red)', position: 'relative', overflow: 'hidden' }}
+    <div
+      className="min-h-screen flex items-center justify-center px-4 py-10"
+      style={{ backgroundColor: '#EFE9DD', position: 'relative', overflow: 'hidden' }}
+    >
+      {/* Moldura de manchas — blobs suaves nas bordas do quadro */}
+      <svg
+        aria-hidden="true"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', pointerEvents: 'none' }}
+        viewBox="0 0 1200 800"
+        preserveAspectRatio="xMidYMid slice"
       >
-        {/* Círculos decorativos sutis */}
-        <svg
-          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.07, pointerEvents: 'none' }}
-          viewBox="0 0 500 800"
-          preserveAspectRatio="xMidYMid slice"
-          aria-hidden="true"
-        >
-          <circle cx="420" cy="100" r="220" fill="#DAB257" />
-          <circle cx="-60" cy="480" r="260" fill="#DAB257" />
-          <circle cx="320" cy="760" r="160" fill="var(--bg-primary)" />
-        </svg>
+        <ellipse cx="80" cy="60" rx="180" ry="120" fill="#E4DBC8" opacity="0.6" />
+        <ellipse cx="1140" cy="90" rx="200" ry="130" fill="#E7DECD" opacity="0.55" />
+        <ellipse cx="60" cy="740" rx="190" ry="140" fill="#E7DECD" opacity="0.5" />
+        <ellipse cx="1150" cy="730" rx="210" ry="150" fill="#E4DBC8" opacity="0.6" />
+        <ellipse cx="600" cy="-40" rx="320" ry="90" fill="#EAE2D2" opacity="0.5" />
+        <ellipse cx="600" cy="840" rx="340" ry="100" fill="#EAE2D2" opacity="0.5" />
+      </svg>
 
-        {/* Logo */}
-        <div style={{ position: 'relative' }}>
-          <h1 className="font-script leading-tight" style={{ fontSize: '52px', color: 'var(--bg-primary)' }}>
-            redação
+      {/* Stickers colados no quadro */}
+      <Sticker rotate={-8} style={{ top: '10%', left: '12%' }}><PencilArt /></Sticker>
+      <Sticker rotate={5} style={{ top: '26%', left: '20%' }}><QuotesArt /></Sticker>
+      <Sticker rotate={7} style={{ top: '9%', right: '13%' }}><OpenBookHandArt /></Sticker>
+      <Sticker rotate={-5} style={{ bottom: '18%', right: '11%' }}><BookArt /></Sticker>
+      <Sticker rotate={-10} style={{ bottom: '12%', left: '16%' }}><HandArt /></Sticker>
+      <Sticker rotate={6} style={{ bottom: '30%', right: '22%' }}><ChairArt /></Sticker>
+
+      {/* Coluna central */}
+      <div className="w-full max-w-md" style={{ position: 'relative', zIndex: 2 }}>
+
+        {/* Título manuscrito */}
+        <div className="text-center mb-5">
+          <h1 className="font-script leading-tight" style={{ fontSize: 'clamp(34px, 6vw, 44px)', color: '#3E2A1E' }}>
+            {branding.platform_name?.includes('nicolle') ? (
+              <>
+                redação<br />com nicolle
+              </>
+            ) : (
+              branding.platform_name
+            )}
           </h1>
-          <h1 className="font-script leading-tight" style={{ fontSize: '52px', color: '#DAB257' }}>
-            com nicolle
-          </h1>
         </div>
 
-        {/* Citação */}
+        {/* Card branco */}
         <div style={{ position: 'relative' }}>
-          <div style={{ width: '32px', height: '2px', backgroundColor: '#DAB257', marginBottom: '16px', borderRadius: '1px' }} />
-          <p className="font-heading font-medium leading-relaxed mb-3" style={{ fontSize: '18px', color: 'rgba(253,243,232,0.85)' }}>
-            "A escrita é a pintura da voz."
-          </p>
-          <p className="font-script" style={{ fontSize: '16px', color: '#DAB257' }}>— Voltaire</p>
-        </div>
-
-        <div style={{ position: 'relative' }}>
-          <p style={{ fontSize: '11px', color: 'rgba(253,243,232,0.35)', letterSpacing: '0.04em' }}>
-            Plataforma de correção de redações
-          </p>
-        </div>
-      </div>
-
-      {/* Painel direito */}
-      <div className="flex-1 flex items-center justify-center px-5 py-8 sm:px-8">
-        <div className="w-full max-w-md">
-
-          {/* Logo mobile */}
-          <div className="md:hidden text-center mb-6">
-            <h1 className="font-script text-4xl" style={{ color: 'var(--accent-red)' }}>redação</h1>
-            <h1 className="font-script text-4xl" style={{ color: 'var(--accent-orange)' }}>com nicolle</h1>
+          {/* Etiqueta amarela com a citação */}
+          <div
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: '-16px',
+              right: '-10px',
+              backgroundColor: '#DAB257',
+              color: '#3E2A1E',
+              padding: '6px 14px',
+              borderRadius: '3px',
+              transform: 'rotate(4deg)',
+              boxShadow: '0 3px 10px rgba(60,40,20,0.22)',
+              zIndex: 3,
+            }}
+          >
+            <span className="font-script" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
+              "a escrita é a pintura da voz"
+            </span>
           </div>
 
-          {/* Barra de acento acima do título */}
-          <div style={{ width: '40px', height: '3px', backgroundColor: 'var(--accent-orange)', borderRadius: '2px', marginBottom: '20px' }} />
+          <div
+            className="p-7 sm:p-9"
+            style={{
+              backgroundColor: '#FFFFFF',
+              borderRadius: '18px',
+              boxShadow: '0 18px 44px rgba(60,40,20,0.16), 0 4px 10px rgba(60,40,20,0.08)',
+            }}
+          >
+            <h2 className="font-heading font-bold" style={{ fontSize: '24px', color: '#3E2A1E', marginBottom: '6px', letterSpacing: '-0.02em' }}>
+              Bem-vinda de volta!
+            </h2>
+            <p className="text-sm" style={{ color: 'var(--text-secondary)', marginBottom: '26px' }}>
+              {branding.welcome_message || 'Entre com sua conta para continuar corrigindo redações incríveis'} <span aria-hidden="true">✎</span>
+            </p>
 
-          <h2 className="font-heading font-bold" style={{ fontSize: '26px', color: 'var(--accent-red)', marginBottom: '4px', letterSpacing: '-0.02em' }}>
-            Bem-vinda de volta
-          </h2>
-          <p className="text-sm mb-8" style={{ color: 'var(--text-secondary)' }}>
-            Entre com sua conta para continuar
-          </p>
+            <form onSubmit={handleSubmit} className="space-y-5" data-testid="login-form">
+              <div>
+                <Label htmlFor="email" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Email</Label>
+                <Input
+                  id="email"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  data-testid="email-input"
+                  placeholder="seu@email.com"
+                  style={{
+                    marginTop: '6px',
+                    borderRadius: '10px',
+                    border: '1.5px solid var(--border-color)',
+                    backgroundColor: '#FBF7F0',
+                    padding: '11px 14px',
+                    fontSize: '14px',
+                    minHeight: '44px',
+                  }}
+                  className="focus:border-[var(--accent-red)] focus:ring-[var(--accent-red)]"
+                />
+              </div>
+              <div>
+                <Label htmlFor="password" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Senha</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  data-testid="password-input"
+                  placeholder="••••••••"
+                  style={{
+                    marginTop: '6px',
+                    borderRadius: '10px',
+                    border: '1.5px solid var(--border-color)',
+                    backgroundColor: '#FBF7F0',
+                    padding: '11px 14px',
+                    fontSize: '14px',
+                    minHeight: '44px',
+                  }}
+                  className="focus:border-[var(--accent-red)]"
+                />
+              </div>
 
-          <form onSubmit={handleSubmit} className="space-y-5" data-testid="login-form">
-            <div>
-              <Label htmlFor="email" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                data-testid="email-input"
-                placeholder="seu@email.com"
+              <Button
+                type="submit"
+                className="w-full font-bold"
+                disabled={loading}
+                data-testid="login-submit-button"
                 style={{
-                  marginTop: '6px',
                   borderRadius: '10px',
-                  border: '1.5px solid var(--border-color)',
-                  padding: '11px 14px',
-                  fontSize: '14px',
-                  minHeight: '44px',
+                  fontSize: '15px',
+                  minHeight: '46px',
+                  backgroundColor: 'var(--accent-red)',
+                  color: '#FFFFFF',
                 }}
-                className="focus:border-[var(--accent-red)] focus:ring-[var(--accent-red)]"
-              />
-            </div>
-            <div>
-              <Label htmlFor="password" className="text-sm font-semibold" style={{ color: 'var(--text-primary)' }}>Senha</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                data-testid="password-input"
-                placeholder="••••••••"
-                style={{
-                  marginTop: '6px',
-                  borderRadius: '10px',
-                  border: '1.5px solid var(--border-color)',
-                  padding: '11px 14px',
-                  fontSize: '14px',
-                }}
-                className="focus:border-[var(--accent-red)]"
-              />
-            </div>
+              >
+                {loading ? 'Entrando...' : 'Entrar'}
+              </Button>
+            </form>
 
-            <Button
-              type="submit"
-              className="w-full font-bold"
-              disabled={loading}
-              data-testid="login-submit-button"
-              style={{ borderRadius: '10px', fontSize: '14px', minHeight: '44px' }}
-            >
-              {loading ? 'Entrando...' : 'Entrar'}
-            </Button>
-          </form>
-
-          <p className="mt-5 text-center text-sm" style={{ color: 'var(--text-secondary)' }}>
-            <Link to="/forgot-password" className="hover:underline font-medium" style={{ color: 'var(--accent-red)' }}>
-              Esqueci minha senha
-            </Link>
-          </p>
-          <p className="text-center text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
-            Não tem uma conta?{' '}
-            <Link to="/register" className="font-semibold hover:underline" style={{ color: 'var(--accent-red)' }} data-testid="register-link">
-              Cadastre-se
-            </Link>
-          </p>
+            <p className="mt-5 text-center text-sm">
+              <Link to="/forgot-password" className="hover:underline font-medium" style={{ color: '#6B5B4E' }}>
+                Esqueci minha senha
+              </Link>
+            </p>
+            <p className="text-center text-sm mt-2" style={{ color: 'var(--text-secondary)' }}>
+              Não tem uma conta?{' '}
+              <Link to="/register" className="font-semibold hover:underline" style={{ color: 'var(--accent-red)' }} data-testid="register-link">
+                Cadastre-se
+              </Link>
+            </p>
+          </div>
         </div>
       </div>
     </div>
