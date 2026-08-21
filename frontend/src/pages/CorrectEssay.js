@@ -10,26 +10,25 @@ import { Progress } from '../components/ui/progress';
 import { Badge } from '../components/ui/badge';
 import { Card } from '../components/ui/card';
 import { toast } from 'sonner';
-import { X, Plus, MousePointer, Underline, Highlighter, Strikethrough, MessageSquare, Pen, Eraser, Search, Save, Circle, Square, Minus, MoveRight, Trash2, ZoomIn, ZoomOut, Type } from 'lucide-react';
+import { X, Plus, Pen, Eraser, Search, Save, Circle, Square, Minus, MoveRight, Trash2, ZoomIn, ZoomOut, Type } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_BACKEND_URL;
 
 
+// Paleta oficial da marca — únicas cores disponíveis na correção
 const COLORS = [
-  { name: 'Vermelho', value: '#E53935' },
-  { name: 'Azul', value: '#1565C0' },
-  { name: 'Verde', value: '#2E7D32' },
-  { name: 'Preto', value: '#000000' },
-  { name: 'Roxo', value: '#6A1B9A' },
-  { name: 'Laranja', value: '#E65100' }
+  { name: 'Vinho', value: '#7c1805' },
+  { name: 'Terracota', value: '#a03217' },
+  { name: 'Azul', value: '#99b3ca' },
+  { name: 'Petróleo', value: '#36555a' },
+  { name: 'Rosa', value: '#d9b2cf' },
+  { name: 'Laranja', value: '#d66b27' },
+  { name: 'Dourado', value: '#dab257' },
 ];
 
+// Grupo de anotação de texto removido a pedido — ficam apenas as
+// ferramentas de desenho, que funcionam igual em texto, imagem e PDF.
 const TOOLS = [
-  { id: 'select',        icon: MousePointer, label: 'Seleção (S)',    group: 'text' },
-  { id: 'underline',     icon: Underline,    label: 'Sublinhar (U)',  group: 'text' },
-  { id: 'highlight',     icon: Highlighter,  label: 'Grifar (H)',     group: 'text' },
-  { id: 'strikethrough', icon: Strikethrough,label: 'Riscar (X)',     group: 'text' },
-  { id: 'comment',       icon: MessageSquare,label: 'Comentário (M)', group: 'text' },
   { id: 'pen',           icon: Pen,          label: 'Caneta (P)',     group: 'draw' },
   { id: 'line',          icon: Minus,        label: 'Linha (L)',      group: 'draw' },
   { id: 'arrow',         icon: MoveRight,    label: 'Seta (A)',       group: 'draw' },
@@ -57,9 +56,9 @@ export const CorrectEssay = () => {
   const lastPosRef = useRef({ x: 0, y: 0 });
   const shapeStartRef = useRef({ x: 0, y: 0 });
   const snapshotRef = useRef(null);       // ImageData para preview de formas
-  const selectedToolRef = useRef('select');
-  const selectedColorRef = useRef('#E53935');
-  const penWidthRef = useRef(0.5);
+  const selectedToolRef = useRef('pen');
+  const selectedColorRef = useRef('#7c1805');
+  const penWidthRef = useRef(2.5);
   const historyRef = useRef([]);          // array de ImageData
   const [zoom, setZoom] = useState(1);
 
@@ -75,13 +74,13 @@ export const CorrectEssay = () => {
   const pdfAnnotationsRef = useRef({});
   const pdfPageRef = useRef(1);
 
-  const [selectedTool, setSelectedTool] = useState('select');
-  const [selectedColor, setSelectedColor] = useState('#E53935');
+  const [selectedTool, setSelectedTool] = useState('pen');
+  const [selectedColor, setSelectedColor] = useState('#7c1805');
 
   // Manter refs sincronizados para usar em event listeners sem stale closure
   useEffect(() => { selectedToolRef.current = selectedTool; }, [selectedTool]);
   useEffect(() => { selectedColorRef.current = selectedColor; }, [selectedColor]);
-  const [penWidth, setPenWidth] = useState(0.5);
+  const [penWidth, setPenWidth] = useState(2.5);
   const penOpacity = 1; // sempre sólido
   const [eraserSize, setEraserSize] = useState('medium');
   const [eraserWidth, setEraserWidth] = useState(20);
@@ -220,14 +219,9 @@ export const CorrectEssay = () => {
         'p': 'pen', 'c': 'pen',
         'e': 'eraser',
         'l': 'line',
-        's': 'select',
         'a': 'arrow',
         'o': 'oval',
         'r': 'rect',
-        'u': 'underline',
-        'h': 'highlight',
-        'x': 'strikethrough',
-        'm': 'comment',
         't': 'textbox',
       };
       if (map[e.key]) setSelectedTool(map[e.key]);
@@ -752,8 +746,26 @@ export const CorrectEssay = () => {
     });
   };
 
+  // Garante que o canvas tem bitmap dimensionado antes de desenhar.
+  // Em redações digitadas o dimensionamento vem de um efeito; se ele ainda
+  // não rodou (ou o layout mudou), redimensionamos aqui na hora do clique.
+  const ensureCanvasSize = () => {
+    const canvas = nativeCanvasRef.current;
+    if (!canvas) return false;
+    if (canvas.width >= 2 && canvas.height >= 2) return true;
+    const container = canvasContainerRef.current;
+    const w = container?.offsetWidth || canvas.offsetWidth || 800;
+    const h = Math.max(textRef.current?.scrollHeight || 0, container?.offsetHeight || 0, canvas.offsetHeight || 0, 600);
+    if (w < 1 || h < 1) return false;
+    canvas.width = w;
+    canvas.height = h;
+    ctxRef.current = canvas.getContext('2d');
+    return true;
+  };
+
   const handleCanvasMouseDown = (e) => {
     const tool = selectedToolRef.current;
+    ensureCanvasSize();
 
     // Caixa de texto — clique abre input flutuante no ponto clicado
     if (tool === 'textbox') {
@@ -1519,30 +1531,6 @@ export const CorrectEssay = () => {
           <div className="bg-white border-b"
             style={{ position: 'sticky', top: 0, zIndex: 40, boxShadow: '0 2px 6px rgba(0,0,0,0.06)' }}>
           <div className="p-2 sm:p-3 flex flex-wrap items-center gap-1.5">
-            {/* Ferramentas de texto */}
-            <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
-              {TOOLS.filter(t => t.group === 'text').map(tool => {
-                const Icon = tool.icon;
-                return (
-                  <div key={tool.id} className="relative" style={{ position: 'relative' }}>
-                    <Button
-                      onClick={() => setSelectedTool(tool.id)}
-                      variant={selectedTool === tool.id ? 'default' : 'ghost'}
-                      size="sm"
-                      data-testid={`tool-${tool.id}`}
-                      onMouseEnter={(e) => {
-                        const r = e.currentTarget.getBoundingClientRect();
-                        setActiveTooltip({ label: tool.label, x: r.left + r.width / 2, y: r.bottom + 6 });
-                      }}
-                      onMouseLeave={() => setActiveTooltip(null)}
-                    >
-                      <Icon size={16} />
-                    </Button>
-                  </div>
-                );
-              })}
-            </div>
-
             {/* Ferramentas de desenho */}
             <div className="flex gap-1 p-0.5 rounded" style={{ backgroundColor: '#F0EBE3' }}>
               {TOOLS.filter(t => t.group === 'draw').map(tool => {
@@ -1812,7 +1800,7 @@ export const CorrectEssay = () => {
                         style={{
                           position: 'absolute', top: 0, left: 0,
                           width: '100%', height: '100%',
-                          pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment','textbox'].includes(selectedTool) ? 'all' : 'none',
+                          pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment','textbox'].includes(selectedTool) ? 'auto' : 'none',
                           zIndex: 10,
                           cursor: selectedTool === 'eraser' ? 'none' : selectedTool === 'textbox' ? 'text' : 'crosshair',
                           touchAction: 'none',
@@ -2018,7 +2006,7 @@ export const CorrectEssay = () => {
                       style={{
                         position: 'absolute', top: 0, left: 0,
                         width: '100%', height: '100%',
-                        pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment','textbox'].includes(selectedTool) ? 'all' : 'none',
+                        pointerEvents: ['pen','eraser','line','arrow','oval','rect','comment','textbox'].includes(selectedTool) ? 'auto' : 'none',
                         zIndex: 10,
                         cursor: selectedTool === 'eraser' ? 'none' : selectedTool === 'textbox' ? 'text' : 'crosshair',
                         touchAction: 'none',
@@ -2052,8 +2040,9 @@ export const CorrectEssay = () => {
                 ref={textRef}
                 onMouseUp={(e) => {
                   handleTextSelection(e);
-                  // C1: Mini toolbar ao selecionar texto
-                  const sel = window.getSelection();
+                  // Mini toolbar de seleção desativado — ferramentas de
+                  // anotação de texto foram removidas da correção.
+                  const sel = null;
                   if (sel && sel.toString().trim().length > 0) {
                     const range = sel.getRangeAt(0);
                     const rect = range.getBoundingClientRect();
@@ -2062,7 +2051,6 @@ export const CorrectEssay = () => {
                     setSelectionToolbar(null);
                   }
                 }}
-                onDoubleClick={() => setSelectedTool('comment')}
                 onClick={(e) => {
                   // Com a ferramenta Selecionar: clicar numa marcação
                   // (sublinhado, grifo ou risco) remove a marcação.
@@ -2126,7 +2114,7 @@ export const CorrectEssay = () => {
                     position: 'absolute',
                     top: 0, left: 0,
                     width: '100%', height: '100%',
-                    pointerEvents: ['pen','eraser','line','arrow','oval','rect','textbox'].includes(selectedTool) ? 'all' : 'none',
+                    pointerEvents: ['pen','eraser','line','arrow','oval','rect','textbox'].includes(selectedTool) ? 'auto' : 'none',
                     zIndex: 15,
                     cursor: selectedTool === 'eraser' ? 'none' : selectedTool === 'textbox' ? 'text' : 'crosshair',
                     touchAction: 'none',
@@ -2165,56 +2153,6 @@ export const CorrectEssay = () => {
       )}
 
       {/* C1: MINI TOOLBAR DE SELEÇÃO */}
-      {selectionToolbar && (
-        <div style={{
-          position: 'fixed',
-          left: selectionToolbar.x,
-          top: selectionToolbar.y,
-          transform: 'translate(-50%, -100%)',
-          display: 'flex',
-          gap: '4px',
-          backgroundColor: 'var(--text-primary)',
-          borderRadius: '6px',
-          padding: '4px 6px',
-          zIndex: 9999,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-        }}>
-          <button
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setSelectedTool('comment');
-              setShowCommentPopup(true);
-              setSelectionToolbar(null);
-            }}
-            style={{ color: 'white', fontSize: '11px', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px' }}
-            title="Adicionar comentário"
-          >
-            💬 Comentar
-          </button>
-          <button
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setSelectedTool('underline');
-              setSelectionToolbar(null);
-            }}
-            style={{ color: '#FFD700', fontSize: '11px', fontWeight: '600', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px' }}
-            title="Sublinhar"
-          >
-            U̲
-          </button>
-          <button
-            onMouseDown={(e) => {
-              e.preventDefault();
-              setSelectedTool('highlight');
-              setSelectionToolbar(null);
-            }}
-            style={{ color: '#FFD700', fontSize: '11px', background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px', borderRadius: '4px' }}
-            title="Grifar"
-          >
-            ✏️
-          </button>
-        </div>
-      )}
 
       {/* TOOLTIP GLOBAL */}
       {activeTooltip && (
@@ -2817,17 +2755,12 @@ export const CorrectEssay = () => {
             </div>
             <div className="space-y-1">
               {[
-                { keys: 'S', desc: 'Seleção / mover' },
                 { keys: 'P / C', desc: 'Caneta livre' },
                 { keys: 'E', desc: 'Borracha' },
                 { keys: 'L', desc: 'Linha reta' },
                 { keys: 'A', desc: 'Seta' },
                 { keys: 'R', desc: 'Retângulo' },
                 { keys: 'O', desc: 'Oval / círculo' },
-                { keys: 'U', desc: 'Sublinhado' },
-                { keys: 'H', desc: 'Marcador (highlight)' },
-                { keys: 'X', desc: 'Tachado' },
-                { keys: 'M', desc: 'Comentário' },
                 { keys: 'T', desc: 'Caixa de texto' },
                 { keys: 'Ctrl + Z', desc: 'Desfazer' },
                 { keys: 'Ctrl + Y', desc: 'Refazer' },
