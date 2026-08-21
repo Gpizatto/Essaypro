@@ -185,7 +185,7 @@ export const Login = () => {
             }}
           >
             <span className="font-script" style={{ fontSize: '13px', whiteSpace: 'nowrap' }}>
-              "a escrita é a pintura da voz"
+              construindo pensamentos
             </span>
           </div>
 
@@ -198,7 +198,7 @@ export const Login = () => {
             }}
           >
             <h2 className="font-heading font-bold" style={{ fontSize: '24px', color: '#3E2A1E', marginBottom: '6px', letterSpacing: '-0.02em' }}>
-              Bem-vinda de volta!
+              Bem-vindo de volta!
             </h2>
             <p className="text-sm" style={{ color: 'var(--text-secondary)', marginBottom: '26px' }}>
               {branding.welcome_message || 'Entre com sua conta para continuar corrigindo redações incríveis'} <span aria-hidden="true">✎</span>
